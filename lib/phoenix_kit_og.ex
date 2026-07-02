@@ -208,7 +208,6 @@ defmodule PhoenixKitOg do
     end
   end
 
-
   # Merges the slot mapping with the resolver context into the
   # `%{"slot_name" => "value"}` map the SVG renderer substitutes. The
   # returned map also includes all `[[global]]` values so the renderer
@@ -261,6 +260,7 @@ defmodule PhoenixKitOg do
   defdelegate delete_template(template), to: Templates, as: :delete
 
   defdelegate list_assignments(module_key), to: Assignments, as: :list_for_module
+
   defdelegate set_assignment(module_key, scope_type, scope_uuid, template_uuid),
     to: Assignments,
     as: :set

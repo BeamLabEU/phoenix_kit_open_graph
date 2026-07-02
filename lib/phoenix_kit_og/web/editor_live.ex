@@ -193,8 +193,10 @@ defmodule PhoenixKitOg.Web.EditorLive do
   # not the last-saved template) through the PNG pipeline and opens a
   # modal with social-card mockups.
   def handle_event("open_preview", _params, socket) do
-    template = %PhoenixKitOg.Schemas.Template{
-      socket.assigns.template
+    %PhoenixKitOg.Schemas.Template{} = base_template = socket.assigns.template
+
+    template = %{
+      base_template
       | canvas: socket.assigns.canvas,
         updated_at: DateTime.utc_now()
     }
@@ -225,27 +227,6 @@ defmodule PhoenixKitOg.Web.EditorLive do
   def handle_event("close_preview", _params, socket) do
     {:noreply, assign(socket, :show_preview_modal, false)}
   end
-
-  # Placeholder values so unwired slots don't render as `{{name}}` in
-  # the preview. Text slots get `"Sample <name>"`; image slots point
-  # at the shared stand-in graphic (light-gray square with corner
-  # arrows) so the layout is legible before any wiring.
-  defp placeholder_slot_values(slots) do
-    stand_in = PhoenixKitOg.Render.Placeholder.data_url()
-
-    Enum.reduce(slots, %{}, fn
-      %{name: name, type: :text}, acc -> Map.put(acc, name, "Sample #{name}")
-      %{name: name, type: :image}, acc -> Map.put(acc, name, stand_in)
-      _, acc -> acc
-    end)
-  end
-
-  defp humanize_preview_error(:rasterizer_missing),
-    do:
-      "Preview render needs the resvg NIF (Hex :resvg). It's expected to be a dep — check your workspace deps."
-
-  defp humanize_preview_error(reason),
-    do: "Preview render failed: #{inspect(reason)}"
 
   # =========================================================================
   # Events — property panel
@@ -428,6 +409,31 @@ defmodule PhoenixKitOg.Web.EditorLive do
   end
 
   def handle_info({:media_selector_closed}, socket), do: {:noreply, close_media_selector(socket)}
+
+  # =========================================================================
+  # Preview helpers
+  # =========================================================================
+
+  # Placeholder values so unwired slots don't render as `{{name}}` in
+  # the preview. Text slots get `"Sample <name>"`; image slots point
+  # at the shared stand-in graphic (light-gray square with corner
+  # arrows) so the layout is legible before any wiring.
+  defp placeholder_slot_values(slots) do
+    stand_in = PhoenixKitOg.Render.Placeholder.data_url()
+
+    Enum.reduce(slots, %{}, fn
+      %{name: name, type: :text}, acc -> Map.put(acc, name, "Sample #{name}")
+      %{name: name, type: :image}, acc -> Map.put(acc, name, stand_in)
+      _, acc -> acc
+    end)
+  end
+
+  defp humanize_preview_error(:rasterizer_missing),
+    do:
+      "Preview render needs the resvg NIF (Hex :resvg). It's expected to be a dep — check your workspace deps."
+
+  defp humanize_preview_error(reason),
+    do: "Preview render failed: #{inspect(reason)}"
 
   defp close_media_selector(socket) do
     socket

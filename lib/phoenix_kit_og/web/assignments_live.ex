@@ -23,6 +23,12 @@ defmodule PhoenixKitOg.Web.AssignmentsLive do
 
   alias PhoenixKitOg.{Assignments, Paths, Slots, Templates, Variables}
 
+  # Publishing groups/posts helpers live in the phoenix_kit_publishing
+  # plugin — guarded by `Code.ensure_loaded?/1` in each helper, but the
+  # compiler still warns without an explicit `:no_warn_undefined`.
+  @compile {:no_warn_undefined,
+            [PhoenixKit.Modules.Publishing.Posts, PhoenixKit.Modules.Publishing.Groups]}
+
   @consumer "publishing"
 
   @impl true
@@ -217,21 +223,6 @@ defmodule PhoenixKitOg.Web.AssignmentsLive do
     end
   end
 
-  defp do_save(socket, st) do
-    scope_uuid = if st.scope == "default", do: nil, else: st.group_uuid
-
-    with {:ok, assignment} <- Assignments.set(@consumer, st.scope, scope_uuid, st.template_uuid),
-         {:ok, _} <- Assignments.update_slot_mapping(assignment, st.slot_mapping || %{}) do
-      {:noreply,
-       socket
-       |> put_flash(:info, gettext("Assignment saved."))
-       |> assign(:editing_id, nil)
-       |> load()}
-    else
-      {:error, cs} -> {:noreply, put_flash(socket, :error, inspect(cs.errors))}
-    end
-  end
-
   # =========================================================================
   # Row actions (remove only — edit opens the modal above)
   # =========================================================================
@@ -275,6 +266,25 @@ defmodule PhoenixKitOg.Web.AssignmentsLive do
   end
 
   def handle_info({:media_selector_closed}, socket), do: {:noreply, close_media_picker(socket)}
+
+  # =========================================================================
+  # Save internals
+  # =========================================================================
+
+  defp do_save(socket, st) do
+    scope_uuid = if st.scope == "default", do: nil, else: st.group_uuid
+
+    with {:ok, assignment} <- Assignments.set(@consumer, st.scope, scope_uuid, st.template_uuid),
+         {:ok, _} <- Assignments.update_slot_mapping(assignment, st.slot_mapping || %{}) do
+      {:noreply,
+       socket
+       |> put_flash(:info, gettext("Assignment saved."))
+       |> assign(:editing_id, nil)
+       |> load()}
+    else
+      {:error, cs} -> {:noreply, put_flash(socket, :error, inspect(cs.errors))}
+    end
+  end
 
   defp close_media_picker(socket) do
     socket
@@ -345,10 +355,8 @@ defmodule PhoenixKitOg.Web.AssignmentsLive do
         # Wrap the template so the render pipeline treats every edit as
         # a fresh input — the cache key hashes the canvas so unchanged
         # renders are instant, but changes get a new URL.
-        render_template = %PhoenixKitOg.Schemas.Template{
-          template
-          | updated_at: DateTime.utc_now()
-        }
+        %PhoenixKitOg.Schemas.Template{} = template
+        render_template = %{template | updated_at: DateTime.utc_now()}
 
         case PhoenixKitOg.Render.render_url(render_template, %{values: values}) do
           {:ok, url} ->

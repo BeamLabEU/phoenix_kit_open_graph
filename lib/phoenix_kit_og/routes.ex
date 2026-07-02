@@ -23,9 +23,7 @@ defmodule PhoenixKitOg.Routes do
       scope unquote(url_prefix) do
         pipe_through([:browser, :phoenix_kit_auto_setup])
 
-        get("/og-image/:key", PhoenixKitOg.Web.ImageController, :show,
-          as: :phoenix_kit_og_image
-        )
+        get("/og-image/:key", PhoenixKitOg.Web.ImageController, :show, as: :phoenix_kit_og_image)
       end
     end
   end
@@ -50,8 +48,7 @@ defmodule PhoenixKitOg.Routes do
   @doc "Non-localized variants."
   def admin_routes do
     quote do
-      live "/admin/open-graph/new", PhoenixKitOg.Web.EditorLive, :new,
-        as: :phoenix_kit_og_new
+      live "/admin/open-graph/new", PhoenixKitOg.Web.EditorLive, :new, as: :phoenix_kit_og_new
 
       live "/admin/open-graph/:uuid/edit", PhoenixKitOg.Web.EditorLive, :edit,
         as: :phoenix_kit_og_edit
