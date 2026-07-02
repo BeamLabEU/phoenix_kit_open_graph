@@ -213,16 +213,11 @@ External modules can't ship JS through the parent's pipeline — inline
 
 Deferred quality-sweep items worth picking up later:
 
-- **Test suite** — nothing under `test/` yet. Baseline: schema
-  changesets, `Slots.used/1` + `Slots.substitute/2`, `Variables.resolve/3`
-  with a fake consumer module, `Render.Cache.key_and_path/2` stability,
-  `Web.ImageController.show/2` HTTP shape (200/400/404, content-type
-  without charset).
-- **Errors dispatcher** — no atom-to-gettext module yet. Reference:
-  `phoenix_kit_locations/lib/phoenix_kit_locations/errors.ex`.
-- **Activity logging** — no `log_activity/5` calls on template CRUD
-  or assignment changes. Reference: `phoenix_kit_hello_world` /
-  `phoenix_kit_catalogue`.
-- **Async UX** — save button uses `phx-click="save_now"` without
-  `phx-disable-with`; changeset builders don't set `changeset.action`
-  on validate.
+- **DB-backed integration tests** — schema changesets are covered by
+  pure tests; adding a `PhoenixKit.DataCase`-style shared setup would
+  let us exercise the Assignments partial-index constraint, FK-cascade
+  behavior, and the render cache under real Repo pressure.
+- **LiveView smoke tests** — mount + one CRUD per LV, assert
+  `phx-disable-with` presence, translated labels, actor-uuid threading.
+  Blocked on a shared `LiveCase` + `Test.Endpoint` module (see the
+  catalogue plugin for the reference shape).

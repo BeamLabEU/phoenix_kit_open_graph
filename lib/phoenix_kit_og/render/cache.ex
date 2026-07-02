@@ -90,9 +90,13 @@ defmodule PhoenixKitOg.Render.Cache do
   end
 
   defp base_dir do
-    # Under the system tmp dir so the cache doesn't sit in the source
-    # tree (and can never trigger `priv/static/`-watching hot reload).
-    Path.join(System.tmp_dir!(), @subdir)
+    # Prefer an explicit override for tests / hosts that want a
+    # different cache location. Otherwise sit under `System.tmp_dir!()`
+    # — deliberately NOT `priv/static/` because the dev live-reload
+    # plug watches those files and would restart the LiveView on
+    # every render.
+    Application.get_env(:phoenix_kit_og, :cache_dir) ||
+      Path.join(System.tmp_dir!(), @subdir)
   rescue
     _ -> Path.join(System.tmp_dir!(), @subdir)
   end
