@@ -393,21 +393,19 @@ defmodule PhoenixKitOg.Render.Svg do
     # render the image; only fall back to the HTTP public URL when local
     # bytes aren't reachable (which resvg will silently skip, but at
     # least crawlers can still fetch if they read the raw href).
-    try do
-      case data_url_for_uuid(uuid) do
-        {:ok, data_url} ->
-          data_url
+    case data_url_for_uuid(uuid) do
+      {:ok, data_url} ->
+        data_url
 
-        :error ->
-          case PhoenixKit.Modules.Storage.get_public_url_by_uuid(uuid, "medium") ||
-                 PhoenixKit.Modules.Storage.get_public_url_by_uuid(uuid) do
-            url when is_binary(url) -> resolve_image_href(url)
-            _ -> ""
-          end
-      end
-    rescue
-      _ -> ""
+      :error ->
+        case PhoenixKit.Modules.Storage.get_public_url_by_uuid(uuid, "medium") ||
+               PhoenixKit.Modules.Storage.get_public_url_by_uuid(uuid) do
+          url when is_binary(url) -> resolve_image_href(url)
+          _ -> ""
+        end
     end
+  rescue
+    _ -> ""
   end
 
   defp resolve_image_href(_), do: ""

@@ -190,12 +190,12 @@ defmodule PhoenixKitOg.Canvas do
       |> Enum.map(& &1.name)
       |> MapSet.new()
 
-    if not MapSet.member?(taken, prefix) do
-      prefix
-    else
+    if MapSet.member?(taken, prefix) do
       Stream.iterate(2, &(&1 + 1))
       |> Enum.find(fn n -> not MapSet.member?(taken, "#{prefix}#{n}") end)
       |> then(fn n -> "#{prefix}#{n}" end)
+    else
+      prefix
     end
   end
 

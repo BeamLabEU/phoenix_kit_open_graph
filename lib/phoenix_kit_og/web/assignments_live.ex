@@ -401,14 +401,11 @@ defmodule PhoenixKitOg.Web.AssignmentsLive do
     # Prefer the assignment's own group; else pick the first group
     # that actually has posts (avoids landing on an empty group).
     initial_group =
-      cond do
-        preferred_group_uuid ->
-          Enum.find(groups, &(&1["uuid"] == preferred_group_uuid))
-
-        true ->
-          Enum.find(groups, fn g ->
-            list_publishing_posts(g["slug"]) != []
-          end) || List.first(groups)
+      if preferred_group_uuid do
+        Enum.find(groups, &(&1["uuid"] == preferred_group_uuid))
+      else
+        Enum.find(groups, fn g -> list_publishing_posts(g["slug"]) != [] end) ||
+          List.first(groups)
       end
 
     slug = initial_group && initial_group["slug"]
