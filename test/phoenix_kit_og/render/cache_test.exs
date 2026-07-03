@@ -1,7 +1,7 @@
-defmodule PhoenixKitOg.Render.CacheTest do
+defmodule PhoenixKitOG.Render.CacheTest do
   use ExUnit.Case, async: true
 
-  alias PhoenixKitOg.Render.Cache
+  alias PhoenixKitOG.Render.Cache
 
   # A minimal struct-shaped map — Cache only reads the fields it hashes,
   # so we don't need the full Template schema (which requires a Repo).

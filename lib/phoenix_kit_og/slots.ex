@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Slots do
+defmodule PhoenixKitOG.Slots do
   @moduledoc """
   Scans a canvas for `{{slot}}` references — the abstract, template-
   local names that get wired to concrete module variables at assignment
@@ -58,7 +58,7 @@ defmodule PhoenixKitOg.Slots do
 
     elements =
       canvas
-      |> PhoenixKitOg.Canvas.elements()
+      |> PhoenixKitOG.Canvas.elements()
       |> Enum.flat_map(&slot_fields/1)
 
     (bg_fields ++ elements)

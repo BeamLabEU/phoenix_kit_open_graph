@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.MixProject do
+defmodule PhoenixKitOG.MixProject do
   use Mix.Project
 
   @version "0.1.0"
@@ -17,7 +17,7 @@ defmodule PhoenixKitOg.MixProject do
         "OpenGraph template + hierarchical assignment module for PhoenixKit",
       package: package(),
       dialyzer: [plt_add_apps: [:phoenix_kit]],
-      name: "PhoenixKitOg",
+      name: "PhoenixKitOG",
       source_url: @source_url,
       docs: docs()
     ]
@@ -83,14 +83,15 @@ defmodule PhoenixKitOg.MixProject do
     [
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url},
-      files: ~w(lib .formatter.exs mix.exs README.md LICENSE)
+      files: ~w(lib .formatter.exs mix.exs README.md CHANGELOG.md LICENSE)
     ]
   end
 
   defp docs do
     [
-      main: "PhoenixKitOg",
-      source_ref: "v#{@version}"
+      main: "PhoenixKitOG",
+      source_ref: "v#{@version}",
+      extras: ["CHANGELOG.md"]
     ]
   end
 end

@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Schemas.Assignment do
+defmodule PhoenixKitOG.Schemas.Assignment do
   @moduledoc """
   Binds a template to a scope inside a consumer module's hierarchy.
 
@@ -19,7 +19,7 @@ defmodule PhoenixKitOg.Schemas.Assignment do
 
   import Ecto.Changeset
 
-  alias PhoenixKitOg.Schemas.Template
+  alias PhoenixKitOG.Schemas.Template
 
   @type t :: %__MODULE__{
           uuid: binary() | nil,

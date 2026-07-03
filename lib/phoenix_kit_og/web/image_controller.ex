@@ -1,10 +1,10 @@
-defmodule PhoenixKitOg.Web.ImageController do
+defmodule PhoenixKitOG.Web.ImageController do
   @moduledoc """
   Serves rendered OG PNGs from the on-disk cache.
 
   Route: `GET /og-image/:key.png` → 200 PNG bytes if the cache file
   exists, 404 otherwise. The cache key is the hash returned by
-  `PhoenixKitOg.Render.Cache.key_and_path/2`; renders are cheap to
+  `PhoenixKitOG.Render.Cache.key_and_path/2`; renders are cheap to
   rebuild on cache miss, but `refine_og/4` always renders first and
   embeds the URL only on success, so a 404 here means an external
   cache-warm request or a long-since-purged entry.
@@ -17,7 +17,7 @@ defmodule PhoenixKitOg.Web.ImageController do
 
   import Plug.Conn
 
-  alias PhoenixKitOg.Render.Cache
+  alias PhoenixKitOG.Render.Cache
 
   @max_key_length 64
 

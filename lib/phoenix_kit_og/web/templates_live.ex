@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Web.TemplatesLive do
+defmodule PhoenixKitOG.Web.TemplatesLive do
   @moduledoc """
   Admin landing page for the OG module — lists templates and the
   create/delete actions. The visual editor is Phase 2; this page only
@@ -7,7 +7,7 @@ defmodule PhoenixKitOg.Web.TemplatesLive do
 
   use PhoenixKitWeb, :live_view
 
-  alias PhoenixKitOg.{Errors, Paths, Templates}
+  alias PhoenixKitOG.{Errors, Paths, Templates}
 
   @impl true
   def mount(_params, _session, socket) do

@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Paths do
+defmodule PhoenixKitOG.Paths do
   @moduledoc """
   Centralized path helpers — every link routes through
   `PhoenixKit.Utils.Routes.path/1` so the configured admin prefix and

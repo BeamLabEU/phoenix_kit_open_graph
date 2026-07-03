@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Web.EditorLive do
+defmodule PhoenixKitOG.Web.EditorLive do
   @moduledoc """
   The OG template editor — WYSIWYG SVG canvas on the left, element
   library + property panel on the right.
@@ -8,7 +8,7 @@ defmodule PhoenixKitOg.Web.EditorLive do
   - **Click element** on canvas → select (sets `:selected_id`).
   - **Click empty canvas** → deselect.
   - **Add buttons** in the toolbar push elements at default positions.
-  - **Drag**: handled by the `PhoenixKitOgCanvas` JS hook (inline
+  - **Drag**: handled by the `PhoenixKitOGCanvas` JS hook (inline
     `<script>`, registered on `window.PhoenixKitHooks`). During drag the
     hook applies an SVG transform locally and only pushes a final
     `move_element` event on pointer-up — so we don't roundtrip on every
@@ -35,8 +35,8 @@ defmodule PhoenixKitOg.Web.EditorLive do
   # boilerplate on our side.
   use PhoenixKitWeb.Components.MediaBrowser.Embed
 
-  alias PhoenixKitOg.{Canvas, Errors, Paths, Slots, Templates, Variables}
-  alias PhoenixKitOg.Schemas.Template
+  alias PhoenixKitOG.{Canvas, Errors, Paths, Slots, Templates, Variables}
+  alias PhoenixKitOG.Schemas.Template
 
   @impl true
   def mount(params, _session, socket) do
@@ -193,7 +193,7 @@ defmodule PhoenixKitOg.Web.EditorLive do
   # not the last-saved template) through the PNG pipeline and opens a
   # modal with social-card mockups.
   def handle_event("open_preview", _params, socket) do
-    %PhoenixKitOg.Schemas.Template{} = base_template = socket.assigns.template
+    %PhoenixKitOG.Schemas.Template{} = base_template = socket.assigns.template
 
     template = %{
       base_template
@@ -207,7 +207,7 @@ defmodule PhoenixKitOg.Web.EditorLive do
         placeholder_slot_values(socket.assigns.slots)
       )
 
-    case PhoenixKitOg.Render.render_url(template, %{values: values}) do
+    case PhoenixKitOG.Render.render_url(template, %{values: values}) do
       {:ok, url} ->
         {:noreply,
          socket
@@ -419,7 +419,7 @@ defmodule PhoenixKitOg.Web.EditorLive do
   # at the shared stand-in graphic (light-gray square with corner
   # arrows) so the layout is legible before any wiring.
   defp placeholder_slot_values(slots) do
-    stand_in = PhoenixKitOg.Render.Placeholder.data_url()
+    stand_in = PhoenixKitOG.Render.Placeholder.data_url()
 
     Enum.reduce(slots, %{}, fn
       %{name: name, type: :text}, acc -> Map.put(acc, name, "Sample #{name}")
@@ -528,6 +528,6 @@ defmodule PhoenixKitOg.Web.EditorLive do
 
   @impl true
   def render(assigns) do
-    PhoenixKitOg.Web.EditorLive.Template.render(assigns)
+    PhoenixKitOG.Web.EditorLive.Template.render(assigns)
   end
 end

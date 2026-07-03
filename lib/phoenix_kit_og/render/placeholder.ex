@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Render.Placeholder do
+defmodule PhoenixKitOG.Render.Placeholder do
   @moduledoc """
   Stand-in image for previews and any other spot that needs a
   reference visual when a real image slot is unresolved.

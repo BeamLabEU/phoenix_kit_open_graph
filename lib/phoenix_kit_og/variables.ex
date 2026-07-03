@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Variables do
+defmodule PhoenixKitOG.Variables do
   @moduledoc """
   Registry + resolver for module-exposed variables that templates can
   bind their slots to.
@@ -98,7 +98,7 @@ defmodule PhoenixKitOg.Variables do
   return nil for that slot — the renderer leaves `{{slot}}` visible,
   matching the workspace convention.
   """
-  @spec resolve([PhoenixKitOg.Slots.t()], %{String.t() => String.t()}, map()) :: %{
+  @spec resolve([PhoenixKitOG.Slots.t()], %{String.t() => String.t()}, map()) :: %{
           String.t() => String.t()
         }
   def resolve(slots, slot_mapping, context) do

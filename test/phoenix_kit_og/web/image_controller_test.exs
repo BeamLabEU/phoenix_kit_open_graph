@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Web.ImageControllerTest do
+defmodule PhoenixKitOG.Web.ImageControllerTest do
   use ExUnit.Case, async: false
   import Plug.Test
 
@@ -11,8 +11,8 @@ defmodule PhoenixKitOg.Web.ImageControllerTest do
   # request roundtrip; anything higher-level would be exercising Plug
   # itself.
 
-  alias PhoenixKitOg.Render.Cache
-  alias PhoenixKitOg.Web.ImageController
+  alias PhoenixKitOG.Render.Cache
+  alias PhoenixKitOG.Web.ImageController
 
   # A stable 4-byte "PNG" payload for the cache write. Content-type
   # doesn't depend on the bytes so any binary works.

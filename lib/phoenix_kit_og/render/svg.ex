@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Render.Svg do
+defmodule PhoenixKitOG.Render.Svg do
   @moduledoc """
   Converts a canvas spec + binding values into a clean SVG string
   suitable for rasterization by `rsvg-convert` / librsvg.
@@ -13,10 +13,10 @@ defmodule PhoenixKitOg.Render.Svg do
 
   The output is **deterministic** — same canvas + values produce
   byte-identical SVG. That's load-bearing for cache-key hashing in
-  `PhoenixKitOg.Render.Cache`.
+  `PhoenixKitOG.Render.Cache`.
   """
 
-  alias PhoenixKitOg.{Canvas, Slots}
+  alias PhoenixKitOG.{Canvas, Slots}
 
   @type context :: %{
           optional(:values) => %{String.t() => String.t()}

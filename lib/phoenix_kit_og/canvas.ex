@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Canvas do
+defmodule PhoenixKitOG.Canvas do
   @moduledoc """
   Pure helpers for manipulating a template's canvas JSON. The editor LV
   calls these on the in-memory canvas map; persistence is a separate
@@ -186,7 +186,7 @@ defmodule PhoenixKitOg.Canvas do
   def next_slot_name(canvas, prefix) when is_binary(prefix) do
     taken =
       canvas
-      |> then(fn c -> if is_map(c), do: PhoenixKitOg.Slots.used(c), else: [] end)
+      |> then(fn c -> if is_map(c), do: PhoenixKitOG.Slots.used(c), else: [] end)
       |> Enum.map(& &1.name)
       |> MapSet.new()
 
@@ -387,14 +387,14 @@ defmodule PhoenixKitOg.Canvas do
   """
   @spec resolve_text(map(), map()) :: String.t()
   def resolve_text(%{"type" => "text", "text" => t}, values) when is_binary(t),
-    do: PhoenixKitOg.Slots.substitute(t, values)
+    do: PhoenixKitOG.Slots.substitute(t, values)
 
   def resolve_text(%{"type" => "text", "binding" => b}, values)
       when is_binary(b) and b != "",
-      do: PhoenixKitOg.Slots.substitute(b, values)
+      do: PhoenixKitOG.Slots.substitute(b, values)
 
   def resolve_text(%{"type" => "stamp", "preset" => p}, values) when is_binary(p),
-    do: PhoenixKitOg.Slots.substitute(p, values)
+    do: PhoenixKitOG.Slots.substitute(p, values)
 
   def resolve_text(_, _), do: ""
 

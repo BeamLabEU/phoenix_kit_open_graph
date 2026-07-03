@@ -1,11 +1,11 @@
-defmodule PhoenixKitOg.Routes do
+defmodule PhoenixKitOG.Routes do
   @moduledoc """
   Route registration for routes that can't be inlined on a `Tab` —
   notably the per-template editor at `/admin/open-graph/:uuid/edit`.
 
   The two index routes (`/admin/open-graph` and `…/assignments`) are
   still registered via the `live_view:` field on their admin tabs in
-  `PhoenixKitOg.admin_tabs/0`; including them here as well would
+  `PhoenixKitOG.admin_tabs/0`; including them here as well would
   produce a duplicate-route error.
   """
 
@@ -23,7 +23,7 @@ defmodule PhoenixKitOg.Routes do
       scope unquote(url_prefix) do
         pipe_through([:browser, :phoenix_kit_auto_setup])
 
-        get("/og-image/:key", PhoenixKitOg.Web.ImageController, :show, as: :phoenix_kit_og_image)
+        get("/og-image/:key", PhoenixKitOG.Web.ImageController, :show, as: :phoenix_kit_og_image)
       end
     end
   end
@@ -37,10 +37,10 @@ defmodule PhoenixKitOg.Routes do
   """
   def admin_locale_routes do
     quote do
-      live "/admin/open-graph/new", PhoenixKitOg.Web.EditorLive, :new,
+      live "/admin/open-graph/new", PhoenixKitOG.Web.EditorLive, :new,
         as: :phoenix_kit_og_new_localized
 
-      live "/admin/open-graph/:uuid/edit", PhoenixKitOg.Web.EditorLive, :edit,
+      live "/admin/open-graph/:uuid/edit", PhoenixKitOG.Web.EditorLive, :edit,
         as: :phoenix_kit_og_edit_localized
     end
   end
@@ -48,9 +48,9 @@ defmodule PhoenixKitOg.Routes do
   @doc "Non-localized variants."
   def admin_routes do
     quote do
-      live "/admin/open-graph/new", PhoenixKitOg.Web.EditorLive, :new, as: :phoenix_kit_og_new
+      live "/admin/open-graph/new", PhoenixKitOG.Web.EditorLive, :new, as: :phoenix_kit_og_new
 
-      live "/admin/open-graph/:uuid/edit", PhoenixKitOg.Web.EditorLive, :edit,
+      live "/admin/open-graph/:uuid/edit", PhoenixKitOG.Web.EditorLive, :edit,
         as: :phoenix_kit_og_edit
     end
   end

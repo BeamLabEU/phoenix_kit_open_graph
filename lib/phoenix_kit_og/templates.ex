@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Templates do
+defmodule PhoenixKitOG.Templates do
   @moduledoc """
   Context for managing OpenGraph templates. CRUD only — the editor and
   renderer live elsewhere.
@@ -11,8 +11,8 @@ defmodule PhoenixKitOg.Templates do
   import Ecto.Query, warn: false
 
   alias PhoenixKit.RepoHelper, as: Repo
-  alias PhoenixKitOg.ActivityLog
-  alias PhoenixKitOg.Schemas.Template
+  alias PhoenixKitOG.ActivityLog
+  alias PhoenixKitOG.Schemas.Template
 
   @doc "Returns all templates, ordered by name."
   @spec list() :: [Template.t()]

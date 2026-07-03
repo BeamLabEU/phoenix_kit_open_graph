@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Web.EditorLive.Template do
+defmodule PhoenixKitOG.Web.EditorLive.Template do
   @moduledoc """
   HEEx render template for the OG editor. Split out from the LV module
   so the event-handler code stays scannable.
@@ -18,7 +18,7 @@ defmodule PhoenixKitOg.Web.EditorLive.Template do
   use PhoenixKitWeb, :html
 
   alias Phoenix.LiveView.JS
-  alias PhoenixKitOg.{Canvas, Paths}
+  alias PhoenixKitOG.{Canvas, Paths}
 
   # Canvas displays at 75% of intrinsic in the layout. The SVG itself
   # carries the 1200×630 viewBox so the JS hook can convert client
@@ -37,7 +37,7 @@ defmodule PhoenixKitOg.Web.EditorLive.Template do
     ~H"""
     <div
       id="phoenix-kit-og-editor"
-      phx-hook="PhoenixKitOgEditor"
+      phx-hook="PhoenixKitOGEditor"
       phx-window-keydown="nudge"
       phx-key="ArrowUp"
       class="w-full h-[calc(100vh-8rem)] flex flex-col bg-base-200"
@@ -549,7 +549,7 @@ defmodule PhoenixKitOg.Web.EditorLive.Template do
       >
         <svg
           id="og-canvas-svg"
-          phx-hook="PhoenixKitOgCanvas"
+          phx-hook="PhoenixKitOGCanvas"
           data-canvas-width={@canvas_width}
           data-canvas-height={@canvas_height}
           data-selected-id={@selected_id || ""}
@@ -744,7 +744,7 @@ defmodule PhoenixKitOg.Web.EditorLive.Template do
         _ -> ""
       end
 
-    text = PhoenixKitOg.Slots.substitute(raw_text, assigns.global_values || %{})
+    text = PhoenixKitOG.Slots.substitute(raw_text, assigns.global_values || %{})
 
     assigns =
       assigns
@@ -940,7 +940,7 @@ defmodule PhoenixKitOg.Web.EditorLive.Template do
   defp stamp_element(assigns) do
     el = assigns.element
     raw_text = Map.get(el, "preset", "")
-    text = PhoenixKitOg.Slots.substitute(raw_text, assigns.global_values || %{})
+    text = PhoenixKitOG.Slots.substitute(raw_text, assigns.global_values || %{})
 
     assigns =
       assigns
@@ -1572,7 +1572,7 @@ defmodule PhoenixKitOg.Web.EditorLive.Template do
 
   defp text_props(assigns) do
     text = Map.get(assigns.selected, "text", "") || ""
-    assigns = assign(assigns, :globals_used, PhoenixKitOg.Slots.globals_used(text))
+    assigns = assign(assigns, :globals_used, PhoenixKitOG.Slots.globals_used(text))
 
     ~H"""
     <fieldset class="space-y-2">
@@ -1707,7 +1707,7 @@ defmodule PhoenixKitOg.Web.EditorLive.Template do
 
   defp stamp_props(assigns) do
     content = Map.get(assigns.selected, "preset", "") || ""
-    assigns = assign(assigns, :globals_used, PhoenixKitOg.Slots.globals_used(content))
+    assigns = assign(assigns, :globals_used, PhoenixKitOG.Slots.globals_used(content))
 
     ~H"""
     <fieldset class="space-y-2">
@@ -1968,7 +1968,7 @@ defmodule PhoenixKitOg.Web.EditorLive.Template do
           }
         }
 
-        Hooks.PhoenixKitOgCanvas = {
+        Hooks.PhoenixKitOGCanvas = {
           mounted() {
             const svg = this.el;
             let drag = null;
@@ -2355,7 +2355,7 @@ defmodule PhoenixKitOg.Web.EditorLive.Template do
         };
 
         // Wrapper hook for keyboard + focus management on the editor root.
-        Hooks.PhoenixKitOgEditor = {
+        Hooks.PhoenixKitOGEditor = {
           mounted() {
             const onKeyDown = (evt) => {
               // Don't hijack inputs.

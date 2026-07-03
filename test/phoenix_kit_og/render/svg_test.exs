@@ -1,7 +1,7 @@
-defmodule PhoenixKitOg.Render.SvgTest do
+defmodule PhoenixKitOG.Render.SvgTest do
   use ExUnit.Case, async: true
 
-  alias PhoenixKitOg.Render.Svg
+  alias PhoenixKitOG.Render.Svg
 
   # Pure SVG generation — no rasterization, no DB, no filesystem.
   # We inspect the emitted string / iodata to pin the observable

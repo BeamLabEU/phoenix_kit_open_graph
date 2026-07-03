@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg do
+defmodule PhoenixKitOG do
   @moduledoc """
   OpenGraph template + hierarchical assignment plugin for PhoenixKit.
 
@@ -16,7 +16,7 @@ defmodule PhoenixKitOg do
 
   alias PhoenixKit.Dashboard.Tab
   alias PhoenixKit.Settings
-  alias PhoenixKitOg.{Assignments, Render, Slots, Templates, Variables}
+  alias PhoenixKitOG.{Assignments, Render, Slots, Templates, Variables}
 
   # ===========================================================================
   # Required PhoenixKit.Module callbacks
@@ -87,7 +87,7 @@ defmodule PhoenixKitOg do
         group: :admin_modules,
         subtab_display: :when_active,
         highlight_with_subtabs: false,
-        live_view: {PhoenixKitOg.Web.TemplatesLive, :index}
+        live_view: {PhoenixKitOG.Web.TemplatesLive, :index}
       },
       %Tab{
         id: :admin_phoenix_kit_og_templates,
@@ -106,7 +106,7 @@ defmodule PhoenixKitOg do
             not String.starts_with?(path, "/admin/open-graph/assignments")
         end,
         parent: :admin_phoenix_kit_og,
-        live_view: {PhoenixKitOg.Web.TemplatesLive, :index}
+        live_view: {PhoenixKitOG.Web.TemplatesLive, :index}
       },
       %Tab{
         id: :admin_phoenix_kit_og_assignments,
@@ -117,7 +117,7 @@ defmodule PhoenixKitOg do
         level: :admin,
         permission: module_key(),
         parent: :admin_phoenix_kit_og,
-        live_view: {PhoenixKitOg.Web.AssignmentsLive, :index}
+        live_view: {PhoenixKitOG.Web.AssignmentsLive, :index}
       }
     ]
   end
@@ -126,7 +126,7 @@ defmodule PhoenixKitOg do
   def css_sources, do: [:phoenix_kit_og]
 
   @impl PhoenixKit.Module
-  def route_module, do: PhoenixKitOg.Routes
+  def route_module, do: PhoenixKitOG.Routes
 
   # ===========================================================================
   # Public API — the publishing seam

@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Assignments do
+defmodule PhoenixKitOG.Assignments do
   @moduledoc """
   Context for binding templates to scopes inside a consumer module's
   hierarchy.
@@ -21,8 +21,8 @@ defmodule PhoenixKitOg.Assignments do
   import Ecto.Query, warn: false
 
   alias PhoenixKit.RepoHelper, as: Repo
-  alias PhoenixKitOg.ActivityLog
-  alias PhoenixKitOg.Schemas.{Assignment, Template}
+  alias PhoenixKitOG.ActivityLog
+  alias PhoenixKitOG.Schemas.{Assignment, Template}
 
   @doc """
   All assignments owned by `module_key`, preloaded with their template

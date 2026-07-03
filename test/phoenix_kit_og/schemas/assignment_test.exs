@@ -1,7 +1,7 @@
-defmodule PhoenixKitOg.Schemas.AssignmentTest do
+defmodule PhoenixKitOG.Schemas.AssignmentTest do
   use ExUnit.Case, async: true
 
-  alias PhoenixKitOg.Schemas.Assignment
+  alias PhoenixKitOG.Schemas.Assignment
 
   @template_uuid "01234567-89ab-cdef-0123-456789abcdef"
 

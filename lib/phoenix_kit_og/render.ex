@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Render do
+defmodule PhoenixKitOG.Render do
   @moduledoc """
   Top-level rendering facade. Given a template + binding values,
   produces a PNG (cached) and returns its public URL.
@@ -15,14 +15,14 @@ defmodule PhoenixKitOg.Render do
                                            served path
 
   When the rasterizer isn't installed (`:rasterizer_missing`), the
-  caller (`PhoenixKitOg.refine_og/4`) is expected to drop back to the
+  caller (`PhoenixKitOG.refine_og/4`) is expected to drop back to the
   pre-existing `og.image` — never a crash.
   """
 
   require Logger
 
-  alias PhoenixKitOg.Render.{Cache, Rasterizer, Svg}
-  alias PhoenixKitOg.Schemas.Template
+  alias PhoenixKitOG.Render.{Cache, Rasterizer, Svg}
+  alias PhoenixKitOG.Schemas.Template
 
   @doc """
   Returns `{:ok, public_url}` on success, `{:error, reason}` on
@@ -74,13 +74,13 @@ defmodule PhoenixKitOg.Render do
             {:ok, cache_url(key)}
 
           {:error, reason} = err ->
-            Logger.warning("[PhoenixKitOg.Render] cache write failed: #{inspect(reason)}")
+            Logger.warning("[PhoenixKitOG.Render] cache write failed: #{inspect(reason)}")
             err
         end
 
       {:error, :rasterizer_missing} ->
         Logger.warning(
-          "[PhoenixKitOg.Render] rsvg-convert not installed. " <>
+          "[PhoenixKitOG.Render] rsvg-convert not installed. " <>
             "Install librsvg2-bin (Debian/Ubuntu) to enable OG image rendering. " <>
             "Falling back to the consumer's derived image."
         )
@@ -88,7 +88,7 @@ defmodule PhoenixKitOg.Render do
         {:error, :rasterizer_missing}
 
       {:error, reason} = err ->
-        Logger.warning("[PhoenixKitOg.Render] rasterize failed: #{inspect(reason)}")
+        Logger.warning("[PhoenixKitOG.Render] rasterize failed: #{inspect(reason)}")
         err
     end
   end

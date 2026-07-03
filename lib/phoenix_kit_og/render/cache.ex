@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Render.Cache do
+defmodule PhoenixKitOG.Render.Cache do
   @moduledoc """
   On-disk cache for rendered OG PNGs.
 

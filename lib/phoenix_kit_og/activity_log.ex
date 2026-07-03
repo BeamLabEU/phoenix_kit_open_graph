@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.ActivityLog do
+defmodule PhoenixKitOG.ActivityLog do
   @moduledoc """
   Thin wrapper around `PhoenixKit.Activity.log/1` for the OG plugin.
 
@@ -67,12 +67,12 @@ defmodule PhoenixKitOg.ActivityLog do
           :ok
 
         _ ->
-          Logger.warning("[PhoenixKitOg.ActivityLog] Postgrex error: #{inspect(e)}")
+          Logger.warning("[PhoenixKitOG.ActivityLog] Postgrex error: #{inspect(e)}")
           :ok
       end
 
     e ->
-      Logger.warning("[PhoenixKitOg.ActivityLog] log failed: #{inspect(e)}")
+      Logger.warning("[PhoenixKitOG.ActivityLog] log failed: #{inspect(e)}")
       :ok
   end
 

@@ -1,7 +1,7 @@
-defmodule PhoenixKitOg.SlotsTest do
+defmodule PhoenixKitOG.SlotsTest do
   use ExUnit.Case, async: true
 
-  alias PhoenixKitOg.Slots
+  alias PhoenixKitOG.Slots
 
   describe "used/1" do
     test "extracts unique {{slot}} references in first-appearance order" do

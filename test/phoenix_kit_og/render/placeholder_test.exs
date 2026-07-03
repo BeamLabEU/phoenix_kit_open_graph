@@ -1,7 +1,7 @@
-defmodule PhoenixKitOg.Render.PlaceholderTest do
+defmodule PhoenixKitOG.Render.PlaceholderTest do
   use ExUnit.Case, async: true
 
-  alias PhoenixKitOg.Render.Placeholder
+  alias PhoenixKitOG.Render.Placeholder
 
   test "data_url/0 is a base64 SVG data URL" do
     url = Placeholder.data_url()

@@ -20,7 +20,7 @@ described below.
 ## What this module DOES NOT own
 
 - **No standalone Phoenix app** — this is a library. Endpoint/router
-  come from the host. Route helpers live in `PhoenixKitOg.Routes`.
+  come from the host. Route helpers live in `PhoenixKitOG.Routes`.
 - **No consumer-specific business logic** — the plugin knows nothing
   about posts, groups, or any consumer's data. Every variable a
   template renders comes through the consumer's `og_resolve/2`.
@@ -28,6 +28,20 @@ described below.
   `PhoenixKit.Modules.Storage` (core). Rendered PNGs live in
   `System.tmp_dir!()/phoenix_kit_og_cache/`, not `priv/static/` (see
   `render/cache.ex` for the reason).
+
+## Common Commands
+
+```bash
+mix deps.get                # Install dependencies
+mix test                     # Run the test suite
+mix format                   # Format code
+mix credo --strict           # Static analysis
+mix dialyzer                 # Type checking
+mix precommit                 # compile (warnings-as-errors) + deps.unlock --check-unused + quality.ci
+```
+
+Run these from `/www/app/` in the deployed dev setup (see Development
+below), or from this directory directly when working standalone.
 
 ## Architecture
 
@@ -88,7 +102,7 @@ render time. The assignments UI filters variables by type so an
 
 ### Refine seam
 
-Publishing calls `PhoenixKitOg.refine_og(og_map, conn, post, lang)`
+Publishing calls `PhoenixKitOG.refine_og(og_map, conn, post, lang)`
 per public page render. Behavior:
 
 - **Kill switch** — when `enabled?/0` returns false, refine_og is a
@@ -165,7 +179,7 @@ canvas, values, module_key)` → SVG generation → rasterize.
 ## Editor JS hook
 
 `Web.EditorLive.Template` inlines a `<script>` that registers
-`PhoenixKitOgCanvas` on `window.PhoenixKitHooks`. Inline (not
+`PhoenixKitOGCanvas` on `window.PhoenixKitHooks`. Inline (not
 `type="module"`) so it runs synchronously during HTML parsing,
 before the deferred `app.js` spreads hooks into the LiveSocket.
 
@@ -181,12 +195,6 @@ that doesn't hit an element — the hook flips
 `swallowNextClick=true` on drag/resize end and a capture-phase
 click listener swallows the synthetic click so the selection
 isn't blown away.
-
-## Commit conventions
-
-Start commit subjects with action verbs (`Add`, `Update`, `Fix`,
-`Remove`, `Merge`). **Do not add `Co-Authored-By` lines** — matches
-every other `phoenix_kit_*` module.
 
 ## Development
 
@@ -208,6 +216,54 @@ Tailwind scans this plugin's templates. The parent's
 
 External modules can't ship JS through the parent's pipeline — inline
 `<script>` in templates, register hooks on `window.PhoenixKitHooks`.
+
+## Versioning & Releases
+
+This project follows [Semantic Versioning](https://semver.org/). Tags use
+**bare version numbers** (no `v` prefix).
+
+### Version locations
+
+The version must be updated in **three places** when bumping:
+
+1. `mix.exs` — `@version` module attribute
+2. `lib/phoenix_kit_og.ex` — `def version, do: "x.y.z"`
+3. `test/phoenix_kit_og_test.exs` — `version/0` test (asserts against
+   `Mix.Project.config()[:version]`, so it always tracks `mix.exs`; bumping
+   there is enough, no hardcoded string to update separately)
+
+### Full release checklist
+
+1. Update version in `mix.exs` and `lib/phoenix_kit_og.ex`
+2. Add a changelog entry in `CHANGELOG.md`
+3. Run `mix precommit` — zero warnings/errors before proceeding
+4. Commit: `"Bump version to x.y.z"`
+5. Push to main and **verify the push succeeded** before tagging
+6. Create and push git tag: `git tag x.y.z && git push origin x.y.z`
+7. Create GitHub release: `gh release create x.y.z --title "x.y.z - YYYY-MM-DD" --notes "..."`
+8. `mix hex.publish --yes`
+
+**IMPORTANT:** Never tag before all changes are committed and pushed —
+tags are immutable pointers.
+
+## Pull Requests
+
+### Commit Message Rules
+
+Start commit subjects with action verbs (`Add`, `Update`, `Fix`,
+`Remove`, `Merge`). **Do not add `Co-Authored-By` lines** — matches
+every other `phoenix_kit_*` module.
+
+### PR Reviews
+
+PR review files go in `dev_docs/pull_requests/{year}/{pr_number}-{slug}/`.
+Use `{AGENT}_REVIEW.md` naming (e.g. `CLAUDE_REVIEW.md`, `GEMINI_REVIEW.md`).
+See `dev_docs/pull_requests/README.md` for the full convention and
+`dev_docs/pull_requests/TEMPLATE.md` for the PR summary template.
+
+## License
+
+MIT — see [LICENSE](LICENSE) for details.
 
 ## TODOs
 

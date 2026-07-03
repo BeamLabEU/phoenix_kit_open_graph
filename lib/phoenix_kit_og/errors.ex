@@ -1,7 +1,7 @@
-defmodule PhoenixKitOg.Errors do
+defmodule PhoenixKitOG.Errors do
   @moduledoc """
-  Central mapping from error atoms (returned by `PhoenixKitOg.Templates`,
-  `PhoenixKitOg.Assignments`, and the render pipeline) to translated,
+  Central mapping from error atoms (returned by `PhoenixKitOG.Templates`,
+  `PhoenixKitOG.Assignments`, and the render pipeline) to translated,
   user-facing strings.
 
   Keeping UI copy in one place means every "not found" / "render failed"
@@ -23,13 +23,13 @@ defmodule PhoenixKitOg.Errors do
 
   ## Example
 
-      iex> PhoenixKitOg.Errors.message(:rasterizer_missing)
+      iex> PhoenixKitOG.Errors.message(:rasterizer_missing)
       "Preview render needs the resvg NIF — check that the dep resolved on this build."
   """
 
   alias Ecto.Changeset
 
-  @typedoc "Atoms returned by the public `PhoenixKitOg` API."
+  @typedoc "Atoms returned by the public `PhoenixKitOG` API."
   @type error_atom ::
           :not_found
           | :rasterizer_missing

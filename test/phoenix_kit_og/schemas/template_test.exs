@@ -1,7 +1,7 @@
-defmodule PhoenixKitOg.Schemas.TemplateTest do
+defmodule PhoenixKitOG.Schemas.TemplateTest do
   use ExUnit.Case, async: true
 
-  alias PhoenixKitOg.Schemas.Template
+  alias PhoenixKitOG.Schemas.Template
 
   describe "changeset/2 — required fields" do
     test "is invalid when name is missing" do

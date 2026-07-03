@@ -1,7 +1,7 @@
-defmodule PhoenixKitOg.CanvasTest do
+defmodule PhoenixKitOG.CanvasTest do
   use ExUnit.Case, async: true
 
-  alias PhoenixKitOg.Canvas
+  alias PhoenixKitOG.Canvas
 
   describe "elements/1" do
     test "returns the elements list from a canvas map" do

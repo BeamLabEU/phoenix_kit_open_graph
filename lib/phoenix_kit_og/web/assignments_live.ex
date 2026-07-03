@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Web.AssignmentsLive do
+defmodule PhoenixKitOG.Web.AssignmentsLive do
   @moduledoc """
   Assignments admin — the overview of every template binding + a
   single modal for creating **or** editing an assignment.
@@ -21,7 +21,7 @@ defmodule PhoenixKitOg.Web.AssignmentsLive do
   # "Choose image" instead of pasting a UUID.
   use PhoenixKitWeb.Components.MediaBrowser.Embed
 
-  alias PhoenixKitOg.{Assignments, Errors, Paths, Slots, Templates, Variables}
+  alias PhoenixKitOG.{Assignments, Errors, Paths, Slots, Templates, Variables}
 
   # Publishing groups/posts helpers live in the phoenix_kit_publishing
   # plugin — guarded by `Code.ensure_loaded?/1` in each helper, but the
@@ -360,7 +360,7 @@ defmodule PhoenixKitOg.Web.AssignmentsLive do
         |> Enum.reduce(%{}, fn %{name: name, type: type}, acc ->
           cond do
             Map.has_key?(wired, name) -> Map.put(acc, name, wired[name])
-            type == :image -> Map.put(acc, name, PhoenixKitOg.Render.Placeholder.data_url())
+            type == :image -> Map.put(acc, name, PhoenixKitOG.Render.Placeholder.data_url())
             true -> Map.put(acc, name, "Sample #{name}")
           end
         end)
@@ -369,10 +369,10 @@ defmodule PhoenixKitOg.Web.AssignmentsLive do
       # Wrap the template so the render pipeline treats every edit as
       # a fresh input — the cache key hashes the canvas so unchanged
       # renders are instant, but changes get a new URL.
-      %PhoenixKitOg.Schemas.Template{} = template
+      %PhoenixKitOG.Schemas.Template{} = template
       render_template = %{template | updated_at: DateTime.utc_now()}
 
-      case PhoenixKitOg.Render.render_url(render_template, %{values: values}) do
+      case PhoenixKitOG.Render.render_url(render_template, %{values: values}) do
         {:ok, url} ->
           socket |> assign(:preview_url, url) |> assign(:preview_error, nil)
 

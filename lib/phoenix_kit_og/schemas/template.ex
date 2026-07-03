@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Schemas.Template do
+defmodule PhoenixKitOG.Schemas.Template do
   @moduledoc """
   A reusable OpenGraph design — canvas + ordered elements with variable
   bindings. Persisted as JSONB so the structure can evolve (new element

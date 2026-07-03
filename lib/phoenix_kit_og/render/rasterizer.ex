@@ -1,4 +1,4 @@
-defmodule PhoenixKitOg.Render.Rasterizer do
+defmodule PhoenixKitOG.Render.Rasterizer do
   @moduledoc """
   SVG → PNG conversion. Shells out to `rsvg-convert` (librsvg). The
   binary is part of the `librsvg2-bin` package on Debian/Ubuntu — if
@@ -192,7 +192,7 @@ defmodule PhoenixKitOg.Render.Rasterizer do
     collect_port(port, <<>>, timeout)
   rescue
     e ->
-      Logger.warning("[PhoenixKitOg.Rasterizer] #{bin} failed: #{Exception.message(e)}")
+      Logger.warning("[PhoenixKitOG.Rasterizer] #{bin} failed: #{Exception.message(e)}")
       {:error, {:exception, e}}
   end
 
@@ -205,7 +205,7 @@ defmodule PhoenixKitOg.Render.Rasterizer do
         {:ok, acc}
 
       {^port, {:exit_status, n}} ->
-        Logger.warning("[PhoenixKitOg.Rasterizer] exit #{n}: #{inspect(acc)}")
+        Logger.warning("[PhoenixKitOG.Rasterizer] exit #{n}: #{inspect(acc)}")
         {:error, {:exit, n}}
 
       {^port, :closed} ->

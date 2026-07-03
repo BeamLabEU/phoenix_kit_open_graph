@@ -1,7 +1,7 @@
-defmodule PhoenixKitOg.VariablesTest do
+defmodule PhoenixKitOG.VariablesTest do
   use ExUnit.Case, async: true
 
-  alias PhoenixKitOg.Variables
+  alias PhoenixKitOG.Variables
 
   describe "global/0" do
     test "returns the fixed catalogue of OG-owned globals" do

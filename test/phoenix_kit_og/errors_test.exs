@@ -1,7 +1,7 @@
-defmodule PhoenixKitOg.ErrorsTest do
+defmodule PhoenixKitOG.ErrorsTest do
   use ExUnit.Case, async: true
 
-  alias PhoenixKitOg.Errors
+  alias PhoenixKitOG.Errors
 
   describe "message/1 — known atoms" do
     test "returns a translated string for each supported atom" do
