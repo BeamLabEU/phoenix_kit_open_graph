@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.0 - 2026-07-20
+
+### Added
+- Own `PhoenixKitOG.Gettext` backend + `priv/gettext` translations across 7
+  locales for the common UI string set (editor long-tail strings ride as
+  English fallback pending a translation pass)
+- Editor JS hooks (drag/resize + keyboard) now ship via `js_sources/0` as a
+  prebuilt bundle (`priv/static/assets/phoenix_kit_og.js`) instead of an
+  inline `<script>` — the inline script only ran on a hard page load, so
+  navigating into the editor from the Templates list left drag/resize
+  unregistered
+- On-disk render cache eviction — TTL + count cap, configurable via
+  `:cache_ttl_seconds` / `:cache_max_files` / `:cache_prune_probability`
+- `Variables.global_label/1` and `Variables.global_description/1` — the
+  canonical translated label/description for each OG-owned global variable
+- Failed create/update/delete actions now log a `failed: true` activity row
+  (previously only successes were audited); a failed update/delete keeps its
+  `resource_uuid` so the row still points at which record was targeted
+
+### Changed
+- Preview rendering (editor + assignments modal) now runs off the LiveView
+  process via `start_async`/`cancel_async`, with a loading state — a
+  synchronous rasterize could block the whole modal for up to the 5s backend
+  timeout
+
+### Fixed
+- SVG injection — every interpolated geometry attribute and the glow-filter
+  id are now escaped/sanitized; a crafted canvas can no longer break out of
+  an attribute or inject markup
+- Canvas `width`/`height` are clamped (`@max_dim` 4000) on both the SVG
+  viewBox and the rasterizer's output buffer, preventing an oversized canvas
+  from making the rasterizer allocate an unbounded pixel buffer
+- Image hrefs resolving to `file://` are dropped instead of passed through —
+  was a local-file-read primitive via a CLI rasterizer backend
+- `Schemas.Assignment` now declares `unique_constraint/3` on its two partial
+  unique indexes, so a concurrent double-save returns `{:error, changeset}`
+  instead of raising `Ecto.ConstraintError` and crashing the LiveView
+- Served OG images now send `X-Content-Type-Options: nosniff`
+- A preview render that crashes or is superseded mid-flight no longer leaks
+  an internal error tag into the flash message text
+
 ## 0.1.1 - 2026-07-04
 
 ### Fixed
