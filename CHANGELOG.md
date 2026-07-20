@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.1 - 2026-07-20
+
+### Fixed
+- The Hex package's `files:` list never included `priv/`, so the 0.2.0
+  package shipped without `priv/static/assets/phoenix_kit_og.js` (the editor
+  JS hooks bundle declared by `js_sources/0`) or `priv/gettext/` — any host
+  installing from Hex (rather than a path/git dep) failed to compile with
+  `js_sources/0 bundle not found`. `priv` is now included in the package.
+
 ## 0.2.0 - 2026-07-20
 
 ### Added
