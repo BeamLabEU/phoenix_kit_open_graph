@@ -10,7 +10,8 @@ defmodule PhoenixKitOG.Render do
                               ├── hit ──►  served path
                               │
                               └── miss ──► SVG generation
-                                           rasterize (rsvg-convert)
+                                           rasterize (resvg NIF,
+                                             CLI/ImageMagick fallbacks)
                                            atomic write to cache
                                            served path
 

@@ -77,7 +77,7 @@ this tier"). Publishing's hierarchy:
 Uniqueness at the DB level uses a partial-index pair because
 Postgres treats NULL as distinct: one row per `(module, scope_type)`
 when `scope_uuid IS NULL` (module-wide default), one per full triple
-otherwise. See V139.
+otherwise. See core migration V152 (in `phoenix_kit`).
 
 ### Consumer module callbacks
 
@@ -143,10 +143,10 @@ canvas, values, module_key)` → SVG generation → rasterize.
 
 ### Schemas
 
-- `phoenix_kit_og_templates` (V139) — `name`, `description`,
+- `phoenix_kit_og_templates` (core V152) — `name`, `description`,
   `canvas` JSONB (`%{"width", "height", "background", "elements"}`),
   optional `preview_image_uuid`.
-- `phoenix_kit_og_assignments` (V139) — `module_key`, `scope_type`,
+- `phoenix_kit_og_assignments` (core V152) — `module_key`, `scope_type`,
   `scope_uuid` (nullable), `template_uuid` (FK CASCADE),
   `slot_mapping` JSONB (`%{slot_name => variable_name}`).
 

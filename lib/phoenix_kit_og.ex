@@ -133,18 +133,21 @@ defmodule PhoenixKitOG do
   # ===========================================================================
 
   @doc """
-  The seam `phoenix_kit_publishing` calls. Walks the hierarchy, picks the
-  winning template, and would (in Phase 3) substitute a rendered-image URL
-  into `og[:image]`.
+  The seam `phoenix_kit_publishing` calls. Walks the consumer's scope
+  hierarchy, picks the winning template, renders it to a PNG, and swaps
+  the rendered image URL into `og[:image]` (also setting `:image_width`,
+  `:image_height`, and `:image_type`).
 
-  Today it's a pass-through: if no template wins, return `og` unchanged.
-  When a template wins, it still returns `og` unchanged but logs the
-  resolution — once the renderer ships, this is where we swap `og[:image]`
-  for the rendered URL.
+  Returns `og` unchanged when the module is disabled, no template
+  resolves, or rendering fails — so the consumer keeps its own per-post
+  OG image (featured image + override). Any raised exception is
+  swallowed the same way: OG resolution must never crash a public post
+  page render.
 
-  The seam contract: return a map with the same keys (`:title`,
-  `:description`, `:image`, `:url`, `:locale`, `:type`). Anything else is
-  ignored by publishing's HTML renderer.
+  The seam contract: return a map carrying at least the keys the
+  consumer passed in (`:title`, `:description`, `:image`, `:url`,
+  `:locale`, `:type`); this function may additionally set
+  `:image_width`, `:image_height`, and `:image_type`.
   """
   @spec refine_og(map(), Plug.Conn.t() | nil, map(), String.t() | nil) :: map()
   def refine_og(og, conn, post, language) when is_map(og) do
