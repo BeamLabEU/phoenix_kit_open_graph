@@ -57,6 +57,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
          |> assign(:show_preview_modal, false)
          |> assign(:preview_url, nil)
          |> assign(:preview_error, nil)
+         |> assign(:preview_loading, false)
          |> assign(:save_state, :saved)
          |> assign(:autosave_timer, nil)
          |> assign(:show_media_selector, false)
@@ -209,21 +210,22 @@ defmodule PhoenixKitOG.Web.EditorLive do
         placeholder_slot_values(socket.assigns.slots)
       )
 
-    case PhoenixKitOG.Render.render_url(template, %{values: values}) do
-      {:ok, url} ->
-        {:noreply,
-         socket
-         |> assign(:preview_url, url)
-         |> assign(:preview_error, nil)
-         |> assign(:show_preview_modal, true)}
-
-      {:error, reason} ->
-        {:noreply,
-         socket
-         |> assign(:preview_error, preview_error_message(reason))
-         |> assign(:preview_url, nil)
-         |> assign(:show_preview_modal, true)}
-    end
+    # Rasterization can take up to the 5s backend timeout — run it OFF
+    # the LiveView process so the modal opens instantly with a spinner
+    # instead of blocking every other event on this socket. cancel_async
+    # supersedes any in-flight render (rapid re-clicks don't queue).
+    {:noreply,
+     socket
+     |> assign(
+       show_preview_modal: true,
+       preview_loading: true,
+       preview_url: nil,
+       preview_error: nil
+     )
+     |> cancel_async(:preview)
+     |> start_async(:preview, fn ->
+       PhoenixKitOG.Render.render_url(template, %{values: values})
+     end)}
   end
 
   def handle_event("close_preview", _params, socket) do
@@ -417,6 +419,29 @@ defmodule PhoenixKitOG.Web.EditorLive do
   def handle_info(msg, socket) do
     Logger.debug("[PhoenixKitOG.EditorLive] unexpected handle_info: #{inspect(msg)}")
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_async(:preview, {:ok, {:ok, url}}, socket) do
+    {:noreply, assign(socket, preview_url: url, preview_error: nil, preview_loading: false)}
+  end
+
+  def handle_async(:preview, {:ok, {:error, reason}}, socket) do
+    {:noreply,
+     assign(socket,
+       preview_url: nil,
+       preview_error: preview_error_message(reason),
+       preview_loading: false
+     )}
+  end
+
+  def handle_async(:preview, {:exit, reason}, socket) do
+    {:noreply,
+     assign(socket,
+       preview_url: nil,
+       preview_error: preview_error_message({:render_crashed, reason}),
+       preview_loading: false
+     )}
   end
 
   # =========================================================================

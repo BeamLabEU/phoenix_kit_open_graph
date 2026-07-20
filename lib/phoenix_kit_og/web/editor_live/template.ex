@@ -77,6 +77,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
 
       <.preview_modal
         show={@show_preview_modal}
+        loading={@preview_loading}
         url={@preview_url}
         error={@preview_error}
         global_values={@global_values}
@@ -90,6 +91,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
   # in mockups of the popular platforms.
   # =========================================================================
   attr(:show, :boolean, required: true)
+  attr(:loading, :boolean, default: false)
   attr(:url, :string, default: nil)
   attr(:error, :string, default: nil)
   attr(:global_values, :map, required: true)
@@ -124,6 +126,13 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
             <.icon name="hero-x-mark" class="w-4 h-4" />
           </button>
         </div>
+
+        <%= if @loading do %>
+          <div class="flex items-center justify-center gap-3 py-16 text-base-content/60">
+            <span class="loading loading-spinner loading-md"></span>
+            <span class="text-sm">{gettext("Rendering preview…")}</span>
+          </div>
+        <% end %>
 
         <%= if @error do %>
           <div class="rounded-md border border-error/30 bg-error/5 px-4 py-3 text-sm text-error">
@@ -316,6 +325,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         <button
           type="button"
           phx-click="open_preview"
+          phx-disable-with={gettext("Rendering…")}
           class="btn btn-ghost btn-sm"
           title={gettext("Preview in social cards")}
         >
