@@ -125,6 +125,23 @@ defmodule PhoenixKitOG do
   @impl PhoenixKit.Module
   def css_sources, do: [:phoenix_kit_og]
 
+  # The editor ships two LiveView JS hooks (drag/resize + keyboard). Declaring
+  # the bundle here lets core's :phoenix_kit_js_sources compiler fold it into
+  # the host's single LiveSocket at construction — the registration that
+  # survives LiveView navigation (an inline <script> only runs on a hard load).
+  # No `@impl` — the released core's `PhoenixKit.Module` behaviour predates the
+  # `js_sources/0` callback (annotating it warns + fails --warnings-as-errors);
+  # core calls it via the compiler regardless. Re-add @impl once core ships it.
+  def js_sources do
+    [
+      %{
+        app: :phoenix_kit_og,
+        file: "static/assets/phoenix_kit_og.js",
+        global: "PhoenixKitOGHooks"
+      }
+    ]
+  end
+
   @impl PhoenixKit.Module
   def route_module, do: PhoenixKitOG.Routes
 

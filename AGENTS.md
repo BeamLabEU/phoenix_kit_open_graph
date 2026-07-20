@@ -176,16 +176,24 @@ canvas, values, module_key)` → SVG generation → rasterize.
 }
 ```
 
-## Editor JS hook
+## Editor JS hooks
 
-`Web.EditorLive.Template` inlines a `<script>` that registers
-`PhoenixKitOGCanvas` on `window.PhoenixKitHooks`. Inline (not
-`type="module"`) so it runs synchronously during HTML parsing,
-before the deferred `app.js` spreads hooks into the LiveSocket.
+The editor ships two LiveView hooks — `PhoenixKitOGCanvas` (drag/resize)
+and `PhoenixKitOGEditor` (keyboard) — in a prebuilt bundle at
+`priv/static/assets/phoenix_kit_og.js`, registered on
+`window.PhoenixKitOGHooks`. `PhoenixKitOG.js_sources/0` declares the
+bundle so core's `:phoenix_kit_js_sources` compiler folds it into the
+host's single LiveSocket at construction.
+
+**Why a bundle, not an inline `<script>`:** an inline script runs only
+on a hard page load, NOT on a morphdom patch — so navigating into the
+editor from the Templates list (both in `live_session
+:phoenix_kit_admin`) left the hook unregistered. `js_sources/0` is the
+supported path and the only one that survives LiveView navigation.
 
 Watchdog banner: the hook sets `data-pk-og-hook-ready="true"` on
 the canvas wrapper; a 2.5s timer reveals a warning when the flag
-never flips (JS didn't load, hook errored on mount, etc.).
+never flips (bundle didn't load, hook errored on mount, etc.).
 `<noscript>` covers the JS-disabled case.
 
 Interaction: pointerdown captures a resize handle or the drag
@@ -214,8 +222,10 @@ Tailwind scans this plugin's templates. The parent's
 `assets/css/app.css` `@source` list must include
 `/www/phoenix_kit_og/lib` once.
 
-External modules can't ship JS through the parent's pipeline — inline
-`<script>` in templates, register hooks on `window.PhoenixKitHooks`.
+JS hooks ship via `js_sources/0` (see "Editor JS hooks" above) — a
+prebuilt bundle in `priv/static/assets/`, folded into the host's
+LiveSocket by core's compiler. Do NOT use inline `<script>` for hooks:
+it fails on LiveView navigation.
 
 ## Versioning & Releases
 
