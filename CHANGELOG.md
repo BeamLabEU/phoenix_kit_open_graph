@@ -42,7 +42,7 @@ All notable changes to this project will be documented in this file.
 - Admin dashboard integration: OpenGraph overview tab plus Templates and
   Assignments subtabs
 - `phoenix_kit_og_templates` and `phoenix_kit_og_assignments` schemas
-  (migration V139), with a partial-unique-index pair so Postgres NULL
+  (migration V154), with a partial-unique-index pair so Postgres NULL
   `scope_uuid` (module-wide default) and per-scope assignments don't collide
 
 ### Fixed

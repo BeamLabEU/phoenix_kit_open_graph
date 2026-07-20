@@ -12,7 +12,7 @@ defmodule PhoenixKitOG.Schemas.Assignment do
       (module_key, scope_type) WHERE scope_uuid IS NULL
       (module_key, scope_type, scope_uuid) WHERE scope_uuid IS NOT NULL
 
-  (See V139.)
+  (See core migration V154.)
   """
 
   use Ecto.Schema
@@ -57,6 +57,14 @@ defmodule PhoenixKitOG.Schemas.Assignment do
     |> validate_length(:scope_type, max: 32)
     |> validate_slot_mapping()
     |> foreign_key_constraint(:template_uuid)
+    # The two V154 partial unique indexes enforce one assignment per
+    # (module_key, scope_type[, scope_uuid]). Declaring them here turns a
+    # concurrent double-insert (or a retry racing a first success) into a
+    # friendly {:error, changeset} instead of a raised Ecto.ConstraintError
+    # that would crash the LiveView — same discipline Template.changeset
+    # already uses for its :name unique index.
+    |> unique_constraint(:scope_uuid, name: :idx_og_assignments_unique_scoped)
+    |> unique_constraint(:scope_type, name: :idx_og_assignments_unique_default)
   end
 
   # slot_mapping must be a flat `%{slot_name => variable_name}` where

@@ -32,6 +32,10 @@ defmodule PhoenixKitOGTest do
     end
 
     test "enable_system/0 and disable_system/0 are exported" do
+      # function_exported?/3 does NOT load the module — without this,
+      # the assertion flakes under seed orderings where no earlier test
+      # has touched PhoenixKitOG yet.
+      assert Code.ensure_loaded?(PhoenixKitOG)
       assert function_exported?(PhoenixKitOG, :enable_system, 0)
       assert function_exported?(PhoenixKitOG, :disable_system, 0)
     end

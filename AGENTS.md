@@ -77,7 +77,7 @@ this tier"). Publishing's hierarchy:
 Uniqueness at the DB level uses a partial-index pair because
 Postgres treats NULL as distinct: one row per `(module, scope_type)`
 when `scope_uuid IS NULL` (module-wide default), one per full triple
-otherwise. See V139.
+otherwise. See core migration V154 (in `phoenix_kit`).
 
 ### Consumer module callbacks
 
@@ -143,10 +143,10 @@ canvas, values, module_key)` → SVG generation → rasterize.
 
 ### Schemas
 
-- `phoenix_kit_og_templates` (V139) — `name`, `description`,
+- `phoenix_kit_og_templates` (core V154) — `name`, `description`,
   `canvas` JSONB (`%{"width", "height", "background", "elements"}`),
   optional `preview_image_uuid`.
-- `phoenix_kit_og_assignments` (V139) — `module_key`, `scope_type`,
+- `phoenix_kit_og_assignments` (core V154) — `module_key`, `scope_type`,
   `scope_uuid` (nullable), `template_uuid` (FK CASCADE),
   `slot_mapping` JSONB (`%{slot_name => variable_name}`).
 
@@ -176,16 +176,24 @@ canvas, values, module_key)` → SVG generation → rasterize.
 }
 ```
 
-## Editor JS hook
+## Editor JS hooks
 
-`Web.EditorLive.Template` inlines a `<script>` that registers
-`PhoenixKitOGCanvas` on `window.PhoenixKitHooks`. Inline (not
-`type="module"`) so it runs synchronously during HTML parsing,
-before the deferred `app.js` spreads hooks into the LiveSocket.
+The editor ships two LiveView hooks — `PhoenixKitOGCanvas` (drag/resize)
+and `PhoenixKitOGEditor` (keyboard) — in a prebuilt bundle at
+`priv/static/assets/phoenix_kit_og.js`, registered on
+`window.PhoenixKitOGHooks`. `PhoenixKitOG.js_sources/0` declares the
+bundle so core's `:phoenix_kit_js_sources` compiler folds it into the
+host's single LiveSocket at construction.
+
+**Why a bundle, not an inline `<script>`:** an inline script runs only
+on a hard page load, NOT on a morphdom patch — so navigating into the
+editor from the Templates list (both in `live_session
+:phoenix_kit_admin`) left the hook unregistered. `js_sources/0` is the
+supported path and the only one that survives LiveView navigation.
 
 Watchdog banner: the hook sets `data-pk-og-hook-ready="true"` on
 the canvas wrapper; a 2.5s timer reveals a warning when the flag
-never flips (JS didn't load, hook errored on mount, etc.).
+never flips (bundle didn't load, hook errored on mount, etc.).
 `<noscript>` covers the JS-disabled case.
 
 Interaction: pointerdown captures a resize handle or the drag
@@ -214,8 +222,46 @@ Tailwind scans this plugin's templates. The parent's
 `assets/css/app.css` `@source` list must include
 `/www/phoenix_kit_og/lib` once.
 
-External modules can't ship JS through the parent's pipeline — inline
-`<script>` in templates, register hooks on `window.PhoenixKitHooks`.
+JS hooks ship via `js_sources/0` (see "Editor JS hooks" above) — a
+prebuilt bundle in `priv/static/assets/`, folded into the host's
+LiveSocket by core's compiler. Do NOT use inline `<script>` for hooks:
+it fails on LiveView navigation.
+
+## Testing
+
+```bash
+# Context/DB tests need core V154 (the OG tables) — run against LOCAL core,
+# since the published pin (~> 1.7.189) predates V154:
+PHOENIX_KIT_PATH=../phoenix_kit mix test
+
+# Standalone (published core): pure/unit tests run; :integration excluded
+# with a hint until core ships V154 and the pin is raised.
+mix test
+```
+
+Harness (built 2026-07-20): `test/support/{test_repo,data_case}.ex` +
+`config/{config,test}.exs`; `test_helper.exs` runs
+`PhoenixKit.Migration.ensure_current/2` against the test DB and excludes
+`:integration` when Postgres is down OR the resolved core lacks the OG
+tables (`phoenix_kit_og_templates` present-check). `PhoenixKitOG.DataCase`
+gives an Ecto sandbox. Covered: Templates CRUD + activity (incl. the
+`failed: true` failure row), the Assignments upsert / `clear` /
+`update_slot_mapping` paths, the **concurrent-set constraint guard** (a
+duplicate insert returns `{:error, changeset}`, never a raised
+`Ecto.ConstraintError`), and the **most-specific-wins resolution
+hierarchy** (nil-scope skip, default fall-through, `:none`, slot-mapping
+carry). Pure tests (Svg/Canvas/Slots/Variables/Cache/Errors) need no DB.
+Still open: LiveView smoke tests (need a `Test.Endpoint`/`LiveCase`).
+
+## Activity logging
+
+`PhoenixKitOG.ActivityLog` wraps `PhoenixKit.Activity` (guarded by
+`Code.ensure_loaded?`, rescues `Postgrex :undefined_table` on a fresh
+host). `log/4` is a pipe step: it logs the success row on `{:ok, struct}`
+AND a minimal failure row on `{:error, _}` (metadata `failed: true` +
+a coarse reason), so an invalid create/update/delete still leaves an
+audit trail. `maybe_log/3` is the direct (non-piped) form. Metadata is
+PII-safe — names/counts/UUIDs only, never canvas blobs or image bytes.
 
 ## Versioning & Releases
 
@@ -269,11 +315,11 @@ MIT — see [LICENSE](LICENSE) for details.
 
 Deferred quality-sweep items worth picking up later:
 
-- **DB-backed integration tests** — schema changesets are covered by
-  pure tests; adding a `PhoenixKit.DataCase`-style shared setup would
-  let us exercise the Assignments partial-index constraint, FK-cascade
-  behavior, and the render cache under real Repo pressure.
 - **LiveView smoke tests** — mount + one CRUD per LV, assert
   `phx-disable-with` presence, translated labels, actor-uuid threading.
   Blocked on a shared `LiveCase` + `Test.Endpoint` module (see the
-  catalogue plugin for the reference shape).
+  catalogue plugin for the reference shape). The DB half of the harness
+  (Repo + sandbox + migration bootstrap) now exists — see "Testing".
+- **i18n long-tail** — the common UI strings are translated in all 7
+  locales; the deep editor property/hint strings ride as English
+  fallback (the ecosystem norm) pending a translation pass.

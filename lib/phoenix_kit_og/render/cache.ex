@@ -8,14 +8,35 @@ defmodule PhoenixKitOG.Render.Cache do
   cache entry automatically (the template's `updated_at` is part of the
   key).
 
-  Files live under `priv/static/og_cache/` so we can reuse the host's
-  static-file plug without registering a new endpoint. Filename pattern:
+  Files live under `System.tmp_dir!()/phoenix_kit_og_cache/` — a writable,
+  ephemeral scratch dir (NOT `priv/static`, which is read-only in a release),
+  read back by `PhoenixKitOG.Web.ImageController` at `/og-image/:key` and
+  streamed as `image/png`. Filename pattern:
 
       <16-hex hash>.png
 
   The full hash is 64 hex; we truncate to 16 (64 bits) which is
   collision-resistant for our scale (millions of templates × posts).
+
+  ## Eviction
+
+  Every template edit mints new keys (the `updated_at` is hashed in) and
+  orphans the old files, so the dir grows monotonically without a bound.
+  `write/2` therefore calls `maybe_prune/0` on a small fraction of writes
+  (cheap amortized): it deletes files older than `@ttl_seconds` and, if
+  the count still exceeds `@max_files`, the oldest beyond the cap. A
+  still-valid render just re-renders on its next miss — the cache is a
+  performance layer, never a source of truth. Tune via
+  `config :phoenix_kit_og, cache_ttl_seconds: _, cache_max_files: _`.
   """
+
+  # 30 days: an OG image is regenerated far more often than that, and a
+  # still-hot render simply re-renders on the next miss.
+  @ttl_seconds 60 * 60 * 24 * 30
+  @max_files 5_000
+  # Prune on ~2% of writes so a steady render load amortizes the dir scan
+  # instead of paying it on every single write.
+  @prune_probability 0.02
 
   # Deliberately NOT under `priv/static/` — the dev live-reload plug
   # watches `priv/static/*.png` and would restart the LiveView every
@@ -53,9 +74,63 @@ defmodule PhoenixKitOG.Render.Cache do
 
     with :ok <- File.write(tmp, png_bytes),
          :ok <- File.rename(tmp, path) do
+      maybe_prune()
       :ok
     end
   end
+
+  @doc """
+  Deletes cache files older than the TTL and, if still over the count cap,
+  the oldest beyond it. Safe to call from a cron or by hand; `write/2`
+  calls it probabilistically. Never raises — a prune failure must not
+  break a render.
+  """
+  @spec prune() :: :ok
+  def prune do
+    base = base_dir()
+
+    files =
+      base
+      |> File.ls!()
+      |> Enum.filter(&String.ends_with?(&1, ".png"))
+      |> Enum.map(fn name ->
+        path = Path.join(base, name)
+
+        case File.stat(path, time: :posix) do
+          {:ok, %{mtime: mtime}} -> {path, mtime}
+          _ -> {path, 0}
+        end
+      end)
+
+    now = System.system_time(:second)
+
+    # Age out first.
+    ttl = Application.get_env(:phoenix_kit_og, :cache_ttl_seconds, @ttl_seconds)
+    max_files = Application.get_env(:phoenix_kit_og, :cache_max_files, @max_files)
+
+    {expired, fresh} = Enum.split_with(files, fn {_p, mtime} -> now - mtime > ttl end)
+    Enum.each(expired, fn {p, _} -> File.rm(p) end)
+
+    # Then cap the count, oldest-first.
+    if length(fresh) > max_files do
+      fresh
+      |> Enum.sort_by(fn {_p, mtime} -> mtime end)
+      |> Enum.take(length(fresh) - max_files)
+      |> Enum.each(fn {p, _} -> File.rm(p) end)
+    end
+
+    :ok
+  rescue
+    _ -> :ok
+  end
+
+  defp maybe_prune do
+    if :rand.uniform() < prune_probability(), do: prune()
+    :ok
+  end
+
+  defp prune_probability,
+    do: Application.get_env(:phoenix_kit_og, :cache_prune_probability, @prune_probability)
 
   @doc "Clears every cached render — useful after upgrading the renderer."
   @spec clear() :: :ok

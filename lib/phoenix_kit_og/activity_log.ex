@@ -50,7 +50,39 @@ defmodule PhoenixKitOG.ActivityLog do
     ok
   end
 
-  def log({:error, _} = err, _action, _opts, _fields_fn), do: err
+  # Audit the ATTEMPT even on failure: the user initiated the action, so
+  # the trail shouldn't lose it because a changeset was invalid. For an
+  # UPDATE/DELETE the changeset's `data` carries the loaded struct (with
+  # its uuid), so run `fields_fn` on it to preserve the resource context
+  # — a failed edit points at WHICH record it targeted. A failed CREATE's
+  # `data` is a blank struct (uuid nil), which resolves to no resource_uuid,
+  # exactly right.
+  def log({:error, %Ecto.Changeset{data: data} = cs} = err, action, opts, fields_fn)
+      when is_binary(action) and is_function(fields_fn, 1) do
+    fields =
+      data
+      |> fields_fn.()
+      |> Map.update(:metadata, %{"failed" => true, "reason" => "validation"}, fn m ->
+        Map.merge(m, %{"failed" => true, "reason" => failure_reason(cs)})
+      end)
+
+    maybe_log(action, opts, fields)
+    err
+  end
+
+  # Non-changeset error (e.g. an atom reason) — no struct to key off, so
+  # just record the flagged attempt.
+  def log({:error, reason} = err, action, opts, _fields_fn) when is_binary(action) do
+    maybe_log(action, opts, %{
+      metadata: %{"failed" => true, "reason" => failure_reason(reason)}
+    })
+
+    err
+  end
+
+  defp failure_reason(%Ecto.Changeset{}), do: "validation"
+  defp failure_reason(reason) when is_atom(reason), do: to_string(reason)
+  defp failure_reason(_), do: "error"
 
   @doc """
   Log without the pipe wrapper — for transactions, toggles, and other

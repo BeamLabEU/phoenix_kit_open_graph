@@ -15,6 +15,9 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   """
 
   use PhoenixKitWeb, :live_view
+  use Gettext, backend: PhoenixKitOG.Gettext
+
+  require Logger
 
   # Enables the shared MediaSelectorModal (uploads + validate stub +
   # handle_info delegator) so image slots can be filled by clicking
@@ -35,7 +38,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(:page_title, "OpenGraph — Assignments")
+     |> assign(:page_title, gettext("OpenGraph — Assignments"))
      |> assign(:consumer, @consumer)
      |> assign(:editing_id, nil)
      |> assign(:edit_state, blank_edit_state())
@@ -45,6 +48,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
      |> assign(:media_slot_target, nil)
      |> assign(:preview_url, nil)
      |> assign(:preview_error, nil)
+     |> assign(:preview_loading, false)
      |> assign(:preview_group_slug, nil)
      |> assign(:preview_post_uuid, nil)
      |> assign(:preview_posts, [])
@@ -112,7 +116,8 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
      socket
      |> assign(:editing_id, nil)
      |> assign(:preview_url, nil)
-     |> assign(:preview_error, nil)}
+     |> assign(:preview_error, nil)
+     |> assign(:preview_loading, false)}
   end
 
   # =========================================================================
@@ -233,12 +238,16 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
         {:noreply, socket}
 
       a ->
-        _ = Assignments.clear(a.module_key, a.scope_type, a.scope_uuid, actor_opts(socket))
+        case Assignments.clear(a.module_key, a.scope_type, a.scope_uuid, actor_opts(socket)) do
+          {:ok, _} ->
+            {:noreply, socket |> put_flash(:info, gettext("Assignment removed.")) |> load()}
 
-        {:noreply,
-         socket
-         |> put_flash(:info, gettext("Assignment removed."))
-         |> load()}
+          {:error, _} ->
+            {:noreply,
+             socket
+             |> put_flash(:error, gettext("Could not remove the assignment."))
+             |> load()}
+        end
     end
   end
 
@@ -268,6 +277,11 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   end
 
   def handle_info({:media_selector_closed}, socket), do: {:noreply, close_media_picker(socket)}
+
+  def handle_info(msg, socket) do
+    Logger.debug("[PhoenixKitOG.AssignmentsLive] unexpected handle_info: #{inspect(msg)}")
+    {:noreply, socket}
+  end
 
   # =========================================================================
   # Save internals
@@ -331,7 +345,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
     template = Enum.find(socket.assigns.templates, &(&1.uuid == st.template_uuid))
 
     if is_nil(template) do
-      socket |> assign(:preview_url, nil) |> assign(:preview_error, nil)
+      socket |> assign(preview_url: nil, preview_error: nil, preview_loading: false)
     else
       canvas = template.canvas
       slots = if is_map(canvas), do: Slots.used(canvas), else: []
@@ -372,16 +386,41 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
       %PhoenixKitOG.Schemas.Template{} = template
       render_template = %{template | updated_at: DateTime.utc_now()}
 
-      case PhoenixKitOG.Render.render_url(render_template, %{values: values}) do
-        {:ok, url} ->
-          socket |> assign(:preview_url, url) |> assign(:preview_error, nil)
-
-        {:error, reason} ->
-          socket
-          |> assign(:preview_url, nil)
-          |> assign(:preview_error, preview_error_message(reason))
-      end
+      # Render OFF the LV process: refresh_preview fires on EVERY modal
+      # field change, and a synchronous rasterize (up to the 5s backend
+      # timeout) would freeze the whole modal. cancel_async supersedes an
+      # in-flight render so a rapid sequence of changes only completes the
+      # last one.
+      socket
+      |> assign(:preview_loading, true)
+      |> cancel_async(:preview)
+      |> start_async(:preview, fn ->
+        PhoenixKitOG.Render.render_url(render_template, %{values: values})
+      end)
     end
+  end
+
+  @impl true
+  def handle_async(:preview, {:ok, {:ok, url}}, socket) do
+    {:noreply, assign(socket, preview_url: url, preview_error: nil, preview_loading: false)}
+  end
+
+  def handle_async(:preview, {:ok, {:error, reason}}, socket) do
+    {:noreply,
+     assign(socket,
+       preview_url: nil,
+       preview_error: preview_error_message(reason),
+       preview_loading: false
+     )}
+  end
+
+  def handle_async(:preview, {:exit, reason}, socket) do
+    {:noreply,
+     assign(socket,
+       preview_url: nil,
+       preview_error: preview_error_message({:render_failed, reason}),
+       preview_loading: false
+     )}
   end
 
   # Preview errors are a small subset of the atoms `Render.render_url/2`
@@ -454,7 +493,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
       (post[:metadata] && post[:metadata]["title"]) ||
       post[:title] ||
       post[:slug] ||
-      "(untitled)"
+      gettext("(untitled)")
   end
 
   defp list_publishing_groups do
@@ -749,6 +788,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
             :if={@selected_template}
             url={@preview_url}
             error={@preview_error}
+            loading={@preview_loading}
             groups={@groups}
             group_slug={@preview_group_slug}
             posts={@preview_posts}
@@ -779,6 +819,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
 
   attr(:url, :string, default: nil)
   attr(:error, :string, default: nil)
+  attr(:loading, :boolean, default: false)
   attr(:groups, :list, default: [])
   attr(:group_slug, :string, default: nil)
   attr(:posts, :list, default: [])
@@ -843,6 +884,11 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
       </div>
 
       <%= cond do %>
+        <% @loading -> %>
+          <div class="flex items-center justify-center gap-2 py-6 text-xs text-base-content/50">
+            <span class="loading loading-spinner loading-sm"></span>
+            <span>{gettext("Rendering…")}</span>
+          </div>
         <% @error -> %>
           <div class="rounded-md border border-error/30 bg-error/5 px-3 py-2 text-xs text-error">
             {@error}
@@ -850,7 +896,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
         <% @url -> %>
           <img
             src={@url}
-            alt="OG preview"
+            alt={gettext("OG preview")}
             class="w-full rounded-lg border-2 border-base-300 shadow-sm"
             loading="lazy"
           />
@@ -875,7 +921,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
     badge =
       case status do
         "published" -> ""
-        "draft" -> " (draft)"
+        "draft" -> " " <> gettext("(draft)")
         other when is_binary(other) -> " (#{other})"
         _ -> ""
       end
@@ -953,7 +999,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
                 value={v.name}
                 selected={@dropdown_value == v.name}
               >
-                {v.label}
+                {PhoenixKitOG.Variables.global_label(v.name) || v.label}
               </option>
             </optgroup>
             <option value="__custom__" selected={@is_custom}>

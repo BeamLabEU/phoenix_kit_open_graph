@@ -45,6 +45,10 @@ defmodule PhoenixKitOG.Web.ImageController do
               "public, max-age=#{:timer.hours(24 * 30) |> div(1000)}, immutable"
             )
             |> put_resp_header("content-length", Integer.to_string(byte_size(bytes)))
+            # nosniff: the body is always rasterizer PNG bytes; stop a
+            # strict UA from ever MIME-sniffing this public, long-cached
+            # binary route as anything else.
+            |> put_resp_header("x-content-type-options", "nosniff")
             |> send_resp(200, bytes)
 
           {:error, _} ->

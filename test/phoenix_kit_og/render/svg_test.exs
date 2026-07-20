@@ -208,6 +208,79 @@ defmodule PhoenixKitOG.Render.SvgTest do
     end
   end
 
+  describe "to_binary/2 — injection & DoS hardening" do
+    test "crafted string geometry cannot break out of the element" do
+      # A rect x that tries to close the tag and inject markup. escape/1
+      # neutralizes the quote/angle brackets so no new element appears.
+      canvas = %{
+        "elements" => [
+          %{
+            "type" => "rect",
+            "x" => ~s|0"/><script>alert(1)</script><rect x="0|,
+            "y" => 0,
+            "width" => 10,
+            "height" => 10,
+            "fill" => "#fff"
+          }
+        ]
+      }
+
+      svg = Svg.to_binary(canvas)
+      refute svg =~ "<script>"
+      assert svg =~ "&lt;script&gt;"
+    end
+
+    test "the glow filter id is sanitized to a safe charset" do
+      canvas = %{
+        "elements" => [
+          %{
+            "type" => "text",
+            "value" => "Hi",
+            "id" => ~s|x"/><feImage href="file:///etc/passwd"/><filter id="y|,
+            "glow" => true,
+            "x" => 0,
+            "y" => 0
+          }
+        ]
+      }
+
+      svg = Svg.to_binary(canvas)
+      refute svg =~ "feImage"
+      refute svg =~ "/etc/passwd"
+    end
+
+    test "file:// image href is dropped, never emitted into the SVG" do
+      canvas = %{
+        "elements" => [
+          %{
+            "type" => "image",
+            "src" => "file:///etc/passwd",
+            "x" => 0,
+            "y" => 0,
+            "width" => 100,
+            "height" => 100
+          }
+        ]
+      }
+
+      svg = Svg.to_binary(canvas)
+      refute svg =~ "/etc/passwd"
+      refute svg =~ "file://"
+    end
+
+    test "oversized / non-numeric canvas dimensions are clamped" do
+      svg = Svg.to_binary(%{"width" => 100_000, "height" => 100_000, "elements" => []})
+      # Clamped to @max_dim (4000) — never the OOM-inducing raw value.
+      assert svg =~ ~s|width="4000"|
+      assert svg =~ ~s|height="4000"|
+      refute svg =~ "100000"
+
+      # A non-numeric width can't inject markup and falls to the floor.
+      bad = Svg.to_binary(%{"width" => ~s|1"/><script>|, "height" => 630, "elements" => []})
+      refute bad =~ "<script>"
+    end
+  end
+
   describe "to_binary/2 — determinism" do
     test "same canvas + values produce byte-identical output" do
       canvas = %{
