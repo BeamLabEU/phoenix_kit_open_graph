@@ -8,8 +8,10 @@ defmodule PhoenixKitOG.Render.Cache do
   cache entry automatically (the template's `updated_at` is part of the
   key).
 
-  Files live under `priv/static/og_cache/` so we can reuse the host's
-  static-file plug without registering a new endpoint. Filename pattern:
+  Files live under `System.tmp_dir!()/phoenix_kit_og_cache/` — a writable,
+  ephemeral scratch dir (NOT `priv/static`, which is read-only in a release),
+  read back by `PhoenixKitOG.Web.ImageController` at `/og-image/:key` and
+  streamed as `image/png`. Filename pattern:
 
       <16-hex hash>.png
 

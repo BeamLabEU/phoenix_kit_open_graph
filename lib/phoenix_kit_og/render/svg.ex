@@ -31,8 +31,13 @@ defmodule PhoenixKitOG.Render.Svg do
   """
   @spec render(map(), context()) :: iodata()
   def render(canvas, context \\ %{}) when is_map(canvas) do
-    width = Map.get(canvas, "width", 1200)
-    height = Map.get(canvas, "height", 630)
+    # Clamp dimensions to a sane numeric range: the canvas is a free-form
+    # JSONB map (the schema only checks is_map), so a crafted
+    # width/height could be a non-numeric string (SVG injection) or a
+    # huge number (the rasterizer allocates ~w×h×4 bytes — 100000² would
+    # OOM the BEAM). Force a positive integer capped at @max_dim.
+    width = clamp_dim(Map.get(canvas, "width", 1200))
+    height = clamp_dim(Map.get(canvas, "height", 630))
     background = Map.get(canvas, "background", %{"type" => "color", "value" => "#0b1220"})
 
     [
@@ -109,7 +114,7 @@ defmodule PhoenixKitOG.Render.Svg do
   defp element_underlay(%{"underlay_opacity" => o} = el) when is_number(o) and o > 0 do
     fill = if Map.get(el, "underlay_color") == "light", do: "#ffffff", else: "#000000"
 
-    ~s|<rect x="#{el["x"]}" y="#{el["y"]}" width="#{el["width"]}" height="#{el["height"]}" fill="#{fill}" fill-opacity="#{o}"/>|
+    ~s|<rect x="#{escape(el["x"])}" y="#{escape(el["y"])}" width="#{escape(el["width"])}" height="#{escape(el["height"])}" fill="#{escape(fill)}" fill-opacity="#{escape(o)}"/>|
   end
 
   defp element_underlay(_), do: ""
@@ -138,7 +143,7 @@ defmodule PhoenixKitOG.Render.Svg do
     radius = el["radius"] || 0
 
     rect =
-      ~s|<rect x="#{el["x"]}" y="#{el["y"]}" width="#{el["width"]}" height="#{el["height"]}" rx="#{radius}" ry="#{radius}" fill="#{escape(fill)}" stroke="#{escape(stroke)}" stroke-width="#{sw}"/>|
+      ~s|<rect x="#{escape(el["x"])}" y="#{escape(el["y"])}" width="#{escape(el["width"])}" height="#{escape(el["height"])}" rx="#{escape(radius)}" ry="#{escape(radius)}" fill="#{escape(fill)}" stroke="#{escape(stroke)}" stroke-width="#{escape(sw)}"/>|
 
     [element_underlay(el), rect]
   end
@@ -159,7 +164,7 @@ defmodule PhoenixKitOG.Render.Svg do
           preserve = fit_to_preserve_aspect_ratio(Map.get(el, "fit", "fill"))
 
           image_el =
-            ~s|<image href="#{escape(href)}" x="#{el["x"]}" y="#{el["y"]}" width="#{el["width"]}" height="#{el["height"]}" preserveAspectRatio="#{preserve}"/>|
+            ~s|<image href="#{escape(href)}" x="#{escape(el["x"])}" y="#{escape(el["y"])}" width="#{escape(el["width"])}" height="#{escape(el["height"])}" preserveAspectRatio="#{escape(preserve)}"/>|
 
           [element_underlay(el), image_el]
         end
@@ -262,12 +267,16 @@ defmodule PhoenixKitOG.Render.Svg do
       # underneath to intensify the aura before the crisp text lands
       # on top.
       std = size * 0.1
-      id = "og-glow-#{el["id"] || Base.encode16(:crypto.strong_rand_bytes(4), case: :lower)}"
+      # el["id"] is author-controlled and lands in both an attribute AND a
+      # `url(#...)` reference — quote-escaping isn't enough there (a `)`
+      # would break the url()). Sanitize to a safe id charset instead.
+      raw_id = el["id"] || Base.encode16(:crypto.strong_rand_bytes(4), case: :lower)
+      id = "og-glow-" <> String.replace(to_string(raw_id), ~r/[^a-zA-Z0-9_-]/, "")
 
       filter_def =
         ~s|<filter id="#{id}" x="-30%" y="-30%" width="160%" height="160%">| <>
           ~s|<feGaussianBlur in="SourceAlpha" stdDeviation="#{std}" result="blur"/>| <>
-          ~s|<feFlood flood-color="#{color}" flood-opacity="#{opacity}"/>| <>
+          ~s|<feFlood flood-color="#{escape(color)}" flood-opacity="#{escape(opacity)}"/>| <>
           ~s|<feComposite in2="blur" operator="in" result="glow"/>| <>
           ~s|<feMerge>| <>
           ~s|<feMergeNode in="glow"/>| <>
@@ -361,6 +370,40 @@ defmodule PhoenixKitOG.Render.Svg do
   defp num(_, default), do: default
 
   # XML attribute escaping — the bare minimum.
+  # Upper bound on a rendered canvas dimension. OG images are 1200×630;
+  # this leaves generous headroom (2x/retina, banners) while capping the
+  # rasterizer's pixel-buffer allocation far below an OOM.
+  @max_dim 4000
+
+  @doc """
+  Clamps a canvas dimension to a positive integer ≤ #{@max_dim}. Public so
+  `Render` can bound the rasterizer's OUTPUT pixel buffer to the same
+  range the SVG viewBox uses — an unclamped width/height there would let
+  the rasterizer allocate ~w×h×4 bytes and OOM the BEAM.
+  """
+  @spec clamp_dim(term()) :: pos_integer()
+  def clamp_dim(v) do
+    n =
+      cond do
+        is_integer(v) ->
+          v
+
+        is_float(v) ->
+          round(v)
+
+        is_binary(v) ->
+          case Integer.parse(v) do
+            {i, _} -> i
+            :error -> 0
+          end
+
+        true ->
+          0
+      end
+
+    n |> max(1) |> min(@max_dim)
+  end
+
   defp escape(nil), do: ""
   defp escape(value) when is_number(value), do: to_string(value)
 
@@ -384,7 +427,10 @@ defmodule PhoenixKitOG.Render.Svg do
   # `og.image` HTML, not into the SVG we rasterize).
   defp resolve_image_href("http://" <> _ = url), do: url
   defp resolve_image_href("https://" <> _ = url), do: url
-  defp resolve_image_href("file://" <> _ = url), do: url
+  # `file://` is a local-file-read primitive (a CLI rasterizer backend
+  # would read arbitrary disk into the public PNG) with no legitimate
+  # use here — every real image is a media UUID or a data: URL. Reject it.
+  defp resolve_image_href("file://" <> _), do: ""
   defp resolve_image_href("data:" <> _ = url), do: url
 
   # A host-relative path (e.g. the signed local-storage fallback URL)

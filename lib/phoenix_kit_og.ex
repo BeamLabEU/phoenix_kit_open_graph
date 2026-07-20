@@ -137,9 +137,11 @@ defmodule PhoenixKitOG do
   winning template, and would (in Phase 3) substitute a rendered-image URL
   into `og[:image]`.
 
-  Today it's a pass-through: if no template wins, return `og` unchanged.
+  If no template wins, returns `og` unchanged.
   When a template wins, it still returns `og` unchanged but logs the
-  resolution — once the renderer ships, this is where we swap `og[:image]`
+  resolution and, when a template wins, swaps `og[:image]` for the rendered
+  OG image URL plus the `:image_width` / `:image_height` / `:image_type` size
+  hints the host's meta-tag component reads
   for the rendered URL.
 
   The seam contract: return a map with the same keys (`:title`,

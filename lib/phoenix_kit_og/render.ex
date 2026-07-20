@@ -64,9 +64,12 @@ defmodule PhoenixKitOG.Render do
   defp render_and_cache(template, context, key) do
     svg = Svg.to_binary(template.canvas, context)
 
+    # Clamp the OUTPUT dimensions the same way Svg clamps its viewBox —
+    # otherwise a crafted canvas width/height makes the rasterizer
+    # allocate an unbounded pixel buffer (OOM the BEAM).
     case Rasterizer.render(svg,
-           width: Map.get(template.canvas, "width", 1200),
-           height: Map.get(template.canvas, "height", 630)
+           width: Svg.clamp_dim(Map.get(template.canvas, "width", 1200)),
+           height: Svg.clamp_dim(Map.get(template.canvas, "height", 630))
          ) do
       {:ok, png_bytes} ->
         case Cache.write(key, png_bytes) do

@@ -16,6 +16,8 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
 
   use PhoenixKitWeb, :live_view
 
+  require Logger
+
   # Enables the shared MediaSelectorModal (uploads + validate stub +
   # handle_info delegator) so image slots can be filled by clicking
   # "Choose image" instead of pasting a UUID.
@@ -233,12 +235,16 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
         {:noreply, socket}
 
       a ->
-        _ = Assignments.clear(a.module_key, a.scope_type, a.scope_uuid, actor_opts(socket))
+        case Assignments.clear(a.module_key, a.scope_type, a.scope_uuid, actor_opts(socket)) do
+          {:ok, _} ->
+            {:noreply, socket |> put_flash(:info, gettext("Assignment removed.")) |> load()}
 
-        {:noreply,
-         socket
-         |> put_flash(:info, gettext("Assignment removed."))
-         |> load()}
+          {:error, _} ->
+            {:noreply,
+             socket
+             |> put_flash(:error, gettext("Could not remove the assignment."))
+             |> load()}
+        end
     end
   end
 
@@ -268,6 +274,11 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   end
 
   def handle_info({:media_selector_closed}, socket), do: {:noreply, close_media_picker(socket)}
+
+  def handle_info(msg, socket) do
+    Logger.debug("[PhoenixKitOG.AssignmentsLive] unexpected handle_info: #{inspect(msg)}")
+    {:noreply, socket}
+  end
 
   # =========================================================================
   # Save internals

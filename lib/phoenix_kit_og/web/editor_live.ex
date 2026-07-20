@@ -35,6 +35,8 @@ defmodule PhoenixKitOG.Web.EditorLive do
   # boilerplate on our side.
   use PhoenixKitWeb.Components.MediaBrowser.Embed
 
+  require Logger
+
   alias PhoenixKitOG.{Canvas, Errors, Paths, Slots, Templates, Variables}
   alias PhoenixKitOG.Schemas.Template
 
@@ -409,6 +411,13 @@ defmodule PhoenixKitOG.Web.EditorLive do
   end
 
   def handle_info({:media_selector_closed}, socket), do: {:noreply, close_media_selector(socket)}
+
+  # Catch-all: this LV arms an :autosave timer and attaches MediaBrowser
+  # hooks, so a late/stray message must not crash it with FunctionClauseError.
+  def handle_info(msg, socket) do
+    Logger.debug("[PhoenixKitOG.EditorLive] unexpected handle_info: #{inspect(msg)}")
+    {:noreply, socket}
+  end
 
   # =========================================================================
   # Preview helpers
