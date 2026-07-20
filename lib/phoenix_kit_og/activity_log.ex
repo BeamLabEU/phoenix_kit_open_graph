@@ -50,7 +50,21 @@ defmodule PhoenixKitOG.ActivityLog do
     ok
   end
 
-  def log({:error, _} = err, _action, _opts, _fields_fn), do: err
+  # Audit the ATTEMPT even on failure: the user initiated the action, so
+  # the trail shouldn't lose it because a changeset was invalid. No struct
+  # in hand on this branch, so metadata is minimal + a `failed` flag the
+  # activity feed can filter on.
+  def log({:error, reason} = err, action, opts, _fields_fn) when is_binary(action) do
+    maybe_log(action, opts, %{
+      metadata: %{"failed" => true, "reason" => failure_reason(reason)}
+    })
+
+    err
+  end
+
+  defp failure_reason(%Ecto.Changeset{}), do: "validation"
+  defp failure_reason(reason) when is_atom(reason), do: to_string(reason)
+  defp failure_reason(_), do: "error"
 
   @doc """
   Log without the pipe wrapper — for transactions, toggles, and other
