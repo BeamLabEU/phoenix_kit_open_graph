@@ -77,7 +77,7 @@ this tier"). Publishing's hierarchy:
 Uniqueness at the DB level uses a partial-index pair because
 Postgres treats NULL as distinct: one row per `(module, scope_type)`
 when `scope_uuid IS NULL` (module-wide default), one per full triple
-otherwise. See V152.
+otherwise. See core migration V154 (in `phoenix_kit`).
 
 ### Consumer module callbacks
 
@@ -143,10 +143,10 @@ canvas, values, module_key)` → SVG generation → rasterize.
 
 ### Schemas
 
-- `phoenix_kit_og_templates` (V152) — `name`, `description`,
+- `phoenix_kit_og_templates` (core V154) — `name`, `description`,
   `canvas` JSONB (`%{"width", "height", "background", "elements"}`),
   optional `preview_image_uuid`.
-- `phoenix_kit_og_assignments` (V152) — `module_key`, `scope_type`,
+- `phoenix_kit_og_assignments` (core V154) — `module_key`, `scope_type`,
   `scope_uuid` (nullable), `template_uuid` (FK CASCADE),
   `slot_mapping` JSONB (`%{slot_name => variable_name}`).
 
@@ -230,12 +230,12 @@ it fails on LiveView navigation.
 ## Testing
 
 ```bash
-# Context/DB tests need core V152 (the OG tables) — run against LOCAL core,
-# since the published pin (~> 1.7.189) predates V152:
+# Context/DB tests need core V154 (the OG tables) — run against LOCAL core,
+# since the published pin (~> 1.7.189) predates V154:
 PHOENIX_KIT_PATH=../phoenix_kit mix test
 
 # Standalone (published core): pure/unit tests run; :integration excluded
-# with a hint until core ships V152 and the pin is raised.
+# with a hint until core ships V154 and the pin is raised.
 mix test
 ```
 

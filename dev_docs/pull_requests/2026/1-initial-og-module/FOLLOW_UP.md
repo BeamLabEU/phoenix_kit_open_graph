@@ -17,7 +17,7 @@ folded into the 2026-07-20 quality sweep (this module's first).
 
 - ~~IMPROVEMENT-MEDIUM `Assignments.set/5` raises on a concurrent double-save~~
   — the deferred fix is done: `Assignment.changeset/2` now declares the two
-  V152 partial-index `unique_constraint`s, so a race returns `{:error, changeset}`
+  V154 partial-index `unique_constraint`s, so a race returns `{:error, changeset}`
   (routed to a flash by `AssignmentsLive.do_save`'s existing changeset branch)
   instead of raising `Ecto.ConstraintError`.
 

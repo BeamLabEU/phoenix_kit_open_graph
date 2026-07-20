@@ -59,11 +59,11 @@ repo_available =
       """)
 
       # Apply core's versioned migration chain (which includes the OG tables at
-      # V152) so the integration suite has a schema.
+      # V154) so the integration suite has a schema.
       PhoenixKit.Migration.ensure_current(TestRepo, log: false)
 
-      # The OG tables ship in core V152. Without PHOENIX_KIT_PATH the suite
-      # resolves the *published* core (~> 1.7.189, pre-V152) — so integration
+      # The OG tables ship in core V154. Without PHOENIX_KIT_PATH the suite
+      # resolves the *published* core (~> 1.7.189, pre-V154) — so integration
       # tests get excluded (with a hint) instead of failing on a missing table.
       %{rows: [[og_tables?]]} =
         TestRepo.query!(
@@ -97,7 +97,7 @@ og_tables_present =
 
 if repo_available and not og_tables_present do
   IO.puts("""
-  \n  Resolved core has no OG tables (its V152 migration isn't applied) —
+  \n  Resolved core has no OG tables (its V154 migration isn't applied) —
      integration tests excluded. Run against local core:
        PHOENIX_KIT_PATH=../phoenix_kit mix test
   """)
