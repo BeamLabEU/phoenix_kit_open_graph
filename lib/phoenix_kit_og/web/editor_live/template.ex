@@ -19,7 +19,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
   use Gettext, backend: PhoenixKitOG.Gettext
 
   alias Phoenix.LiveView.JS
-  alias PhoenixKitOG.{Canvas, Paths}
+  alias PhoenixKitOG.{Canvas, Paths, Variables}
 
   # Canvas displays at 75% of intrinsic in the layout. The SVG itself
   # carries the 1200×630 viewBox so the JS hook can convert client
@@ -1945,7 +1945,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         <li :for={name <- @names} class="flex items-baseline gap-1">
           <span class="font-mono text-base-content/50">[[{name}]]</span>
           <span class="text-base-content/50">—</span>
-          <span>{global_description(name)}</span>
+          <span>{Variables.global_description(name) || name}</span>
         </li>
       </ul>
       <p class="text-xs text-base-content/50 pt-0.5">
@@ -1961,13 +1961,6 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
     </div>
     """
   end
-
-  defp global_description("site_url"), do: gettext("Site's endpoint URL (from app config)")
-  defp global_description("site_host"), do: gettext("Site's hostname (from app config)")
-  defp global_description("site_name"), do: gettext("Project title (settings)")
-  defp global_description("page_url"), do: gettext("URL of the current page/post")
-  defp global_description("page_locale"), do: gettext("Active locale for this page")
-  defp global_description(name), do: name
 
   # Layered `text-shadow` — four blurs at increasing radii with
   # decreasing opacity produce a smooth aura around each glyph. Blur

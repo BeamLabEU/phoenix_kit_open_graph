@@ -418,7 +418,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
     {:noreply,
      assign(socket,
        preview_url: nil,
-       preview_error: preview_error_message({:render_failed, reason}),
+       preview_error: preview_error_message(reason),
        preview_loading: false
      )}
   end

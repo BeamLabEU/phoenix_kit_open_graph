@@ -443,7 +443,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
     {:noreply,
      assign(socket,
        preview_url: nil,
-       preview_error: preview_error_message({:render_crashed, reason}),
+       preview_error: preview_error_message(reason),
        preview_loading: false
      )}
   end
