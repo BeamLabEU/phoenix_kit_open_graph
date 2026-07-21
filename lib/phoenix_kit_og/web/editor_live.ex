@@ -47,34 +47,45 @@ defmodule PhoenixKitOG.Web.EditorLive do
       {:ok, template} ->
         canvas = ensure_canvas(template.canvas)
 
-        {:ok,
-         socket
-         |> assign(
-           :page_title,
-           gettext("OpenGraph — %{name}", name: template.name || gettext("Editor"))
-         )
-         |> assign(:template, template)
-         |> assign(:canvas, canvas)
-         |> assign(:selected_id, nil)
-         |> assign(:slots, Slots.used(canvas))
-         |> assign(:preview?, false)
-         |> assign(:show_preview_modal, false)
-         |> assign(:preview_url, nil)
-         |> assign(:preview_error, nil)
-         |> assign(:preview_loading, false)
-         |> assign(:save_state, :saved)
-         |> assign(:autosave_timer, nil)
-         |> assign(:show_media_selector, false)
-         |> assign(:media_selection_mode, :single)
-         |> assign(:media_selected_uuids, [])
-         |> assign(:media_selector_target, nil)
-         |> assign(
-           :global_values,
-           Variables.global_values(%{
-             endpoint: socket.endpoint,
-             language: socket.assigns[:current_locale] || ""
-           })
-         )}
+        socket =
+          socket
+          |> assign(
+            :page_title,
+            gettext("OpenGraph — %{name}", name: template.name || gettext("Editor"))
+          )
+          |> assign(:template, template)
+          |> assign(:canvas, canvas)
+          |> assign(:selected_id, nil)
+          |> assign(:slots, Slots.used(canvas))
+          |> assign(:preview?, false)
+          |> assign(:preview_visible, true)
+          |> assign(:preview_platform, "card")
+          |> assign(:preview_timer, nil)
+          |> assign(:preview_url, nil)
+          |> assign(:preview_error, nil)
+          |> assign(:preview_loading, false)
+          |> assign(:save_state, :saved)
+          |> assign(:autosave_timer, nil)
+          |> assign(:show_media_selector, false)
+          |> assign(:media_selection_mode, :single)
+          |> assign(:media_selected_uuids, [])
+          |> assign(:media_selector_target, nil)
+          |> assign(
+            :global_values,
+            Variables.global_values(%{
+              endpoint: socket.endpoint,
+              language: socket.assigns[:current_locale] || ""
+            })
+          )
+
+        # The preview pane is always-on — kick the first render as soon
+        # as the socket is live (the disconnected pass has no async).
+        socket =
+          if connected?(socket),
+            do: schedule_preview_refresh(socket, 0),
+            else: socket
+
+        {:ok, socket}
 
       {:error, :not_found} ->
         {:ok,
@@ -196,45 +207,32 @@ defmodule PhoenixKitOG.Web.EditorLive do
     {:noreply, assign(socket, :preview?, !socket.assigns.preview?)}
   end
 
-  # Preview button — renders the CURRENT canvas (with in-memory edits,
-  # not the last-saved template) through the PNG pipeline and opens a
-  # modal with social-card mockups.
-  def handle_event("open_preview", _params, socket) do
-    %PhoenixKitOG.Schemas.Template{} = base_template = socket.assigns.template
+  # Show/hide the always-on preview pane. Turning it on renders
+  # immediately; turning it off cancels any pending or in-flight render.
+  def handle_event("toggle_preview_pane", _params, socket) do
+    if socket.assigns.preview_visible do
+      if socket.assigns.preview_timer, do: Process.cancel_timer(socket.assigns.preview_timer)
 
-    template = %{
-      base_template
-      | canvas: socket.assigns.canvas,
-        updated_at: DateTime.utc_now()
-    }
-
-    values =
-      Map.merge(
-        socket.assigns.global_values,
-        placeholder_slot_values(socket.assigns.slots)
-      )
-
-    # Rasterization can take up to the 5s backend timeout — run it OFF
-    # the LiveView process so the modal opens instantly with a spinner
-    # instead of blocking every other event on this socket. cancel_async
-    # supersedes any in-flight render (rapid re-clicks don't queue).
-    {:noreply,
-     socket
-     |> assign(
-       show_preview_modal: true,
-       preview_loading: true,
-       preview_url: nil,
-       preview_error: nil
-     )
-     |> cancel_async(:preview)
-     |> start_async(:preview, fn ->
-       PhoenixKitOG.Render.render_url(template, %{values: values})
-     end)}
+      {:noreply,
+       socket
+       |> cancel_async(:preview)
+       |> assign(preview_visible: false, preview_timer: nil, preview_loading: false)}
+    else
+      {:noreply,
+       socket
+       |> assign(:preview_visible, true)
+       |> schedule_preview_refresh(0)}
+    end
   end
 
-  def handle_event("close_preview", _params, socket) do
-    {:noreply, assign(socket, :show_preview_modal, false)}
+  @preview_platforms ~w(card facebook x linkedin discord)
+
+  def handle_event("set_preview_platform", %{"platform" => platform}, socket)
+      when platform in @preview_platforms do
+    {:noreply, assign(socket, :preview_platform, platform)}
   end
+
+  def handle_event("set_preview_platform", _params, socket), do: {:noreply, socket}
 
   # =========================================================================
   # Events — property panel
@@ -377,6 +375,39 @@ defmodule PhoenixKitOG.Web.EditorLive do
   @impl true
   def handle_info(:autosave, socket), do: do_save(socket)
 
+  # Debounced always-on preview refresh — renders the CURRENT canvas
+  # (with in-memory edits, not the last-saved template) through the PNG
+  # pipeline. Rasterization can take up to the 5s backend timeout, so it
+  # runs OFF the LiveView process via start_async; cancel_async
+  # supersedes any in-flight render so rapid edits don't queue. The
+  # previous image stays visible while the new one renders.
+  def handle_info(:refresh_preview, socket) do
+    if socket.assigns.preview_visible do
+      %PhoenixKitOG.Schemas.Template{} = base_template = socket.assigns.template
+
+      # `updated_at` is pinned to nil so the render-cache key varies only
+      # with the canvas + values — an unchanged canvas (or an edit that
+      # gets reverted) is a cache hit instead of a re-rasterize.
+      template = %{base_template | canvas: socket.assigns.canvas, updated_at: nil}
+
+      values =
+        Map.merge(
+          socket.assigns.global_values,
+          placeholder_slot_values(socket.assigns.slots)
+        )
+
+      {:noreply,
+       socket
+       |> assign(preview_loading: true, preview_timer: nil)
+       |> cancel_async(:preview)
+       |> start_async(:preview, fn ->
+         PhoenixKitOG.Render.render_url(template, %{values: values})
+       end)}
+    else
+      {:noreply, assign(socket, :preview_timer, nil)}
+    end
+  end
+
   # MediaSelectorModal → parent: user confirmed a selection.
   def handle_info({:media_selected, file_uuids}, socket) do
     file_uuid = List.first(file_uuids || [])
@@ -430,10 +461,11 @@ defmodule PhoenixKitOG.Web.EditorLive do
     {:noreply, assign(socket, preview_url: url, preview_error: nil, preview_loading: false)}
   end
 
+  # On failure the stale preview_url is kept — the pane shows the error
+  # banner above the last good render instead of blanking the pane.
   def handle_async(:preview, {:ok, {:error, reason}}, socket) do
     {:noreply,
      assign(socket,
-       preview_url: nil,
        preview_error: preview_error_message(reason),
        preview_loading: false
      )}
@@ -442,7 +474,6 @@ defmodule PhoenixKitOG.Web.EditorLive do
   def handle_async(:preview, {:exit, reason}, socket) do
     {:noreply,
      assign(socket,
-       preview_url: nil,
        preview_error: preview_error_message(reason),
        preview_loading: false
      )}
@@ -520,6 +551,22 @@ defmodule PhoenixKitOG.Web.EditorLive do
     |> assign(:save_state, :dirty)
     |> assign(:autosave_timer, timer)
     |> assign(:slots, Slots.used(socket.assigns.canvas))
+    |> maybe_schedule_preview_refresh()
+  end
+
+  # Every canvas mutation re-renders the always-on preview on its own
+  # debounce (slightly under the autosave delay so the preview leads).
+  defp maybe_schedule_preview_refresh(socket) do
+    if socket.assigns.preview_visible do
+      schedule_preview_refresh(socket, 600)
+    else
+      socket
+    end
+  end
+
+  defp schedule_preview_refresh(socket, delay_ms) do
+    if socket.assigns.preview_timer, do: Process.cancel_timer(socket.assigns.preview_timer)
+    assign(socket, :preview_timer, Process.send_after(self(), :refresh_preview, delay_ms))
   end
 
   # =========================================================================

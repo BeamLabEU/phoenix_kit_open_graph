@@ -47,18 +47,30 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         template={@template}
         save_state={@save_state}
         preview?={@preview?}
+        preview_visible={@preview_visible}
         selected={@selected}
       />
 
       <div class="flex-1 flex overflow-hidden">
-        <.canvas_pane
-          canvas={@canvas}
-          elements={@elements}
-          selected_id={@selected_id}
-          preview?={@preview?}
-          display_scale={@display_scale}
-          global_values={@global_values}
-        />
+        <div class="flex-1 flex flex-col overflow-hidden min-w-0">
+          <.canvas_pane
+            canvas={@canvas}
+            elements={@elements}
+            selected_id={@selected_id}
+            preview?={@preview?}
+            display_scale={@display_scale}
+            global_values={@global_values}
+          />
+
+          <.preview_pane
+            :if={@preview_visible}
+            loading={@preview_loading}
+            url={@preview_url}
+            error={@preview_error}
+            platform={@preview_platform}
+            global_values={@global_values}
+          />
+        </div>
 
         <.right_panel selected={@selected} slots={@slots} canvas={@canvas} />
       </div>
@@ -76,28 +88,22 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         phoenix_kit_current_user={assigns[:phoenix_kit_current_user]}
       />
 
-      <.preview_modal
-        show={@show_preview_modal}
-        loading={@preview_loading}
-        url={@preview_url}
-        error={@preview_error}
-        global_values={@global_values}
-      />
     </div>
     """
   end
 
   # =========================================================================
-  # Preview modal — renders the current template as a PNG and embeds it
-  # in mockups of the popular platforms.
+  # Preview pane — the always-on strip under the canvas. Renders the
+  # current template as a PNG and shows it either raw ("Card") or inside
+  # a platform mockup, one platform per tab. Toggleable from the toolbar.
   # =========================================================================
-  attr(:show, :boolean, required: true)
   attr(:loading, :boolean, default: false)
   attr(:url, :string, default: nil)
   attr(:error, :string, default: nil)
+  attr(:platform, :string, required: true)
   attr(:global_values, :map, required: true)
 
-  defp preview_modal(assigns) do
+  defp preview_pane(assigns) do
     assigns =
       assigns
       |> assign_new(:site_host, fn ->
@@ -114,116 +120,119 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
       end)
 
     ~H"""
-    <dialog id="og-preview-modal" class={["modal", @show && "modal-open"]} open={@show}>
-      <div class="modal-box max-w-5xl w-full">
-        <div class="flex items-start justify-between mb-3">
-          <div>
-            <h3 class="font-bold text-lg">{gettext("Social card preview")}</h3>
-            <p class="text-xs text-base-content/60 mt-0.5">
-              {gettext(
-                "How this template will appear when shared. Slot values here are placeholder previews — real posts substitute their own values at render time."
-              )}
-            </p>
-          </div>
-          <button type="button" phx-click="close_preview" class="btn btn-sm btn-circle btn-ghost">
-            <.icon name="hero-x-mark" class="w-4 h-4" />
+    <section class="shrink-0 max-h-[45%] flex flex-col border-t border-base-300 bg-base-100">
+      <header class="flex items-center gap-3 px-4 py-1.5 border-b border-base-300/60">
+        <h3
+          class="text-xs font-semibold text-base-content/70 uppercase tracking-wide cursor-help"
+          title={
+            gettext(
+              "How this template will appear when shared. Slot values here are placeholder previews — real posts substitute their own values at render time."
+            )
+          }
+        >
+          {gettext("Preview")}
+        </h3>
+        <span :if={@loading} class="loading loading-spinner loading-xs text-base-content/40"></span>
+
+        <div class="tabs tabs-boxed tabs-sm bg-base-200 p-0.5 ml-auto">
+          <button
+            :for={{key, label} <- platform_tabs()}
+            type="button"
+            phx-click="set_preview_platform"
+            phx-value-platform={key}
+            class={["tab tab-sm", @platform == key && "tab-active"]}
+          >
+            {label}
           </button>
         </div>
 
-        <%= if @loading do %>
-          <div class="flex items-center justify-center gap-3 py-16 text-base-content/60">
-            <span class="loading loading-spinner loading-md"></span>
-            <span class="text-sm">{gettext("Rendering preview…")}</span>
-          </div>
-        <% end %>
+        <button
+          type="button"
+          phx-click="toggle_preview_pane"
+          class="btn btn-ghost btn-xs"
+          title={gettext("Hide preview")}
+        >
+          <.icon name="hero-eye-slash" class="w-3.5 h-3.5" />
+        </button>
+      </header>
 
-        <%= if @error do %>
+      <div class="flex-1 overflow-auto p-4">
+        <div :if={@error} class="mx-auto max-w-2xl mb-3">
           <div class="rounded-md border border-error/30 bg-error/5 px-4 py-3 text-sm text-error">
             {@error}
           </div>
-        <% end %>
+        </div>
 
-        <%= if @url do %>
-          <div class="space-y-4">
-            <%!-- Raw rendered image --%>
-            <details class="rounded-lg border border-base-300 bg-base-200/50" open>
-              <summary class="cursor-pointer select-none px-3 py-2 text-sm font-medium">
-                {gettext("Rendered image (1200 × 630)")}
-              </summary>
-              <div class="p-3">
-                <img
-                  src={@url}
-                  alt={gettext("OG preview")}
-                  class="w-full rounded border border-base-300 shadow-sm"
-                  loading="lazy"
-                />
-              </div>
-            </details>
+        <div
+          :if={is_nil(@url) and is_nil(@error)}
+          class="flex items-center justify-center gap-3 py-10 text-base-content/60"
+        >
+          <span class="loading loading-spinner loading-md"></span>
+          <span class="text-sm">{gettext("Rendering preview…")}</span>
+        </div>
 
-            <%!-- Platform mockups --%>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <.platform_card
-                platform="Facebook"
-                :let={_}
-              >
-                <.fb_card
-                  image={@url}
-                  title={@sample_title}
-                  description={@sample_desc}
-                  host={@site_host}
-                />
-              </.platform_card>
-
-              <.platform_card platform="X (Twitter)" :let={_}>
-                <.twitter_card
-                  image={@url}
-                  title={@sample_title}
-                  description={@sample_desc}
-                  host={@site_host}
-                />
-              </.platform_card>
-
-              <.platform_card platform="LinkedIn" :let={_}>
-                <.linkedin_card
-                  image={@url}
-                  title={@sample_title}
-                  description={@sample_desc}
-                  host={@site_host}
-                />
-              </.platform_card>
-
-              <.platform_card platform="Discord / Slack" :let={_}>
-                <.discord_card
-                  image={@url}
-                  title={@sample_title}
-                  description={@sample_desc}
-                  host={@site_host}
-                  site_name={@site_name}
-                />
-              </.platform_card>
-            </div>
+        <div :if={@url} class={["mx-auto", (@platform == "card" && "max-w-2xl") || "max-w-md"]}>
+          <div :if={@platform == "card"}>
+            <img
+              src={@url}
+              alt={gettext("OG preview")}
+              class="w-full rounded border border-base-300 shadow-sm"
+              loading="lazy"
+            />
+            <p class="text-xs text-base-content/50 mt-1.5 text-center">
+              {gettext("Rendered image (1200 × 630)")}
+            </p>
           </div>
-        <% end %>
+
+          <div
+            :if={@platform != "card"}
+            class="rounded-lg border border-base-300 bg-base-100 overflow-hidden"
+          >
+            <.fb_card
+              :if={@platform == "facebook"}
+              image={@url}
+              title={@sample_title}
+              description={@sample_desc}
+              host={@site_host}
+            />
+            <.twitter_card
+              :if={@platform == "x"}
+              image={@url}
+              title={@sample_title}
+              description={@sample_desc}
+              host={@site_host}
+            />
+            <.linkedin_card
+              :if={@platform == "linkedin"}
+              image={@url}
+              title={@sample_title}
+              description={@sample_desc}
+              host={@site_host}
+            />
+            <.discord_card
+              :if={@platform == "discord"}
+              image={@url}
+              title={@sample_title}
+              description={@sample_desc}
+              host={@site_host}
+              site_name={@site_name}
+            />
+          </div>
+        </div>
       </div>
-      <form method="dialog" class="modal-backdrop">
-        <button type="button" phx-click="close_preview">{gettext("close")}</button>
-      </form>
-    </dialog>
+    </section>
     """
   end
 
-  attr(:platform, :string, required: true)
-  slot(:inner_block, required: true)
-
-  defp platform_card(assigns) do
-    ~H"""
-    <div class="space-y-2">
-      <p class="text-xs font-semibold text-base-content/70 uppercase tracking-wide">{@platform}</p>
-      <div class="rounded-lg border border-base-300 bg-base-100 overflow-hidden">
-        {render_slot(@inner_block)}
-      </div>
-    </div>
-    """
+  # Tab keys must stay in sync with the LV's @preview_platforms whitelist.
+  defp platform_tabs do
+    [
+      {"card", gettext("Card")},
+      {"facebook", "Facebook"},
+      {"x", "X (Twitter)"},
+      {"linkedin", "LinkedIn"},
+      {"discord", "Discord / Slack"}
+    ]
   end
 
   # Facebook desktop link card — big image, then title/description/host
@@ -327,12 +336,15 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
 
         <button
           type="button"
-          phx-click="open_preview"
-          phx-disable-with={gettext("Rendering…")}
-          class="btn btn-ghost btn-sm"
-          title={gettext("Preview in social cards")}
+          phx-click="toggle_preview_pane"
+          class={["btn btn-ghost btn-sm", @preview_visible && "btn-active"]}
+          title={
+            if @preview_visible,
+              do: gettext("Hide the live preview pane"),
+              else: gettext("Show the live preview pane")
+          }
         >
-          <.icon name="hero-eye" class="w-4 h-4 mr-1" />
+          <.icon name={(@preview_visible && "hero-eye") || "hero-eye-slash"} class="w-4 h-4 mr-1" />
           {gettext("Preview")}
         </button>
 
@@ -1180,10 +1192,13 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
     <div class="space-y-4">
       <h2 class="font-semibold text-base">{gettext("Template")}</h2>
 
-      <fieldset class="space-y-2">
-        <legend class="text-xs font-semibold text-base-content/60">
-          {gettext("Canvas size (pixels)")}
-        </legend>
+      <section class="rounded-lg border border-base-300/70 bg-base-200/30 p-3 space-y-2">
+        <header class="flex items-center gap-1.5">
+          <.icon name="hero-viewfinder-circle" class="w-3.5 h-3.5 text-base-content/50" />
+          <h3 class="text-xs font-semibold text-base-content/70 uppercase tracking-wide">
+            {gettext("Canvas")}
+          </h3>
+        </header>
         <div class="grid grid-cols-2 gap-2">
           <.canvas_field field="width" label={gettext("Width")} value={Map.get(@canvas, "width", 1200)} />
           <.canvas_field
@@ -1195,22 +1210,41 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         <p class="text-xs text-base-content/50">
           {gettext("OpenGraph consumers expect 1200×630. Custom sizes render fine.")}
         </p>
-      </fieldset>
+      </section>
 
-      <fieldset class="space-y-2">
-        <legend class="text-xs font-semibold text-base-content/60">{gettext("Background")}</legend>
-        <div>
-          <label class="label py-0.5">
-            <span class="label-text text-xs">{gettext("Type")}</span>
+      <section class="rounded-lg border border-base-300/70 bg-base-200/30 p-3 space-y-2">
+        <header class="flex items-center gap-1.5">
+          <.icon name="hero-paint-brush" class="w-3.5 h-3.5 text-base-content/50" />
+          <h3 class="text-xs font-semibold text-base-content/70 uppercase tracking-wide">
+            {gettext("Background")}
+          </h3>
+        </header>
+
+        <form phx-change="update_canvas" class="tabs tabs-boxed bg-base-200 p-0.5">
+          <input type="hidden" name="field" value="background_type" />
+          <label class={"tab tab-sm flex-1 #{@bg_type == "color" && "tab-active"}"}>
+            <input
+              type="radio"
+              name="value"
+              value="color"
+              checked={@bg_type == "color"}
+              class="sr-only"
+            />
+            <.icon name="hero-swatch" class="w-3.5 h-3.5 mr-1.5" />
+            {gettext("Solid color")}
           </label>
-          <form phx-change="update_canvas">
-            <input type="hidden" name="field" value="background_type" />
-            <select name="value" class="select select-bordered select-sm w-full">
-              <option value="color" selected={@bg_type == "color"}>{gettext("Solid color")}</option>
-              <option value="image" selected={@bg_type == "image"}>{gettext("Image")}</option>
-            </select>
-          </form>
-        </div>
+          <label class={"tab tab-sm flex-1 #{@bg_type == "image" && "tab-active"}"}>
+            <input
+              type="radio"
+              name="value"
+              value="image"
+              checked={@bg_type == "image"}
+              class="sr-only"
+            />
+            <.icon name="hero-photo" class="w-3.5 h-3.5 mr-1.5" />
+            {gettext("Image")}
+          </label>
+        </form>
 
         <%= if @bg_type == "color" do %>
           <.canvas_color_field
@@ -1283,20 +1317,42 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
             <label class="label py-0.5">
               <span class="label-text text-xs">{gettext("Fit")}</span>
             </label>
-            <form phx-change="update_canvas">
+            <% fit = Map.get(@bg, "fit", "fill") %>
+            <form phx-change="update_canvas" class="tabs tabs-boxed bg-base-200 p-0.5">
               <input type="hidden" name="field" value="background_fit" />
-              <select name="value" class="select select-bordered select-sm w-full">
-                <% fit = Map.get(@bg, "fit", "fill") %>
-                <option value="fill" selected={fit == "fill"}>
-                  {gettext("Fill (crop overflow)")}
-                </option>
-                <option value="contain" selected={fit == "contain"}>
-                  {gettext("Contain (fit inside)")}
-                </option>
-                <option value="stretch" selected={fit == "stretch"}>
-                  {gettext("Stretch (distort)")}
-                </option>
-              </select>
+              <label
+                class={"tab tab-sm flex-1 #{fit == "fill" && "tab-active"}"}
+                title={gettext("Fill (crop overflow)")}
+              >
+                <input type="radio" name="value" value="fill" checked={fit == "fill"} class="sr-only" />
+                {gettext("Fill")}
+              </label>
+              <label
+                class={"tab tab-sm flex-1 #{fit == "contain" && "tab-active"}"}
+                title={gettext("Contain (fit inside)")}
+              >
+                <input
+                  type="radio"
+                  name="value"
+                  value="contain"
+                  checked={fit == "contain"}
+                  class="sr-only"
+                />
+                {gettext("Contain")}
+              </label>
+              <label
+                class={"tab tab-sm flex-1 #{fit == "stretch" && "tab-active"}"}
+                title={gettext("Stretch (distort)")}
+              >
+                <input
+                  type="radio"
+                  name="value"
+                  value="stretch"
+                  checked={fit == "stretch"}
+                  class="sr-only"
+                />
+                {gettext("Stretch")}
+              </label>
             </form>
           </div>
 
@@ -1361,7 +1417,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
             </div>
           </fieldset>
         <% end %>
-      </fieldset>
+      </section>
 
       <p class="text-xs text-base-content/50 pt-1">
         {gettext("Changes autosave 800ms after each edit. Ctrl+S saves immediately.")}

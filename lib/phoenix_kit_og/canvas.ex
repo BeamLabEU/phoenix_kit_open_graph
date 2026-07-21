@@ -220,9 +220,27 @@ defmodule PhoenixKitOG.Canvas do
   def update_canvas_field(canvas, "height", value),
     do: Map.put(canvas, "height", coerce_positive_int(value, 630))
 
+  # Switching the background type stashes the outgoing type's value and
+  # restores any stashed value for the incoming type, so Color → Image →
+  # Color round-trips without the hex color being clobbered by a media
+  # UUID (both types share the `value` field). The type picker renders
+  # as tabs, which invite exactly that toggling.
   def update_canvas_field(canvas, "background_type", value) when value in ["color", "image"] do
-    bg = Map.get(canvas, "background", %{}) |> Map.put("type", value)
-    Map.put(canvas, "background", bg)
+    bg = Map.get(canvas, "background", %{})
+    current = Map.get(bg, "type", "color")
+
+    bg =
+      if current == value do
+        bg
+      else
+        default = if value == "color", do: "#0b1220", else: ""
+
+        bg
+        |> Map.put("stash_" <> current, Map.get(bg, "value", ""))
+        |> Map.put("value", Map.get(bg, "stash_" <> value) || default)
+      end
+
+    Map.put(canvas, "background", Map.put(bg, "type", value))
   end
 
   def update_canvas_field(canvas, "background_value", value) when is_binary(value) do

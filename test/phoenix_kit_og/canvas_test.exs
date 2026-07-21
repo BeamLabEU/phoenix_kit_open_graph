@@ -45,4 +45,35 @@ defmodule PhoenixKitOG.CanvasTest do
       assert is_binary(el["fill"])
     end
   end
+
+  describe "update_canvas_field/3 — background_type round-trip" do
+    test "switching color -> image -> color restores the stashed color" do
+      canvas = %{"background" => %{"type" => "color", "value" => "#ff6600"}}
+
+      as_image = Canvas.update_canvas_field(canvas, "background_type", "image")
+      assert get_in(as_image, ["background", "type"]) == "image"
+      # Fresh image side starts empty — the hex color must not leak in.
+      assert get_in(as_image, ["background", "value"]) == ""
+
+      back = Canvas.update_canvas_field(as_image, "background_type", "color")
+      assert get_in(back, ["background", "type"]) == "color"
+      assert get_in(back, ["background", "value"]) == "#ff6600"
+    end
+
+    test "switching image -> color -> image restores the stashed image source" do
+      canvas = %{"background" => %{"type" => "image", "value" => "{{BackgroundImage}}"}}
+
+      as_color = Canvas.update_canvas_field(canvas, "background_type", "color")
+      assert get_in(as_color, ["background", "value"]) == "#0b1220"
+
+      back = Canvas.update_canvas_field(as_color, "background_type", "image")
+      assert get_in(back, ["background", "value"]) == "{{BackgroundImage}}"
+    end
+
+    test "re-selecting the current type is a no-op on the value" do
+      canvas = %{"background" => %{"type" => "color", "value" => "#ff6600"}}
+      same = Canvas.update_canvas_field(canvas, "background_type", "color")
+      assert get_in(same, ["background", "value"]) == "#ff6600"
+    end
+  end
 end
