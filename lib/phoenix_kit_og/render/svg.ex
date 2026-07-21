@@ -17,6 +17,7 @@ defmodule PhoenixKitOG.Render.Svg do
   """
 
   alias PhoenixKitOG.{Canvas, Slots}
+  alias PhoenixKitOG.Render.Placeholder
 
   @type context :: %{
           optional(:values) => %{String.t() => String.t()}
@@ -71,35 +72,48 @@ defmodule PhoenixKitOG.Render.Svg do
        when is_binary(src) and src != "" do
     resolved = Slots.substitute(src, ctx[:values] || %{})
 
-    if String.starts_with?(resolved, "{{") or resolved == "" do
-      # Unresolved slot — no href we can safely emit. Fall back to the
-      # solid default color if declared, else the fixed dark bg.
-      fallback = Map.get(bg, "value_fallback", "#0b1220")
-      ~s|<rect x="0" y="0" width="#{w}" height="#{h}" fill="#{escape(fallback)}"/>|
-    else
-      href = resolve_image_href(resolved)
+    cond do
+      String.starts_with?(resolved, "{{") or resolved == "" ->
+        # Unresolved slot — no href we can safely emit. Fall back to the
+        # solid default color if declared, else the fixed dark bg.
+        fallback = Map.get(bg, "value_fallback", "#0b1220")
+        ~s|<rect x="0" y="0" width="#{w}" height="#{h}" fill="#{escape(fallback)}"/>|
 
-      if href == "" do
-        ~s|<rect x="0" y="0" width="#{w}" height="#{h}" fill="#0b1220"/>|
-      else
-        overlay = Map.get(bg, "overlay_opacity", 0)
-        overlay_hex = overlay_hex(bg)
+      resolved == Placeholder.data_url() ->
+        # The preview stand-in — inline its shapes instead of nesting
+        # the data URL as an SVG-in-<image> (backend-dependent; see
+        # Placeholder's moduledoc). Overlay still applies so authors
+        # can dial in tint strength before wiring a real image.
+        [Placeholder.inline_svg(0, 0, w, h), bg_overlay_rect(bg, w, h)]
 
-        overlay_rect =
-          if is_number(overlay) and overlay > 0,
-            do:
-              ~s|<rect x="0" y="0" width="#{w}" height="#{h}" fill="#{overlay_hex}" fill-opacity="#{overlay}"/>|,
-            else: ""
+      true ->
+        href = resolve_image_href(resolved)
 
-        preserve = fit_to_preserve_aspect_ratio(Map.get(bg, "fit", "fill"))
+        if href == "" do
+          ~s|<rect x="0" y="0" width="#{w}" height="#{h}" fill="#0b1220"/>|
+        else
+          preserve = fit_to_preserve_aspect_ratio(Map.get(bg, "fit", "fill"))
 
-        ~s|<image href="#{escape(href)}" x="0" y="0" width="#{w}" height="#{h}" preserveAspectRatio="#{preserve}"/>#{overlay_rect}|
-      end
+          [
+            ~s|<image href="#{escape(href)}" x="0" y="0" width="#{w}" height="#{h}" preserveAspectRatio="#{preserve}"/>|,
+            bg_overlay_rect(bg, w, h)
+          ]
+        end
     end
   end
 
   defp render_background(_, w, h, _ctx),
     do: ~s|<rect x="0" y="0" width="#{w}" height="#{h}" fill="#0b1220"/>|
+
+  defp bg_overlay_rect(bg, w, h) do
+    overlay = Map.get(bg, "overlay_opacity", 0)
+
+    if is_number(overlay) and overlay > 0 do
+      ~s|<rect x="0" y="0" width="#{w}" height="#{h}" fill="#{overlay_hex(bg)}" fill-opacity="#{overlay}"/>|
+    else
+      ""
+    end
+  end
 
   defp overlay_hex(%{"overlay_color" => "light"}), do: "#ffffff"
   defp overlay_hex(_), do: "#000000"
@@ -157,16 +171,30 @@ defmodule PhoenixKitOG.Render.Svg do
         # (`{{background_image_1}}` with no wiring). Skip the element
         # rather than emit an `<image href="{{...}}"/>` that librsvg
         # would render as a broken image icon.
-        if String.starts_with?(src, "{{") do
-          []
-        else
-          href = resolve_image_href(src)
-          preserve = fit_to_preserve_aspect_ratio(Map.get(el, "fit", "fill"))
+        cond do
+          String.starts_with?(src, "{{") ->
+            []
 
-          image_el =
-            ~s|<image href="#{escape(href)}" x="#{escape(el["x"])}" y="#{escape(el["y"])}" width="#{escape(el["width"])}" height="#{escape(el["height"])}" preserveAspectRatio="#{escape(preserve)}"/>|
+          src == Placeholder.data_url() ->
+            # Preview stand-in — see the background branch above.
+            [
+              element_underlay(el),
+              Placeholder.inline_svg(
+                num(el["x"], 0),
+                num(el["y"], 0),
+                num(el["width"], 0),
+                num(el["height"], 0)
+              )
+            ]
 
-          [element_underlay(el), image_el]
+          true ->
+            href = resolve_image_href(src)
+            preserve = fit_to_preserve_aspect_ratio(Map.get(el, "fit", "fill"))
+
+            image_el =
+              ~s|<image href="#{escape(href)}" x="#{escape(el["x"])}" y="#{escape(el["y"])}" width="#{escape(el["width"])}" height="#{escape(el["height"])}" preserveAspectRatio="#{escape(preserve)}"/>|
+
+            [element_underlay(el), image_el]
         end
 
       _ ->

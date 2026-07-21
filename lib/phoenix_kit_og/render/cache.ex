@@ -44,6 +44,13 @@ defmodule PhoenixKitOG.Render.Cache do
   # depended on the fresh URL).
   @subdir "phoenix_kit_og_cache"
 
+  # Bump whenever the SVG/rasterize pipeline changes what it draws for
+  # the same inputs (e.g. v2: the placeholder became inline shapes).
+  # Hashed into the key so PNGs rendered by an older pipeline can't
+  # keep serving after an upgrade — without this, a cached render is
+  # pinned until the template row is touched or the TTL expires.
+  @render_version 2
+
   @doc """
   Returns `{cache_key, absolute_path}`. The path may or may not exist —
   call `exists?/1` or `read/1` to check.
@@ -148,6 +155,7 @@ defmodule PhoenixKitOG.Render.Cache do
   @spec hash(map(), map()) :: String.t()
   defp hash(template, context) do
     payload = %{
+      "render_version" => @render_version,
       "template_uuid" => template.uuid,
       "template_updated_at" => to_string(template.updated_at),
       "canvas" => template.canvas,

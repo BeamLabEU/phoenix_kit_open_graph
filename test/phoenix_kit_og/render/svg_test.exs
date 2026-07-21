@@ -161,7 +161,55 @@ defmodule PhoenixKitOG.Render.SvgTest do
       assert svg =~ ~s|<image href="" |
     end
 
-    test "a data: URL passes through unchanged (used for the placeholder)" do
+    test "the placeholder sentinel renders as inline shapes, never a nested <image>" do
+      canvas = %{
+        "elements" => [
+          %{
+            "type" => "image",
+            "src" => "{{Image}}",
+            "x" => 20,
+            "y" => 30,
+            "width" => 200,
+            "height" => 150
+          }
+        ]
+      }
+
+      svg =
+        Svg.to_binary(canvas, %{
+          values: %{"Image" => PhoenixKitOG.Render.Placeholder.data_url()}
+        })
+
+      assert svg =~ ~s|<rect x="20" y="30" width="200" height="150"|
+      assert svg =~ "Placeholder image"
+      refute svg =~ "<image"
+      refute svg =~ "data:image/svg+xml"
+    end
+
+    test "a background slot wired to the placeholder inlines shapes and keeps the overlay" do
+      canvas = %{
+        "width" => 600,
+        "height" => 315,
+        "background" => %{
+          "type" => "image",
+          "value" => "{{bg}}",
+          "overlay_opacity" => 0.3
+        },
+        "elements" => []
+      }
+
+      svg =
+        Svg.to_binary(canvas, %{
+          values: %{"bg" => PhoenixKitOG.Render.Placeholder.data_url()}
+        })
+
+      assert svg =~ ~s|<rect x="0" y="0" width="600" height="315" fill="#f1f5f9"|
+      assert svg =~ "Placeholder image"
+      assert svg =~ ~s|fill-opacity="0.3"|
+      refute svg =~ "<image"
+    end
+
+    test "a non-placeholder data: URL passes through unchanged" do
       data_url = "data:image/svg+xml;base64,PHN2Zy8+"
 
       canvas = %{
