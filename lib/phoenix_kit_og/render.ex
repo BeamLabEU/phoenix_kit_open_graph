@@ -91,9 +91,14 @@ defmodule PhoenixKitOG.Render do
   # Internals
   # =========================================================================
 
+  # Same dimension ceiling the legacy pipeline enforced — OpenFresco's
+  # own default clamp is 10k (a ~400MB raster buffer); OG cards never
+  # legitimately exceed this.
+  @max_dimension 4_000
+
   defp render_and_cache(scene, values, globals, key) do
     if OpenFresco.rasterizer_available?() do
-      case OpenFresco.render(scene, values, globals: globals) do
+      case OpenFresco.render(scene, values, globals: globals, max_dimension: @max_dimension) do
         {:ok, png_bytes, _meta} ->
           case Cache.write(key, png_bytes) do
             :ok ->
