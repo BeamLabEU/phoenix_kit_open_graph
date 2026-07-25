@@ -61,6 +61,13 @@ defmodule PhoenixKitOG.MixProject do
       pk_dep(:phoenix_kit, "~> 1.7.189"),
       {:phoenix_live_view, "~> 1.1"},
       {:ecto_sql, "~> 3.13"},
+      # Scene model + editor stage + server-side SVG/PNG rendering for OG
+      # cards (alexdont's fresco-suite renderer, built against this
+      # module's dev_docs/fresco_feature_checklist.md). Owns scene
+      # storage format, text measurement/wrap, anchors, gradients, and
+      # the rasterizer chain; this module keeps slot wiring, assignment
+      # hierarchy, media-UUID resolution, caching, and serving.
+      {:open_fresco, "~> 0.1.0"},
       # SVG → PNG rendering. Ships a precompiled NIF via rustler_precompiled
       # — no system binary needed in the common case. Optional: resvg 0.5.0
       # (the latest on Hex) hard-pins `rustler_precompiled ~> 0.8.1`, which

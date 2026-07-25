@@ -1,25 +1,21 @@
 defmodule PhoenixKitOG.Web.EditorLive do
   @moduledoc """
-  The OG template editor — WYSIWYG SVG canvas on the left, element
-  library + property panel on the right.
+  The OG template editor — OpenFresco's server-authoritative editor
+  stage on the left, this module's chrome around it: toolbar + insert
+  menu, slots panel, property panel, and the always-on preview pane.
 
-  ## Interaction model
+  ## Division of labor (since the OpenFresco switch)
 
-  - **Click element** on canvas → select (sets `:selected_id`).
-  - **Click empty canvas** → deselect.
-  - **Add buttons** in the toolbar push elements at default positions.
-  - **Drag**: handled by the `PhoenixKitOGCanvas` JS hook (inline
-    `<script>`, registered on `window.PhoenixKitHooks`). During drag the
-    hook applies an SVG transform locally and only pushes a final
-    `move_element` event on pointer-up — so we don't roundtrip on every
-    pixel.
-  - **Resize**: 8 corner/edge handles around the selected element.
-    Same hook handles the pointer math.
-  - **Keyboard**: arrows nudge by 1px (10px with Shift); `Delete`
-    removes the selection; `Escape` deselects; `Ctrl+S` saves.
-  - **Bindings dropdown**: text elements expose a binding picker in the
-    property panel. Selecting one writes the token (e.g. `{post.title}`)
-    into the `binding` field; preview mode substitutes its example.
+  - **`OpenFresco.Editor`** (LiveComponent) owns the stage: it renders
+    the scene via `OpenFresco.render_svg/3` (measured text — the same
+    layout the PNG render uses, so WYSIWYG holds by construction) and
+    applies pointer gestures (select/drag/resize/front/delete) through
+    `OpenFresco.Editor.Ops`, notifying us with
+    `{:open_fresco_editor, id, {:scene_changed | :selected, _}}`.
+  - **This LV** owns the scene document (loads/saves it on the
+    template row via `SceneStore`, lazily migrating legacy canvases),
+    the property panel (`SceneEdit` mutations), the insert menu,
+    keyboard nudges, the media picker, autosave, and the preview pane.
 
   ## Save semantics
 
@@ -38,14 +34,17 @@ defmodule PhoenixKitOG.Web.EditorLive do
 
   require Logger
 
-  alias PhoenixKitOG.{Canvas, Errors, Paths, Slots, Templates, Variables}
+  alias OpenFresco.Editor.Ops
+  alias PhoenixKitOG.{Errors, Paths, SceneEdit, SceneStore, Templates, Variables}
   alias PhoenixKitOG.Schemas.Template
+
+  @stage_id "og-editor-stage"
 
   @impl true
   def mount(params, _session, socket) do
     case load_or_create_template(params, socket.assigns.live_action, socket) do
       {:ok, template} ->
-        canvas = ensure_canvas(template.canvas)
+        scene = SceneStore.load(template.canvas)
 
         socket =
           socket
@@ -54,10 +53,11 @@ defmodule PhoenixKitOG.Web.EditorLive do
             gettext("OpenGraph — %{name}", name: template.name || gettext("Editor"))
           )
           |> assign(:template, template)
-          |> assign(:canvas, canvas)
+          |> assign(:scene, scene)
+          |> assign(:stage_id, @stage_id)
           |> assign(:selected_id, nil)
-          |> assign(:slots, Slots.used(canvas))
-          |> assign(:preview?, false)
+          |> assign(:slots, SceneStore.slots(scene))
+          |> assign(:bg_stash, %{})
           |> assign(:preview_visible, true)
           |> assign(:preview_platform, "card")
           |> assign(:preview_timer, nil)
@@ -101,31 +101,34 @@ defmodule PhoenixKitOG.Web.EditorLive do
 
   @impl true
   def handle_event("insert", %{"kind" => kind}, socket) do
-    element = Canvas.default_element(kind, socket.assigns.canvas)
-    {canvas, _} = Canvas.add_element(socket.assigns.canvas, element)
+    {scene, id} = SceneEdit.insert(socket.assigns.scene, kind)
 
     {:noreply,
      socket
-     |> assign(:canvas, canvas)
-     |> assign(:selected_id, element["id"])
-     |> mark_dirty()}
+     |> put_scene(scene)
+     |> assign(:selected_id, id)}
+  end
+
+  def handle_event("update_canvas", %{"field" => "bg_type", "value" => type}, socket) do
+    {scene, stash} =
+      SceneEdit.switch_background(socket.assigns.scene, type, socket.assigns.bg_stash)
+
+    {:noreply,
+     socket
+     |> assign(:bg_stash, stash)
+     |> put_scene(scene)}
   end
 
   def handle_event("update_canvas", %{"field" => field, "value" => value}, socket) do
-    canvas = Canvas.update_canvas_field(socket.assigns.canvas, field, value)
-
-    {:noreply,
-     socket
-     |> assign(:canvas, canvas)
-     |> mark_dirty()}
+    {:noreply, put_scene(socket, SceneEdit.update_canvas(socket.assigns.scene, field, value))}
   end
 
   # =========================================================================
   # Media picker — opens the shared MediaSelectorModal for a field.
   #
   # `target` says where the picked UUID should land:
-  #   - "background_value" → canvas.background.value
-  #   - "element_src"      → the currently selected element's `src`
+  #   - "background_value" → canvas background image fill value
+  #   - "element_src"      → the currently selected image element's value
   # =========================================================================
 
   def handle_event("open_media_picker", %{"target" => target}, socket) do
@@ -136,12 +139,8 @@ defmodule PhoenixKitOG.Web.EditorLive do
   end
 
   def handle_event("clear_media_field", %{"target" => "background_value"}, socket) do
-    canvas = Canvas.update_canvas_field(socket.assigns.canvas, "background_value", "")
-
     {:noreply,
-     socket
-     |> assign(:canvas, canvas)
-     |> mark_dirty()}
+     put_scene(socket, SceneEdit.update_canvas(socket.assigns.scene, "bg_image_value", ""))}
   end
 
   def handle_event("clear_media_field", %{"target" => "element_src"}, socket) do
@@ -150,12 +149,8 @@ defmodule PhoenixKitOG.Web.EditorLive do
         {:noreply, socket}
 
       id ->
-        canvas = Canvas.update_element(socket.assigns.canvas, id, "src", "")
-
         {:noreply,
-         socket
-         |> assign(:canvas, canvas)
-         |> mark_dirty()}
+         put_scene(socket, SceneEdit.update_element(socket.assigns.scene, id, "value", ""))}
     end
   end
 
@@ -175,18 +170,14 @@ defmodule PhoenixKitOG.Web.EditorLive do
       id ->
         {:noreply,
          socket
-         |> assign(:canvas, Canvas.delete_elements(socket.assigns.canvas, [id]))
-         |> assign(:selected_id, nil)
-         |> mark_dirty()}
+         |> put_scene(Ops.delete(socket.assigns.scene, id))
+         |> assign(:selected_id, nil)}
     end
   end
 
   def handle_event("bring_to_front", _params, socket) do
     if id = socket.assigns.selected_id do
-      {:noreply,
-       socket
-       |> assign(:canvas, Canvas.bring_to_front(socket.assigns.canvas, id))
-       |> mark_dirty()}
+      {:noreply, put_scene(socket, Ops.bring_to_front(socket.assigns.scene, id))}
     else
       {:noreply, socket}
     end
@@ -194,17 +185,10 @@ defmodule PhoenixKitOG.Web.EditorLive do
 
   def handle_event("send_to_back", _params, socket) do
     if id = socket.assigns.selected_id do
-      {:noreply,
-       socket
-       |> assign(:canvas, Canvas.send_to_back(socket.assigns.canvas, id))
-       |> mark_dirty()}
+      {:noreply, put_scene(socket, SceneEdit.send_to_back(socket.assigns.scene, id))}
     else
       {:noreply, socket}
     end
-  end
-
-  def handle_event("toggle_preview", _params, socket) do
-    {:noreply, assign(socket, :preview?, !socket.assigns.preview?)}
   end
 
   # Show/hide the always-on preview pane. Turning it on renders
@@ -238,20 +222,24 @@ defmodule PhoenixKitOG.Web.EditorLive do
   # Events — property panel
   # =========================================================================
 
-  # phx-change variant: forms in the property panel carry `el_id`, `field`,
-  # and `value` as hidden+visible inputs. The hidden field name is `el_id`
-  # (not `id`) so the HTML form element id doesn't get clobbered.
+  # Forms in the property panel carry `el_id`, `field`, and `value` as
+  # hidden+visible inputs. The hidden field name is `el_id` (not `id`)
+  # so the HTML form element id doesn't get clobbered.
   def handle_event(
         "update_prop",
         %{"el_id" => id, "field" => field, "value" => value},
         socket
       ) do
-    canvas = Canvas.update_element(socket.assigns.canvas, id, field, value)
+    {:noreply,
+     put_scene(socket, SceneEdit.update_element(socket.assigns.scene, id, field, value))}
+  end
+
+  # Checkbox variant (no `value` key when unchecked).
+  def handle_event("update_prop", %{"el_id" => id, "field" => field} = params, socket) do
+    value = Map.get(params, "value", "false")
 
     {:noreply,
-     socket
-     |> assign(:canvas, canvas)
-     |> mark_dirty()}
+     put_scene(socket, SceneEdit.update_element(socket.assigns.scene, id, field, value))}
   end
 
   # Variable-name variant — the property panel shows the bare `name`
@@ -263,35 +251,23 @@ defmodule PhoenixKitOG.Web.EditorLive do
         socket
       ) do
     wrapped = if value == "", do: "", else: "{{#{String.trim(value)}}}"
-    canvas = Canvas.update_element(socket.assigns.canvas, id, field, wrapped)
 
     {:noreply,
-     socket
-     |> assign(:canvas, canvas)
-     |> mark_dirty()}
+     put_scene(socket, SceneEdit.update_element(socket.assigns.scene, id, field, wrapped))}
   end
 
   # Image-source mode toggle in the property panel. Constant clears the
   # slot value so the media picker reappears; Variable seeds a fresh
-  # `{{ImageN}}` slot name using `next_slot_name` so we don't collide
-  # with an existing slot.
+  # `{{ImageN}}` slot name so we don't collide with an existing slot.
   def handle_event("set_image_mode", %{"el_id" => id, "mode" => "constant"}, socket) do
-    canvas = Canvas.update_element(socket.assigns.canvas, id, "src", "")
-
-    {:noreply,
-     socket
-     |> assign(:canvas, canvas)
-     |> mark_dirty()}
+    {:noreply, put_scene(socket, SceneEdit.update_element(socket.assigns.scene, id, "value", ""))}
   end
 
   def handle_event("set_image_mode", %{"el_id" => id, "mode" => "variable"}, socket) do
-    name = Canvas.next_slot_name(socket.assigns.canvas, "Image")
-    canvas = Canvas.update_element(socket.assigns.canvas, id, "src", "{{#{name}}}")
+    name = SceneEdit.next_slot_name(socket.assigns.scene, "Image")
 
     {:noreply,
-     socket
-     |> assign(:canvas, canvas)
-     |> mark_dirty()}
+     put_scene(socket, SceneEdit.update_element(socket.assigns.scene, id, "value", "{{#{name}}}"))}
   end
 
   def handle_event("update_template_name", %{"name" => name}, socket) do
@@ -310,41 +286,6 @@ defmodule PhoenixKitOG.Web.EditorLive do
   end
 
   # =========================================================================
-  # Events — from JS hook (drag / resize finalized)
-  # =========================================================================
-
-  # Drag end → JS hook pushes the final {x, y} delta applied to the
-  # selected element(s). We do the clamp here so the canvas store is
-  # authoritative.
-  def handle_event("move_element", %{"id" => id, "dx" => dx, "dy" => dy}, socket) do
-    canvas = Canvas.move_elements(socket.assigns.canvas, [id], to_number(dx), to_number(dy))
-
-    {:noreply,
-     socket
-     |> assign(:canvas, canvas)
-     |> mark_dirty()}
-  end
-
-  # Resize end → JS hook pushes the final {x, y, width, height}.
-  # Update width/height BEFORE x/y — the x-clamp reads element width
-  # to compute the max-x bound, so applying old width there would let
-  # a resize that shrinks the element leave x pinned to an old
-  # constraint.
-  def handle_event("resize_element", %{"id" => id} = params, socket) do
-    canvas =
-      socket.assigns.canvas
-      |> Canvas.update_element(id, "width", params["width"])
-      |> Canvas.update_element(id, "height", params["height"])
-      |> Canvas.update_element(id, "x", params["x"])
-      |> Canvas.update_element(id, "y", params["y"])
-
-    {:noreply,
-     socket
-     |> assign(:canvas, canvas)
-     |> mark_dirty()}
-  end
-
-  # =========================================================================
   # Events — keyboard
   # =========================================================================
 
@@ -356,26 +297,35 @@ defmodule PhoenixKitOG.Web.EditorLive do
       id ->
         step = if shift?, do: 10, else: 1
         {dx, dy} = nudge_delta(key, step)
-
-        canvas = Canvas.move_elements(socket.assigns.canvas, [id], dx, dy)
-
-        {:noreply,
-         socket
-         |> assign(:canvas, canvas)
-         |> mark_dirty()}
+        {:noreply, put_scene(socket, Ops.move(socket.assigns.scene, id, dx, dy))}
     end
   end
 
   def handle_event("save_now", _params, socket), do: do_save(socket)
 
   # =========================================================================
-  # Autosave plumbing
+  # Autosave plumbing + stage notifications
   # =========================================================================
 
   @impl true
   def handle_info(:autosave, socket), do: do_save(socket)
 
-  # Debounced always-on preview refresh — renders the CURRENT canvas
+  # The OpenFresco stage applied a pointer edit (drag/resize/front/
+  # delete) — adopt its scene as ours and autosave. No put_scene/2 here:
+  # the component already re-rendered itself.
+  def handle_info({:open_fresco_editor, @stage_id, {:scene_changed, scene}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:scene, scene)
+     |> assign(:slots, SceneStore.slots(scene))
+     |> mark_dirty()}
+  end
+
+  def handle_info({:open_fresco_editor, @stage_id, {:selected, id}}, socket) do
+    {:noreply, assign(socket, :selected_id, id)}
+  end
+
+  # Debounced always-on preview refresh — renders the CURRENT scene
   # (with in-memory edits, not the last-saved template) through the PNG
   # pipeline. Rasterization can take up to the 5s backend timeout, so it
   # runs OFF the LiveView process via start_async; cancel_async
@@ -383,25 +333,37 @@ defmodule PhoenixKitOG.Web.EditorLive do
   # previous image stays visible while the new one renders.
   def handle_info(:refresh_preview, socket) do
     if socket.assigns.preview_visible do
-      %PhoenixKitOG.Schemas.Template{} = base_template = socket.assigns.template
+      %Template{} = base_template = socket.assigns.template
 
       # `updated_at` is pinned to nil so the render-cache key varies only
-      # with the canvas + values — an unchanged canvas (or an edit that
+      # with the scene + values — an unchanged scene (or an edit that
       # gets reverted) is a cache hit instead of a re-rasterize.
-      template = %{base_template | canvas: socket.assigns.canvas, updated_at: nil}
+      template = %{
+        base_template
+        | canvas: SceneStore.dump(socket.assigns.scene),
+          updated_at: nil
+      }
 
+      # Unwired text slots get a readable sample; unwired IMAGE slots
+      # stay absent so OpenFresco draws its labeled stand-in.
       values =
-        Map.merge(
-          socket.assigns.global_values,
-          placeholder_slot_values(socket.assigns.slots)
-        )
+        Enum.reduce(socket.assigns.slots, %{}, fn
+          %{name: name, type: :text}, acc -> Map.put(acc, name, "Sample #{name}")
+          _, acc -> acc
+        end)
+
+      globals = socket.assigns.global_values
 
       {:noreply,
        socket
        |> assign(preview_loading: true, preview_timer: nil)
        |> cancel_async(:preview)
        |> start_async(:preview, fn ->
-         PhoenixKitOG.Render.render_url(template, %{values: values})
+         PhoenixKitOG.Render.render_url(template, %{
+           values: values,
+           globals: globals,
+           mode: :preview
+         })
        end)}
     else
       {:noreply, assign(socket, :preview_timer, nil)}
@@ -418,29 +380,23 @@ defmodule PhoenixKitOG.Web.EditorLive do
         {:noreply, close_media_selector(socket)}
 
       target == "background_value" ->
-        canvas =
-          Canvas.update_canvas_field(socket.assigns.canvas, "background_value", file_uuid)
-
         {:noreply,
          socket
-         |> assign(:canvas, canvas)
-         |> close_media_selector()
-         |> mark_dirty()}
+         |> put_scene(SceneEdit.update_canvas(socket.assigns.scene, "bg_image_value", file_uuid))
+         |> close_media_selector()}
 
       target == "element_src" and is_binary(socket.assigns.selected_id) ->
-        canvas =
-          Canvas.update_element(
-            socket.assigns.canvas,
-            socket.assigns.selected_id,
-            "src",
-            file_uuid
-          )
-
         {:noreply,
          socket
-         |> assign(:canvas, canvas)
-         |> close_media_selector()
-         |> mark_dirty()}
+         |> put_scene(
+           SceneEdit.update_element(
+             socket.assigns.scene,
+             socket.assigns.selected_id,
+             "value",
+             file_uuid
+           )
+         )
+         |> close_media_selector()}
 
       true ->
         {:noreply, close_media_selector(socket)}
@@ -480,27 +436,22 @@ defmodule PhoenixKitOG.Web.EditorLive do
   end
 
   # =========================================================================
-  # Preview helpers
+  # Helpers
   # =========================================================================
 
-  # Placeholder values so unwired slots don't render as `{{name}}` in
-  # the preview. Text slots get `"Sample <name>"`; image slots point
-  # at the shared stand-in graphic (light-gray square with corner
-  # arrows) so the layout is legible before any wiring.
-  defp placeholder_slot_values(slots) do
-    stand_in = PhoenixKitOG.Render.Placeholder.data_url()
-
-    Enum.reduce(slots, %{}, fn
-      %{name: name, type: :text}, acc -> Map.put(acc, name, "Sample #{name}")
-      %{name: name, type: :image}, acc -> Map.put(acc, name, stand_in)
-      _, acc -> acc
-    end)
+  # Every panel-side scene mutation flows through here: adopt the new
+  # scene, refresh the slots panel, arm autosave + preview refresh.
+  defp put_scene(socket, scene) do
+    socket
+    |> assign(:scene, scene)
+    |> assign(:slots, SceneStore.slots(scene))
+    |> mark_dirty()
   end
 
   # Preview errors flow through `Errors.message/1` so the copy stays
   # aligned with the rest of the UI. Route the known atom through the
   # dispatcher; anything else gets the generic wrapper so a raw tuple
-  # never leaks into the modal.
+  # never leaks into the pane.
   defp preview_error_message(:rasterizer_missing), do: Errors.message(:rasterizer_missing)
   defp preview_error_message(reason), do: Errors.message({:render_failed, reason})
 
@@ -515,7 +466,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
 
     case Templates.update(
            socket.assigns.template,
-           %{"canvas" => socket.assigns.canvas},
+           %{"canvas" => SceneStore.dump(socket.assigns.scene)},
            # Autosaves happen on a timer, not a user click — mark them
            # `mode: "auto"` in the activity feed so manual saves stay
            # distinguishable.
@@ -550,11 +501,10 @@ defmodule PhoenixKitOG.Web.EditorLive do
     socket
     |> assign(:save_state, :dirty)
     |> assign(:autosave_timer, timer)
-    |> assign(:slots, Slots.used(socket.assigns.canvas))
     |> maybe_schedule_preview_refresh()
   end
 
-  # Every canvas mutation re-renders the always-on preview on its own
+  # Every scene mutation re-renders the always-on preview on its own
   # debounce (slightly under the autosave delay so the preview leads).
   defp maybe_schedule_preview_refresh(socket) do
     if socket.assigns.preview_visible do
@@ -584,9 +534,9 @@ defmodule PhoenixKitOG.Web.EditorLive do
       name = "Untitled #{System.unique_integer([:positive])}"
       # The actor is threaded later on the first save. Activity feed
       # shows an anonymous `template.created` for the initial insert.
-      Templates.create(%{"name" => name, "canvas" => Canvas.blank()})
+      Templates.create(%{"name" => name, "canvas" => SceneStore.dump(SceneStore.blank())})
     else
-      {:ok, %Template{canvas: Canvas.blank()}}
+      {:ok, %Template{canvas: SceneStore.dump(SceneStore.blank())}}
     end
   end
 
@@ -597,25 +547,11 @@ defmodule PhoenixKitOG.Web.EditorLive do
     end
   end
 
-  defp ensure_canvas(canvas) when is_map(canvas) and map_size(canvas) > 0, do: canvas
-  defp ensure_canvas(_), do: Canvas.blank()
-
   defp nudge_delta("ArrowLeft", step), do: {-step, 0}
   defp nudge_delta("ArrowRight", step), do: {step, 0}
   defp nudge_delta("ArrowUp", step), do: {0, -step}
   defp nudge_delta("ArrowDown", step), do: {0, step}
   defp nudge_delta(_, _), do: {0, 0}
-
-  defp to_number(v) when is_number(v), do: v
-
-  defp to_number(v) when is_binary(v) do
-    case Float.parse(v) do
-      {n, _} -> n
-      :error -> 0
-    end
-  end
-
-  defp to_number(_), do: 0
 
   # =========================================================================
   # Render — delegated to a colocated template for sanity

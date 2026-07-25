@@ -16,7 +16,7 @@ defmodule PhoenixKitOG do
 
   alias PhoenixKit.Dashboard.Tab
   alias PhoenixKit.Settings
-  alias PhoenixKitOG.{Assignments, Render, Slots, Templates, Variables}
+  alias PhoenixKitOG.{Assignments, Render, SceneStore, Templates, Variables}
 
   # ===========================================================================
   # Required PhoenixKit.Module callbacks
@@ -138,6 +138,14 @@ defmodule PhoenixKitOG do
         app: :phoenix_kit_og,
         file: "static/assets/phoenix_kit_og.js",
         global: "PhoenixKitOGHooks"
+      },
+      # OpenFresco's editor-stage hook (pointer gestures for the
+      # server-authoritative drag/resize). Declared here so hosts get it
+      # folded into the LiveSocket with zero wiring, same as our own.
+      %{
+        app: :open_fresco,
+        file: "static/open_fresco.js",
+        global: "OpenFrescoHooks"
       }
     ]
   end
@@ -200,8 +208,9 @@ defmodule PhoenixKitOG do
          hierarchy = publishing_hierarchy_for(post),
          {:ok, template, slot_mapping} <-
            Assignments.resolve_template_with_mapping("publishing", hierarchy),
-         values = resolve_values(template, slot_mapping, conn, post, language),
-         {:ok, path} <- Render.render_url(template, %{values: values}) do
+         {values, globals} = resolve_values(template, slot_mapping, conn, post, language),
+         {:ok, path} <-
+           Render.render_url(template, %{values: values, globals: globals, mode: :public}) do
       {:ok, absolutize(conn, path)}
     else
       _ -> :none
@@ -215,12 +224,15 @@ defmodule PhoenixKitOG do
 
     with {:ok, template, slot_mapping} <-
            Assignments.resolve_template_with_mapping("publishing", hierarchy),
-         values = resolve_values(template, slot_mapping, conn, post, language),
-         {:ok, path} <- Render.render_url(template, %{values: values}) do
+         {values, globals} = resolve_values(template, slot_mapping, conn, post, language),
+         {:ok, path} <-
+           Render.render_url(template, %{values: values, globals: globals, mode: :public}) do
+      scene = SceneStore.load(template.canvas)
+
       og
       |> Map.put(:image, absolutize(conn, path))
-      |> Map.put(:image_width, Map.get(template.canvas, "width", 1200))
-      |> Map.put(:image_height, Map.get(template.canvas, "height", 630))
+      |> Map.put(:image_width, Map.get(scene.canvas, :width, 1200))
+      |> Map.put(:image_height, Map.get(scene.canvas, :height, 630))
       |> Map.put(:image_type, "image/png")
     else
       :none -> og
@@ -228,12 +240,11 @@ defmodule PhoenixKitOG do
     end
   end
 
-  # Merges the slot mapping with the resolver context into the
-  # `%{"slot_name" => "value"}` map the SVG renderer substitutes. The
-  # returned map also includes all `[[global]]` values so the renderer
-  # can resolve both bracket styles from the same map.
+  # Resolves the slot mapping against the consumer's `og_resolve/2`,
+  # returning `{values, globals}` — OpenFresco takes `{{slot}}` values
+  # and `[[global]]` values as separate maps.
   defp resolve_values(template, slot_mapping, conn, post, language) do
-    slots = Slots.used(template.canvas)
+    slots = template.canvas |> SceneStore.load() |> SceneStore.slots()
 
     context = %{
       module_key: "publishing",
@@ -243,9 +254,7 @@ defmodule PhoenixKitOG do
       page_url: Map.get(post || %{}, :url) || Map.get(post || %{}, "url")
     }
 
-    wired = Variables.resolve(slots, slot_mapping, context)
-    globals = Variables.global_values(context)
-    Map.merge(globals, wired)
+    {Variables.resolve(slots, slot_mapping, context), Variables.global_values(context)}
   end
 
   defp absolutize(_conn, "http" <> _ = url), do: url

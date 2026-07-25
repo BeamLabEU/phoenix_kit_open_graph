@@ -1,17 +1,38 @@
 # AGENTS.md — phoenix_kit_og
 
 OpenGraph template + hierarchical assignment plugin for PhoenixKit.
-Ships:
+**Built on `open_fresco`** (alexdont's fresco-suite scene model +
+editor stage + server renderer — adopted 2026-07-24, built against
+this repo's `dev_docs/fresco_feature_checklist.md`). Ships:
 
-- **Templates** — WYSIWYG SVG canvas editor for OG image designs
-  (text + image + rect + stamp elements, `{{slot}}` and `[[global]]`
-  variable syntax).
+- **Templates** — WYSIWYG editor for OG image designs. The stage is
+  `OpenFresco.Editor` (server-authoritative SVG with drag/resize);
+  this module owns the chrome: insert menu, property panel (text /
+  image / rect / button / stamp elements, gradients, anchors), slots
+  panel, always-on preview pane. `{{slot}}` and `[[global]]` variable
+  syntax throughout.
 - **Assignments** — bind a template to a scope inside a consumer
   module's hierarchy (`post → group → default`). Admin modal for CRUD
   + live preview against a real published post.
-- **Renderer** — SVG → PNG via the `:resvg` NIF. Cached on disk keyed
-  by (template, canvas, values). Consumer modules integrate through
-  the `refine_og/4` seam.
+- **Renderer** — `OpenFresco.render/3` (measured text wrap, anchored
+  layout, gradients; rasterized via the optional `:resvg` NIF with
+  CLI fallbacks). Cached on disk keyed by (template, prepared scene,
+  values, globals, engine versions). Consumer modules integrate
+  through the `refine_og/4` seam.
+
+**Scene storage:** the template `canvas` JSONB column now holds an
+OpenFresco scene map (`%{"version" => _, "canvas" => _, "elements" =>
+_}`). Legacy editor-canvas maps (no `"version"` key) still load —
+`PhoenixKitOG.SceneStore.load/1` lazily converts them via
+`OpenFresco.OgImport`; the next editor save persists the scene form.
+No DB migration involved.
+
+**What stays this module's:** slot wiring + assignment hierarchy,
+media-UUID → `data:` URL resolution (`Render.Media` — OpenFresco
+deliberately fetches nothing), `:public` vs `:preview` render modes
+(public drops unresolved image elements / falls back the background;
+preview shows OpenFresco's labeled stand-ins), PNG caching + the
+`/og-image/:key` route, activity logging, i18n.
 
 Consumer today: `phoenix_kit_publishing`. Any module can plug in by
 implementing the two `og_variables/0` + `og_resolve/2` callbacks
@@ -117,24 +138,32 @@ per public page render. Behavior:
 ### Rendering
 
 `Render.render_url/2` returns `{:ok, url}` or `{:error, term}`.
-Pipeline: cache lookup by SHA-256 of `(template_uuid, updated_at,
-canvas, values, module_key)` → SVG generation → rasterize.
+Context: `%{values:, globals:, mode: :public | :preview}`. Pipeline:
+`SceneStore.load` (lazy legacy-canvas migration) → `Render.Media.prepare`
+(media UUIDs → `data:` URLs; `:public` fallbacks for unresolved image
+slots) → cache lookup → `OpenFresco.render/3` → atomic cache write.
 
-- **SVG** — `Render.Svg.to_binary/2` walks the canvas, substitutes
-  slot values, emits `<image>` / `<text>` / `<rect>`. Text picks up
-  a `DejaVu Sans, Liberation Sans, Arial, sans-serif` fallback so it
-  renders even when the picked font isn't installed on the host.
-- **Media UUIDs** — resolved to local file bytes and inlined as
-  `data:image/*;base64,…` URLs. The rasterizer runs locally and
-  can't fetch remote HTTP; inlining sidesteps that. Falls back to
-  the storage public URL only when local bytes aren't reachable.
-- **Rasterizer** — prefers `:resvg` NIF (`Hex :resvg`), falls back
-  to `resvg` CLI, `rsvg-convert`, or ImageMagick. Reports
-  `{:error, :rasterizer_missing}` when nothing is reachable; the
-  seam pass-through then keeps publishing's fallback image.
+- **Layout + SVG + rasterize** — all `open_fresco`'s: measured text
+  wrap (server font fallback DejaVu Sans / Liberation Sans / Arial),
+  anchored elements, gradients/masks, then the rasterizer chain
+  (`:resvg` NIF preferred; `resvg` CLI, `rsvg-convert`, ImageMagick
+  fallbacks). `{:error, :rasterizer_missing}` when nothing is
+  reachable; the seam pass-through then keeps publishing's fallback
+  image.
+- **Media UUIDs** — `Render.Media` resolves them to local file bytes
+  inlined as `data:image/*;base64,…` (OpenFresco fetches no network).
+  `file://` and host-relative paths are dropped.
+- **Modes** — `:public` (crawler-facing): an unresolved image element
+  is dropped, an unresolved image background falls back to the dark
+  solid — never a stand-in in production. `:preview` (editor +
+  assignments): unresolved image slots draw OpenFresco's labeled
+  stand-in.
 - **Cache** — `System.tmp_dir!()/phoenix_kit_og_cache/<key>.png`.
-  Under `System.tmp_dir!()` deliberately: `priv/static/` triggers
-  the dev live-reload plug on every render and wipes modal state.
+  Key hashes the prepared scene + values + globals + our
+  `@render_version` + OpenFresco's engine version, so upgrades on
+  either side stop serving stale PNGs. Under `System.tmp_dir!()`
+  deliberately: `priv/static/` triggers the dev live-reload plug on
+  every render and wipes modal state.
 - **Serving** — `GET /phoenix_kit/og-image/:key` (see
   `Web.ImageController`). `image/png` content-type without the
   default `; charset=utf-8` suffix (Telegram drops previews when
@@ -150,59 +179,38 @@ canvas, values, module_key)` → SVG generation → rasterize.
   `scope_uuid` (nullable), `template_uuid` (FK CASCADE),
   `slot_mapping` JSONB (`%{slot_name => variable_name}`).
 
-### Canvas element shapes
+### Stored document
 
-```json
-{
-  "width": 1200,
-  "height": 630,
-  "background": {
-    "type": "image", "value": "{{BackgroundImage}}",
-    "fit": "fill", "overlay_color": "dark", "overlay_opacity": 0.3
-  },
-  "elements": [
-    {"type": "text", "id": "…", "x": 60, "y": 80,
-     "text": "{{Text}}", "font": "Inter", "size": 64,
-     "color": "#ffffff", "weight": 700,
-     "underlay_color": "dark", "underlay_opacity": 0},
-    {"type": "image", "id": "…", "x": 20, "y": 20,
-     "width": 700, "height": 60, "src": "media-uuid or {{Image}}",
-     "fit": "fill"},
-    {"type": "rect", "id": "…", "x": 900, "y": 400,
-     "width": 200, "height": 150, "fill": "#7adb42",
-     "stroke": "#16ff0f", "stroke_width": 13, "radius": 0},
-    {"type": "text", "id": "…", "text": "[[site_url]]", …}
-  ]
-}
-```
+The `canvas` column holds an OpenFresco scene
+(`Scene.to_map/1`): `%{"version" => "1", "canvas" => %{"width",
+"height", "background"}, "elements" => [...]}` with element kinds
+text / image / shape / button / stamp, fills solid / gradient / image,
+optional per-element `anchor` (`%{to, edge, gap, align}`) and `mask`.
+See `OpenFresco.Scene` docs for the full shapes. Legacy pre-switch
+canvases (`%{"width", "height", "background", "elements"}` with
+`x/y/width/height` per element, no `"version"` key) are still loadable
+— `SceneStore.load/1` migrates them via `OpenFresco.OgImport` on read.
 
 ## Editor JS hooks
 
-The editor ships two LiveView hooks — `PhoenixKitOGCanvas` (drag/resize)
-and `PhoenixKitOGEditor` (keyboard) — in a prebuilt bundle at
-`priv/static/assets/phoenix_kit_og.js`, registered on
-`window.PhoenixKitOGHooks`. `PhoenixKitOG.js_sources/0` declares the
-bundle so core's `:phoenix_kit_js_sources` compiler folds it into the
-host's single LiveSocket at construction.
+Two bundles ride `PhoenixKitOG.js_sources/0` so core's
+`:phoenix_kit_js_sources` compiler folds them into the host's single
+LiveSocket at construction:
 
-**Why a bundle, not an inline `<script>`:** an inline script runs only
+- `open_fresco`'s `priv/static/open_fresco.js` →
+  `window.OpenFrescoHooks` — the `OpenFrescoEditor` hook, the browser
+  half of the server-authoritative stage (reports pointer gestures as
+  canvas-space deltas; the LiveComponent applies them via
+  `OpenFresco.Editor.Ops` and re-renders).
+- this repo's `priv/static/assets/phoenix_kit_og.js` →
+  `window.PhoenixKitOGHooks` — the `PhoenixKitOGEditor` keyboard hook
+  (nudge/delete/Ctrl+S at the LV level).
+
+**Why bundles, not inline `<script>`s:** an inline script runs only
 on a hard page load, NOT on a morphdom patch — so navigating into the
 editor from the Templates list (both in `live_session
-:phoenix_kit_admin`) left the hook unregistered. `js_sources/0` is the
+:phoenix_kit_admin`) left hooks unregistered. `js_sources/0` is the
 supported path and the only one that survives LiveView navigation.
-
-Watchdog banner: the hook sets `data-pk-og-hook-ready="true"` on
-the canvas wrapper; a 2.5s timer reveals a warning when the flag
-never flips (bundle didn't load, hook errored on mount, etc.).
-`<noscript>` covers the JS-disabled case.
-
-Interaction: pointerdown captures a resize handle or the drag
-overlay; `evt.target.closest([data-pk-og-*-handle])` decides
-which. `phx-click="deselect"` on the SVG root fires on any click
-that doesn't hit an element — the hook flips
-`swallowNextClick=true` on drag/resize end and a capture-phase
-click listener swallows the synthetic click so the selection
-isn't blown away.
 
 ## Development
 

@@ -2,12 +2,15 @@ defmodule PhoenixKitOG.TemplatesTest do
   @moduledoc "Context tests for Templates CRUD + activity logging."
   use PhoenixKitOG.DataCase, async: false
 
-  alias PhoenixKitOG.{Canvas, Templates}
+  alias PhoenixKitOG.{SceneStore, Templates}
   alias PhoenixKitOG.Schemas.Template
 
   defp valid_attrs(overrides \\ %{}) do
     Map.merge(
-      %{"name" => "T-#{System.unique_integer([:positive])}", "canvas" => Canvas.blank()},
+      %{
+        "name" => "T-#{System.unique_integer([:positive])}",
+        "canvas" => SceneStore.dump(SceneStore.blank())
+      },
       overrides
     )
   end

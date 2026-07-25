@@ -44,12 +44,12 @@ defmodule PhoenixKitOG.Render.Cache do
   # depended on the fresh URL).
   @subdir "phoenix_kit_og_cache"
 
-  # Bump whenever the SVG/rasterize pipeline changes what it draws for
-  # the same inputs (e.g. v2: the placeholder became inline shapes).
-  # Hashed into the key so PNGs rendered by an older pipeline can't
-  # keep serving after an upgrade — without this, a cached render is
-  # pinned until the template row is touched or the TTL expires.
-  @render_version 2
+  # Bump whenever the og-side pipeline changes what it draws for the
+  # same inputs (v2: inline-shape placeholder; v3: the OpenFresco
+  # switch). Hashed into the key — together with OpenFresco's own
+  # engine version — so PNGs rendered by an older pipeline can't keep
+  # serving after an upgrade.
+  @render_version 3
 
   @doc """
   Returns `{cache_key, absolute_path}`. The path may or may not exist —
@@ -156,16 +156,29 @@ defmodule PhoenixKitOG.Render.Cache do
   defp hash(template, context) do
     payload = %{
       "render_version" => @render_version,
+      "engine_version" => engine_version(),
       "template_uuid" => template.uuid,
       "template_updated_at" => to_string(template.updated_at),
-      "canvas" => template.canvas,
+      # The prepared scene when the OpenFresco pipeline calls (its
+      # media resolution + mode fallbacks are part of the identity);
+      # legacy callers hash the raw canvas.
+      "canvas" => Map.get(context, :scene) || template.canvas,
       "values" => Map.get(context, :values, %{}),
+      "globals" => Map.get(context, :globals, %{}),
       "module_key" => Map.get(context, :module_key)
     }
 
     :crypto.hash(:sha256, :erlang.term_to_binary(payload, [:deterministic]))
     |> Base.encode16(case: :lower)
     |> binary_part(0, 16)
+  end
+
+  # OpenFresco's generator+rasterizer version string (e.g.
+  # "ofsvg-1/rast-1") — its output changes invalidate our cache too.
+  defp engine_version do
+    OpenFresco.Renderer.version()
+  rescue
+    _ -> OpenFresco.version()
   end
 
   defp path_for_key(key) do

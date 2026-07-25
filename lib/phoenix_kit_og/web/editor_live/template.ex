@@ -6,34 +6,32 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
   The layout is:
 
       ┌───────────────────────────────────────────────────┐
-      │  Toolbar: name | save state | add buttons | save   │
+      │  Toolbar: name | save state | insert | preview |save│
       ├──────────────────────────────┬────────────────────┤
-      │                              │  Element library   │
-      │       SVG canvas (1200×630)  │  Selected props    │
-      │       — drag, select, etc.   │  Bindings dropdown │
-      │                              │  Z-order controls  │
+      │  OpenFresco.Editor stage     │  Slots used        │
+      │  (server-authoritative SVG,  │  Selected props /  │
+      │   drag/resize/delete)        │  template props    │
+      ├──────────────────────────────┤                    │
+      │  Always-on preview pane      │                    │
       └──────────────────────────────┴────────────────────┘
+
+  The stage is OpenFresco's LiveComponent; everything around it is
+  ours. Property-panel forms all post `update_prop`/`update_canvas`
+  events handled by the LV through `PhoenixKitOG.SceneEdit`.
   """
 
   use PhoenixKitWeb, :html
   use Gettext, backend: PhoenixKitOG.Gettext
 
   alias Phoenix.LiveView.JS
-  alias PhoenixKitOG.{Canvas, Paths, Variables}
-
-  # Canvas displays at 75% of intrinsic in the layout. The SVG itself
-  # carries the 1200×630 viewBox so the JS hook can convert client
-  # pointer coords to canvas units regardless of CSS scale.
-  @display_scale 0.6
+  alias PhoenixKitOG.Paths
 
   def render(assigns) do
     assigns =
-      assigns
-      |> assign_new(:elements, fn -> Canvas.elements(assigns.canvas) end)
-      |> assign_new(:selected, fn ->
-        assigns.selected_id && Canvas.get_element(assigns.canvas, assigns.selected_id)
+      assign_new(assigns, :selected, fn ->
+        assigns.selected_id &&
+          Enum.find(assigns.scene.elements, &(&1.id == assigns.selected_id))
       end)
-      |> assign(:display_scale, @display_scale)
 
     ~H"""
     <div
@@ -46,21 +44,36 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
       <.toolbar
         template={@template}
         save_state={@save_state}
-        preview?={@preview?}
         preview_visible={@preview_visible}
         selected={@selected}
       />
 
       <div class="flex-1 flex overflow-hidden">
         <div class="flex-1 flex flex-col overflow-hidden min-w-0">
-          <.canvas_pane
-            canvas={@canvas}
-            elements={@elements}
-            selected_id={@selected_id}
-            preview?={@preview?}
-            display_scale={@display_scale}
-            global_values={@global_values}
-          />
+          <main class="flex-1 overflow-auto bg-base-200 p-8 flex flex-col items-center gap-4">
+            <noscript>
+              <div class="rounded-lg border border-error/40 bg-error/10 text-error px-4 py-2 text-sm max-w-2xl">
+                {gettext(
+                  "JavaScript is disabled — the template editor needs it for dragging, resizing, and saving. Enable JS and reload."
+                )}
+              </div>
+            </noscript>
+
+            <div class="shadow-lg border border-base-300 bg-base-100 max-w-full overflow-auto">
+              <.live_component
+                module={OpenFresco.Editor}
+                id={@stage_id}
+                scene={@scene}
+                values={%{}}
+              />
+            </div>
+
+            <p class="text-xs text-base-content/40">
+              {gettext(
+                "Drag to move, corner handles to resize, Delete removes. Slot tokens render as-is here — the preview below substitutes sample values."
+              )}
+            </p>
+          </main>
 
           <.preview_pane
             :if={@preview_visible}
@@ -72,7 +85,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           />
         </div>
 
-        <.right_panel selected={@selected} slots={@slots} canvas={@canvas} />
+        <.right_panel selected={@selected} slots={@slots} scene={@scene} />
       </div>
 
       <%!-- Media picker modal (shared with the publishing editor pattern):
@@ -87,13 +100,12 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         file_type_filter={:image}
         phoenix_kit_current_user={assigns[:phoenix_kit_current_user]}
       />
-
     </div>
     """
   end
 
   # =========================================================================
-  # Preview pane — the always-on strip under the canvas. Renders the
+  # Preview pane — the always-on strip under the stage. Renders the
   # current template as a PNG and shows it either raw ("Card") or inside
   # a platform mockup, one platform per tab. Toggleable from the toolbar.
   # =========================================================================
@@ -235,8 +247,6 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
     ]
   end
 
-  # Facebook desktop link card — big image, then title/description/host
-  # in a subdued strip below.
   attr(:image, :string, required: true)
   attr(:title, :string, required: true)
   attr(:description, :string, required: true)
@@ -334,6 +344,34 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
 
         <div class="divider divider-horizontal mx-0" />
 
+        <div :if={@selected} class="flex items-center gap-1">
+          <button
+            type="button"
+            phx-click="bring_to_front"
+            class="btn btn-ghost btn-sm"
+            title={gettext("Bring to front")}
+          >
+            <.icon name="hero-arrow-up-on-square-stack" class="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            phx-click="send_to_back"
+            class="btn btn-ghost btn-sm"
+            title={gettext("Send to back")}
+          >
+            <.icon name="hero-arrow-down-on-square-stack" class="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            phx-click="delete_selected"
+            class="btn btn-ghost btn-sm text-error"
+            title={gettext("Delete element")}
+          >
+            <.icon name="hero-trash" class="w-4 h-4" />
+          </button>
+          <div class="divider divider-horizontal mx-0" />
+        </div>
+
         <button
           type="button"
           phx-click="toggle_preview_pane"
@@ -362,11 +400,9 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
   end
 
   # ==============================================================
-  # Insert dropdown — replaces the flat toolbar buttons. Grouped so
-  # the "static vs variable" split is one click away for each element
-  # kind. Wraps `<details class="dropdown">` so it closes on outside
-  # click automatically; each item pushes the insert event and removes
-  # the `open` attribute so the menu collapses.
+  # Insert dropdown. Wraps `<details class="dropdown">` so it closes on
+  # outside click automatically; each item pushes the insert event and
+  # removes the `open` attribute so the menu collapses.
   # ==============================================================
   defp insert_menu(assigns) do
     ~H"""
@@ -379,17 +415,13 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         <.icon name="hero-plus" class="w-4 h-4 mr-1" /> {gettext("Insert…")}
       </summary>
       <ul class="dropdown-content menu bg-base-100 rounded-box shadow-lg z-10 w-64 p-2 mt-1">
-        <li class="menu-title">
-          <span>{gettext("Text")}</span>
-        </li>
+        <li class="menu-title"><span>{gettext("Text")}</span></li>
         <li>
           <a phx-click={insert_and_close("text")}>
             <.icon name="hero-bars-3-bottom-left" class="w-4 h-4" />
             <div class="flex-1">
               <div>{gettext("Static text")}</div>
-              <div class="text-xs text-base-content/50">
-                {gettext("You type the content.")}
-              </div>
+              <div class="text-xs text-base-content/50">{gettext("You type the content.")}</div>
             </div>
           </a>
         </li>
@@ -405,17 +437,13 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           </a>
         </li>
 
-        <li class="menu-title mt-1">
-          <span>{gettext("Image")}</span>
-        </li>
+        <li class="menu-title mt-1"><span>{gettext("Image")}</span></li>
         <li>
           <a phx-click={insert_and_close("image")}>
             <.icon name="hero-photo" class="w-4 h-4" />
             <div class="flex-1">
               <div>{gettext("Static image")}</div>
-              <div class="text-xs text-base-content/50">
-                {gettext("Paste a media UUID or URL.")}
-              </div>
+              <div class="text-xs text-base-content/50">{gettext("Pick from the media library.")}</div>
             </div>
           </a>
         </li>
@@ -431,77 +459,46 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           </a>
         </li>
 
-        <li class="menu-title mt-1">
-          <span>{gettext("Shape")}</span>
-        </li>
+        <li class="menu-title mt-1"><span>{gettext("Shape & button")}</span></li>
         <li>
           <a phx-click={insert_and_close("rect")}>
             <.icon name="hero-rectangle-group" class="w-4 h-4" />
             <div class="flex-1">
               <div>{gettext("Rectangle")}</div>
               <div class="text-xs text-base-content/50">
-                {gettext("Solid fill, optional stroke, rounded corners.")}
+                {gettext("Solid fill, rounded corners.")}
               </div>
+            </div>
+          </a>
+        </li>
+        <li>
+          <a phx-click={insert_and_close("button")}>
+            <.icon name="hero-cursor-arrow-ripple" class="w-4 h-4" />
+            <div class="flex-1">
+              <div>{gettext("Call-to-action button")}</div>
+              <div class="text-xs text-base-content/50">
+                {gettext("Auto-sizes to its translatable label.")}
+              </div>
+            </div>
+          </a>
+        </li>
+        <li>
+          <a phx-click={insert_and_close("stamp")}>
+            <.icon name="hero-tag" class="w-4 h-4" />
+            <div class="flex-1">
+              <div>{gettext("Stamp")}</div>
+              <div class="text-xs text-base-content/50">{gettext("A short badge/label.")}</div>
             </div>
           </a>
         </li>
 
-        <li class="menu-title mt-1">
-          <span>{gettext("Website")}</span>
-        </li>
-        <li>
-          <a phx-click={insert_and_close("global:site_url")}>
+        <li class="menu-title mt-1"><span>{gettext("Site globals")}</span></li>
+        <li :for={
+          global <- ["site_url", "site_host", "site_name", "page_url", "page_locale"]
+        }>
+          <a phx-click={insert_and_close("global:" <> global)}>
             <.icon name="hero-globe-alt" class="w-4 h-4" />
-            <div class="flex-1">
-              <div>{gettext("Site URL")}</div>
-              <div class="text-xs text-base-content/50">
-                {gettext(~S|Auto-fills from the site config — no wiring needed.|)}
-              </div>
-            </div>
-          </a>
-        </li>
-        <li>
-          <a phx-click={insert_and_close("global:site_host")}>
-            <.icon name="hero-server" class="w-4 h-4" />
-            <div class="flex-1">
-              <div>{gettext("Site host")}</div>
-              <div class="text-xs text-base-content/50">
-                {gettext(~S|Pre-filled with {{site_host}}.|)}
-              </div>
-            </div>
-          </a>
-        </li>
-        <li>
-          <a phx-click={insert_and_close("global:site_name")}>
-            <.icon name="hero-identification" class="w-4 h-4" />
-            <div class="flex-1">
-              <div>{gettext("Site name")}</div>
-              <div class="text-xs text-base-content/50">
-                {gettext(~S|Pre-filled with {{site_name}}.|)}
-              </div>
-            </div>
-          </a>
-        </li>
-        <li>
-          <a phx-click={insert_and_close("global:page_url")}>
-            <.icon name="hero-link" class="w-4 h-4" />
-            <div class="flex-1">
-              <div>{gettext("Page URL")}</div>
-              <div class="text-xs text-base-content/50">
-                {gettext(~S|Pre-filled with {{page_url}} — the URL of the post/page.|)}
-              </div>
-            </div>
-          </a>
-        </li>
-        <li>
-          <a phx-click={insert_and_close("global:page_locale")}>
-            <.icon name="hero-language" class="w-4 h-4" />
-            <div class="flex-1">
-              <div>{gettext("Page locale")}</div>
-              <div class="text-xs text-base-content/50">
-                {gettext(~S|Pre-filled with {{page_locale}}.|)}
-              </div>
-            </div>
+            <span class="font-mono text-xs">[[{global}]]</span>
           </a>
         </li>
       </ul>
@@ -509,603 +506,33 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
     """
   end
 
-  # Pushes the insert event AND removes the details `open` attribute so
-  # the dropdown collapses back after the click.
   defp insert_and_close(kind) do
-    JS.push("insert", value: %{"kind" => kind})
+    JS.push("insert", value: %{kind: kind})
     |> JS.remove_attribute("open", to: "#insert-menu")
   end
 
   defp save_pill(assigns) do
-    {label, class} =
-      case assigns.state do
-        :saved -> {gettext("Saved"), "text-success"}
-        :dirty -> {gettext("Unsaved changes"), "text-warning"}
-        :saving -> {gettext("Saving…"), "text-info"}
-        :error -> {gettext("Save failed"), "text-error"}
-      end
-
-    assigns = assigns |> assign(:label, label) |> assign(:class, class)
-
     ~H"""
-    <span class={["text-xs font-medium", @class]}>{@label}</span>
-    """
-  end
-
-  # =========================================================================
-  # Canvas pane (left)
-  # =========================================================================
-
-  defp canvas_pane(assigns) do
-    assigns =
-      assigns
-      |> assign(:canvas_width, Map.get(assigns.canvas, "width", 1200))
-      |> assign(:canvas_height, Map.get(assigns.canvas, "height", 630))
-      |> assign(:background, Map.get(assigns.canvas, "background", %{}))
-
-    ~H"""
-    <main class="flex-1 overflow-auto bg-base-200 p-8 flex flex-col items-center gap-4">
-      <%!-- Editor is JS-driven — no drag, no resize, no keyboard shortcuts
-           without it. Show a persistent warning when the hook hasn't set
-           `data-pk-og-hook-ready="true"` on the wrapper (either JS
-           disabled, the bundle didn't load, or the hook errored on
-           mount). Also cover the classic no-JS case with `<noscript>`. --%>
-      <noscript>
-        <div class="rounded-lg border border-error/40 bg-error/10 text-error px-4 py-2 text-sm max-w-2xl">
-          {gettext(
-            "JavaScript is disabled — the template editor needs it for dragging, resizing, and saving. Enable JS and reload."
-          )}
-        </div>
-      </noscript>
-
-      <div
-        id="og-editor-js-warning"
-        role="alert"
-        hidden
-        class="rounded-lg border border-warning/40 bg-warning/10 text-warning-content px-4 py-2 text-sm max-w-2xl"
-      >
-        {gettext(
-          "Editor JavaScript hasn't loaded — dragging, resizing, and keyboard shortcuts are disabled. Try a hard refresh (Ctrl+Shift+R)."
-        )}
-      </div>
-
-      <div
-        id="og-canvas-wrapper"
-        class="bg-base-100 shadow-xl rounded"
-        style={"width: #{round(@canvas_width * @display_scale)}px; height: #{round(@canvas_height * @display_scale)}px;"}
-      >
-        <svg
-          id="og-canvas-svg"
-          phx-hook="PhoenixKitOGCanvas"
-          data-canvas-width={@canvas_width}
-          data-canvas-height={@canvas_height}
-          data-selected-id={@selected_id || ""}
-          data-preview={if @preview?, do: "true", else: "false"}
-          viewBox={"0 0 #{@canvas_width} #{@canvas_height}"}
-          xmlns="http://www.w3.org/2000/svg"
-          class="w-full h-full block cursor-default select-none"
-          phx-click="deselect"
-        >
-          <%!-- Checker pattern: stand-in for any unresolved image
-               (empty src, an unwired `{{ slot }}`, or a lookup miss).
-               Two 20×20 tiles → classic transparency-grid look. --%>
-          <defs>
-            <pattern
-              id="pk-og-checker"
-              x="0"
-              y="0"
-              width="40"
-              height="40"
-              patternUnits="userSpaceOnUse"
-            >
-              <rect width="40" height="40" fill="#e5e7eb" />
-              <rect width="20" height="20" fill="#f8fafc" />
-              <rect x="20" y="20" width="20" height="20" fill="#f8fafc" />
-            </pattern>
-          </defs>
-
-          <%!-- Background: solid color, or image + optional dark overlay --%>
-          <.background
-            background={@background}
-            canvas_width={@canvas_width}
-            canvas_height={@canvas_height}
-          />
-
-          <%!-- Elements --%>
-          <.element
-            :for={el <- @elements}
-            element={el}
-            preview?={@preview?}
-            global_values={@global_values}
-          />
-
-          <%!-- Selection outline + resize handles, only when selected --%>
-          <% selected_el = find_element(@elements, @selected_id) %>
-          <.selection :if={not @preview? and selected_el} el={selected_el} />
-        </svg>
-      </div>
-    </main>
-    """
-  end
-
-  defp find_element(_elements, nil), do: nil
-  defp find_element(elements, id), do: Enum.find(elements, &(&1["id"] == id))
-
-  # Editor-side background renderer. When bg is image + slot-like src,
-  # falls back to the solid color so the editor doesn't leak `{{...}}`.
-  attr(:background, :map, required: true)
-  attr(:canvas_width, :any, required: true)
-  attr(:canvas_height, :any, required: true)
-
-  defp background(assigns) do
-    type = Map.get(assigns.background, "type", "color")
-    value = Map.get(assigns.background, "value", "#0b1220")
-    overlay = Map.get(assigns.background, "overlay_opacity", 0)
-    overlay_fill = overlay_fill(Map.get(assigns.background, "overlay_color", "dark"))
-    fit = Map.get(assigns.background, "fit", "fill")
-
-    assigns =
-      assigns
-      |> assign(:type, type)
-      |> assign(:value, value)
-      |> assign(:overlay, overlay)
-      |> assign(:overlay_fill, overlay_fill)
-      |> assign(:image_href, resolve_editor_image_href(value))
-      |> assign(:preserve_aspect_ratio, fit_to_preserve_aspect_ratio(fit))
-
-    ~H"""
-    <%= cond do %>
-      <% @type == "image" and @image_href -> %>
-        <image
-          href={@image_href}
-          x="0"
-          y="0"
-          width={@canvas_width}
-          height={@canvas_height}
-          preserveAspectRatio={@preserve_aspect_ratio}
-        />
-      <% @type == "image" -> %>
-        <%!-- Image type selected but the source hasn't resolved yet
-             (empty or `{{slot}}`). Fill with the checker so the author
-             sees the "no image yet" affordance and can still preview
-             overlay strength. --%>
-        <rect
-          x="0"
-          y="0"
-          width={@canvas_width}
-          height={@canvas_height}
-          fill="url(#pk-og-checker)"
-        />
-      <% true -> %>
-        <rect
-          x="0"
-          y="0"
-          width={@canvas_width}
-          height={@canvas_height}
-          fill={if @type == "color", do: @value, else: "#0b1220"}
-        />
-    <% end %>
-    <%!-- Overlay tint sits above the background regardless of whether
-         the image resolved to a real href or the checker placeholder,
-         so the author can dial in strength before the actual image is
-         wired. --%>
-    <rect
-      :if={@type == "image" and @overlay > 0}
-      x="0"
-      y="0"
-      width={@canvas_width}
-      height={@canvas_height}
-      fill={@overlay_fill}
-      fill-opacity={@overlay}
-    />
-    """
-  end
-
-  defp overlay_fill("light"), do: "#ffffff"
-  defp overlay_fill(_), do: "#000000"
-
-  # In the editor we can only render a background image if the src
-  # resolves right now — a slot placeholder or empty string falls back
-  # to the solid-color path.
-  # Maps our friendly `fit` field to SVG's `preserveAspectRatio`.
-  # `fill`   = cover (crop to fully cover, keep aspect).
-  # `contain` = fit inside (letterbox if aspect differs, keep aspect).
-  # `stretch` = distort to exact bounds.
-  defp fit_to_preserve_aspect_ratio("contain"), do: "xMidYMid meet"
-  defp fit_to_preserve_aspect_ratio("stretch"), do: "none"
-  defp fit_to_preserve_aspect_ratio(_), do: "xMidYMid slice"
-
-  defp resolve_editor_image_href(nil), do: nil
-  defp resolve_editor_image_href(""), do: nil
-  defp resolve_editor_image_href("{{" <> _), do: nil
-  defp resolve_editor_image_href("http://" <> _ = v), do: v
-  defp resolve_editor_image_href("https://" <> _ = v), do: v
-  defp resolve_editor_image_href("/" <> _ = v), do: v
-  defp resolve_editor_image_href("data:" <> _ = v), do: v
-
-  defp resolve_editor_image_href(uuid) when is_binary(uuid) do
-    # Use the shared storage helper so we get the correctly-signed URL
-    # for this media file — same call publishing uses for featured
-    # images. Falls back to nil (→ solid-color background) if the file
-    # can't be resolved, which is safer than emitting a broken href.
-    PhoenixKit.Modules.Storage.get_public_url_by_uuid(uuid, "medium") ||
-      PhoenixKit.Modules.Storage.get_public_url_by_uuid(uuid)
-  rescue
-    _ -> nil
-  end
-
-  defp resolve_editor_image_href(_), do: nil
-
-  # ---- Element renderers — Phoenix.Component functions called with
-  # ---- `<.element ... />` so HEEx's change-tracking metadata is present.
-
-  attr(:element, :map, required: true)
-  attr(:preview?, :boolean, required: true)
-  attr(:global_values, :map, default: %{})
-
-  defp element(assigns) do
-    type = assigns.element["type"]
-    assigns = assign(assigns, :type, type)
-
-    case type do
-      "text" -> text_element(assigns)
-      "image" -> image_element(assigns)
-      "rect" -> rect_element(assigns)
-      "stamp" -> stamp_element(assigns)
-      _ -> ~H""
-    end
-  end
-
-  defp text_element(assigns) do
-    el = assigns.element
-
-    # `{{...}}` slots stay visible in the editor so the author sees
-    # which slot goes where — they resolve at render time from the
-    # assignment mapping. `[[...]]` globals resolve NOW using the
-    # `@global_values` map (site host, page URL, etc.) so the author
-    # sees the real value they'll ship.
-    raw_text =
-      case el do
-        %{"binding" => b} when is_binary(b) and b != "" -> b
-        %{"text" => t} -> t || ""
-        _ -> ""
-      end
-
-    text = PhoenixKitOG.Slots.substitute(raw_text, assigns.global_values || %{})
-
-    assigns =
-      assigns
-      |> assign(:text, text)
-      |> assign(:outer_style, text_outer_style(el))
-      |> assign(:inner_style, text_inner_style(el))
-      |> assign(:span_style, text_highlight_style(el))
-
-    ~H"""
-    <g
-      data-pk-og-element={@element["id"]}
-      phx-click="select"
-      phx-value-id={@element["id"]}
-      class="cursor-pointer"
-    >
-      <rect
-        x={@element["x"]}
-        y={@element["y"]}
-        width={@element["width"]}
-        height={@element["height"]}
-        fill="transparent"
-      />
-      <foreignObject
-        x={@element["x"]}
-        y={@element["y"]}
-        width={@element["width"]}
-        height={@element["height"]}
-      >
-        <div xmlns="http://www.w3.org/1999/xhtml" style={@outer_style}>
-          <div style={@inner_style}>
-            <span style={@span_style}>{@text}</span>
-          </div>
-        </div>
-      </foreignObject>
-    </g>
-    """
-  end
-
-  # Checker-pattern stand-in for an image element with no resolvable
-  # source. Same visual for both blank `src` and un-wired `{{slot}}`.
-  #
-  # Emits a per-instance `<pattern>` whose `x`/`y` match the rect's
-  # position so the tiling starts with a complete tile at the top-
-  # left. A wrapping `<g transform>` would achieve the same visual
-  # but breaks the JS drag/resize hook, which reads bounds from the
-  # inner rect (expecting canvas-space coords, not local ones).
-  attr(:id, :string, required: true)
-  attr(:x, :any, required: true)
-  attr(:y, :any, required: true)
-  attr(:width, :any, required: true)
-  attr(:height, :any, required: true)
-  attr(:label, :string, required: true)
-
-  defp image_placeholder(assigns) do
-    assigns = assign(assigns, :pattern_id, "pk-og-checker-#{assigns.id}")
-
-    ~H"""
-    <pattern
-      id={@pattern_id}
-      x={@x}
-      y={@y}
-      width="40"
-      height="40"
-      patternUnits="userSpaceOnUse"
-    >
-      <rect width="40" height="40" fill="#e5e7eb" />
-      <rect width="20" height="20" fill="#f8fafc" />
-      <rect x="20" y="20" width="20" height="20" fill="#f8fafc" />
-    </pattern>
-    <rect
-      x={@x}
-      y={@y}
-      width={@width}
-      height={@height}
-      fill={"url(##{@pattern_id})"}
-      stroke="#cbd5e1"
-      stroke-width="2"
-      stroke-dasharray="6 4"
-    />
-    <text
-      x={@x + @width / 2}
-      y={@y + @height / 2}
-      fill="#475569"
-      font-size="22"
-      font-weight="500"
-      text-anchor="middle"
-      dominant-baseline="middle"
-      style="user-select: none; pointer-events: none;"
-    >
-      {@label}
-    </text>
-    """
-  end
-
-  # Empty `src` → generic "Image" hint. `{{slot}}` → surface the slot
-  # name (`{{background}}`) so the author sees what they've typed.
-  defp placeholder_label(src) when is_binary(src) do
-    cond do
-      src == "" -> "Image"
-      String.starts_with?(src, "{{") -> src
-      true -> "Image"
-    end
-  end
-
-  defp placeholder_label(_), do: "Image"
-
-  # Shared underlay renderer — drops a translucent dark/light rect
-  # beneath the element so text stays legible even over a busy image
-  # background. Attached as the first child of every element's `<g>`.
-  attr(:element, :map, required: true)
-
-  defp underlay(assigns) do
-    opacity = Map.get(assigns.element, "underlay_opacity", 0)
-
-    if is_number(opacity) and opacity > 0 do
-      fill = overlay_fill(Map.get(assigns.element, "underlay_color", "dark"))
-      assigns = assigns |> assign(:opacity, opacity) |> assign(:fill, fill)
-
-      ~H"""
-      <rect
-        x={@element["x"]}
-        y={@element["y"]}
-        width={@element["width"]}
-        height={@element["height"]}
-        fill={@fill}
-        fill-opacity={@opacity}
-        pointer-events="none"
-      />
-      """
-    else
-      ~H""
-    end
-  end
-
-  defp image_element(assigns) do
-    assigns = assign(assigns, :src, image_src(assigns.element["src"]))
-
-    ~H"""
-    <g
-      data-pk-og-element={@element["id"]}
-      phx-click="select"
-      phx-value-id={@element["id"]}
-      class="cursor-pointer"
-    >
-      <.underlay element={@element} />
-      <%= if @src do %>
-        <image
-          href={@src}
-          x={@element["x"]}
-          y={@element["y"]}
-          width={@element["width"]}
-          height={@element["height"]}
-          preserveAspectRatio={fit_to_preserve_aspect_ratio(@element["fit"])}
-        />
-      <% else %>
-        <.image_placeholder
-          id={@element["id"]}
-          x={@element["x"]}
-          y={@element["y"]}
-          width={@element["width"]}
-          height={@element["height"]}
-          label={placeholder_label(@element["src"])}
-        />
+    <span class={[
+      "badge badge-sm whitespace-nowrap",
+      @state == :saved && "badge-ghost",
+      @state == :dirty && "badge-warning",
+      @state == :error && "badge-error"
+    ]}>
+      <%= case @state do %>
+        <% :saved -> %>
+          {gettext("Saved")}
+        <% :dirty -> %>
+          {gettext("Unsaved…")}
+        <% :error -> %>
+          {gettext("Save failed")}
       <% end %>
-    </g>
-    """
-  end
-
-  defp rect_element(assigns) do
-    ~H"""
-    <g
-      data-pk-og-element={@element["id"]}
-      phx-click="select"
-      phx-value-id={@element["id"]}
-      class="cursor-pointer"
-    >
-      <.underlay element={@element} />
-      <rect
-        x={@element["x"]}
-        y={@element["y"]}
-        width={@element["width"]}
-        height={@element["height"]}
-        rx={@element["radius"] || 0}
-        ry={@element["radius"] || 0}
-        fill={@element["fill"] || "#1e293b"}
-        stroke={blank_to_none(@element["stroke"])}
-        stroke-width={@element["stroke_width"] || 0}
-      />
-    </g>
-    """
-  end
-
-  defp stamp_element(assigns) do
-    el = assigns.element
-    raw_text = Map.get(el, "preset", "")
-    text = PhoenixKitOG.Slots.substitute(raw_text, assigns.global_values || %{})
-
-    assigns =
-      assigns
-      |> assign(:text, text)
-      |> assign(:outer_style, text_outer_style(el))
-      |> assign(:inner_style, text_inner_style(el))
-      |> assign(:span_style, text_highlight_style(el))
-
-    ~H"""
-    <g
-      data-pk-og-element={@element["id"]}
-      phx-click="select"
-      phx-value-id={@element["id"]}
-      class="cursor-pointer"
-    >
-      <rect
-        x={@element["x"]}
-        y={@element["y"]}
-        width={@element["width"]}
-        height={@element["height"]}
-        fill="transparent"
-      />
-      <foreignObject
-        x={@element["x"]}
-        y={@element["y"]}
-        width={@element["width"]}
-        height={@element["height"]}
-      >
-        <div xmlns="http://www.w3.org/1999/xhtml" style={@outer_style}>
-          <div style={@inner_style}>
-            <span style={@span_style}>{@text}</span>
-          </div>
-        </div>
-      </foreignObject>
-    </g>
-    """
-  end
-
-  # ---- Selection outline + resize handles ----
-
-  attr(:el, :map, required: true)
-
-  defp selection(assigns) do
-    ~H"""
-    <%!-- Wrapping the outline + drag overlay + 8 handles in one group means
-         the JS drag hook can apply a single `translate(dx dy)` transform to
-         this group during drag and it follows the element 1:1. --%>
-    <g data-pk-og-selection={@el["id"]}>
-      <g pointer-events="none">
-        <rect
-          x={@el["x"]}
-          y={@el["y"]}
-          width={@el["width"]}
-          height={@el["height"]}
-          fill="none"
-          stroke="#38bdf8"
-          stroke-width="2"
-          stroke-dasharray="6 4"
-        />
-      </g>
-      <%!-- Drag affordance overlay: covers the selected element so the JS hook
-           intercepts pointer-down for moving. --%>
-      <rect
-        data-pk-og-drag-handle={@el["id"]}
-        x={@el["x"]}
-        y={@el["y"]}
-        width={@el["width"]}
-        height={@el["height"]}
-        fill="transparent"
-        class="cursor-move"
-        pointer-events="all"
-      />
-      <.handle el={@el} position="nw" cx={@el["x"]} cy={@el["y"]} />
-      <.handle el={@el} position="n" cx={@el["x"] + @el["width"] / 2} cy={@el["y"]} />
-      <.handle el={@el} position="ne" cx={@el["x"] + @el["width"]} cy={@el["y"]} />
-      <.handle
-        el={@el}
-        position="e"
-        cx={@el["x"] + @el["width"]}
-        cy={@el["y"] + @el["height"] / 2}
-      />
-      <.handle
-        el={@el}
-        position="se"
-        cx={@el["x"] + @el["width"]}
-        cy={@el["y"] + @el["height"]}
-      />
-      <.handle
-        el={@el}
-        position="s"
-        cx={@el["x"] + @el["width"] / 2}
-        cy={@el["y"] + @el["height"]}
-      />
-      <.handle el={@el} position="sw" cx={@el["x"]} cy={@el["y"] + @el["height"]} />
-      <.handle el={@el} position="w" cx={@el["x"]} cy={@el["y"] + @el["height"] / 2} />
-    </g>
-    """
-  end
-
-  attr(:el, :map, required: true)
-  attr(:position, :string, required: true)
-  attr(:cx, :any, required: true)
-  attr(:cy, :any, required: true)
-
-  defp handle(assigns) do
-    cursor =
-      case assigns.position do
-        "nw" -> "nwse-resize"
-        "se" -> "nwse-resize"
-        "ne" -> "nesw-resize"
-        "sw" -> "nesw-resize"
-        "n" -> "ns-resize"
-        "s" -> "ns-resize"
-        "e" -> "ew-resize"
-        "w" -> "ew-resize"
-      end
-
-    assigns = assign(assigns, :cursor, cursor)
-
-    ~H"""
-    <rect
-      data-pk-og-resize-handle={@el["id"]}
-      data-position={@position}
-      x={@cx - 6}
-      y={@cy - 6}
-      width="12"
-      height="12"
-      fill="#38bdf8"
-      stroke="#ffffff"
-      stroke-width="2"
-      style={"cursor: #{@cursor}"}
-      pointer-events="all"
-    />
+    </span>
     """
   end
 
   # =========================================================================
-  # Right panel — element library / property panel
+  # Right panel
   # =========================================================================
 
   defp right_panel(assigns) do
@@ -1114,17 +541,15 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
       <.slots_panel slots={@slots} />
       <hr class="border-base-300" />
       <%= if @selected do %>
-        <.property_panel selected={@selected} canvas={@canvas} />
+        <.property_panel selected={@selected} scene={@scene} />
       <% else %>
-        <.template_props canvas={@canvas} />
+        <.template_props scene={@scene} />
       <% end %>
     </aside>
     """
   end
 
-  # Small at-a-glance list of slot names the author has typed into the
-  # template so far. Each chip shows type ({text} or {image}) so the
-  # author sees the type an image src slot will inherit vs a text slot.
+  # Small at-a-glance list of slot names the author has declared so far.
   defp slots_panel(assigns) do
     ~H"""
     <section class="space-y-2">
@@ -1137,7 +562,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
       <%= if @slots == [] do %>
         <p class="text-xs text-base-content/50">
           {gettext(
-            ~S|Type {{name}} in a text field (or in an image src) to declare a slot. Wire it to real data on the Assignments page.|
+            ~S|Type {{name}} in a text field (or make an element a Variable) to declare a slot. Wire it to real data on the Assignments page.|
           )}
         </p>
       <% else %>
@@ -1157,36 +582,19 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
   defp icon_for_type(_), do: "?"
 
   # ==============================================================
-  # Template properties — shown in the right panel when no element is
-  # selected. Covers canvas size + background (color or image + a
-  # black text-legibility overlay).
+  # Template properties — shown when no element is selected. Canvas
+  # size + the background fill with Solid / Image / Gradient tabs.
   # ==============================================================
-  attr(:canvas, :map, required: true)
+  attr(:scene, :map, required: true)
 
   defp template_props(assigns) do
-    bg = Map.get(assigns.canvas, "background", %{})
-    bg_type = Map.get(bg, "type", "color")
-    # `value_mode` may not be set on legacy backgrounds — infer from the
-    # current value (starts with `{{` = variable, otherwise constant).
-    bg_value = Map.get(bg, "value", "")
-
-    bg_mode =
-      Map.get(bg, "value_mode") ||
-        cond do
-          is_binary(bg_value) and String.starts_with?(bg_value, "{{") -> "variable"
-          true -> "constant"
-        end
-
-    overlay_opacity = Map.get(bg, "overlay_opacity", 0)
-    overlay_color = Map.get(bg, "overlay_color", "dark")
+    bg = assigns.scene.canvas.background || %{type: :solid, color: "#0b1220"}
+    bg_type = Map.get(bg, :type, :solid)
 
     assigns =
       assigns
       |> assign(:bg, bg)
       |> assign(:bg_type, bg_type)
-      |> assign(:bg_mode, bg_mode)
-      |> assign(:overlay_opacity, overlay_opacity)
-      |> assign(:overlay_color, overlay_color)
 
     ~H"""
     <div class="space-y-4">
@@ -1200,12 +608,8 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           </h3>
         </header>
         <div class="grid grid-cols-2 gap-2">
-          <.canvas_field field="width" label={gettext("Width")} value={Map.get(@canvas, "width", 1200)} />
-          <.canvas_field
-            field="height"
-            label={gettext("Height")}
-            value={Map.get(@canvas, "height", 630)}
-          />
+          <.canvas_field field="width" label={gettext("Width")} value={@scene.canvas.width} />
+          <.canvas_field field="height" label={gettext("Height")} value={@scene.canvas.height} />
         </div>
         <p class="text-xs text-base-content/50">
           {gettext("OpenGraph consumers expect 1200×630. Custom sizes render fine.")}
@@ -1221,201 +625,59 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         </header>
 
         <form phx-change="update_canvas" class="tabs tabs-boxed bg-base-200 p-0.5">
-          <input type="hidden" name="field" value="background_type" />
-          <label class={"tab tab-sm flex-1 #{@bg_type == "color" && "tab-active"}"}>
-            <input
-              type="radio"
-              name="value"
-              value="color"
-              checked={@bg_type == "color"}
-              class="sr-only"
-            />
-            <.icon name="hero-swatch" class="w-3.5 h-3.5 mr-1.5" />
-            {gettext("Solid color")}
+          <input type="hidden" name="field" value="bg_type" />
+          <label class={"tab tab-sm flex-1 #{@bg_type == :solid && "tab-active"}"}>
+            <input type="radio" name="value" value="solid" checked={@bg_type == :solid} class="sr-only" />
+            {gettext("Color")}
           </label>
-          <label class={"tab tab-sm flex-1 #{@bg_type == "image" && "tab-active"}"}>
+          <label class={"tab tab-sm flex-1 #{@bg_type == :image && "tab-active"}"}>
+            <input type="radio" name="value" value="image" checked={@bg_type == :image} class="sr-only" />
+            {gettext("Image")}
+          </label>
+          <label class={"tab tab-sm flex-1 #{@bg_type == :gradient && "tab-active"}"}>
             <input
               type="radio"
               name="value"
-              value="image"
-              checked={@bg_type == "image"}
+              value="gradient"
+              checked={@bg_type == :gradient}
               class="sr-only"
             />
-            <.icon name="hero-photo" class="w-3.5 h-3.5 mr-1.5" />
-            {gettext("Image")}
+            {gettext("Gradient")}
           </label>
         </form>
 
-        <%= if @bg_type == "color" do %>
-          <.canvas_color_field
-            field="background_value"
-            label={gettext("Color")}
-            value={Map.get(@bg, "value", "#0b1220")}
-          />
-        <% else %>
-          <div>
-            <label class="label py-0.5">
-              <span class="label-text text-xs">{gettext("Source")}</span>
-            </label>
-            <form phx-change="update_canvas" class="tabs tabs-boxed bg-base-200 p-0.5">
-              <input type="hidden" name="field" value="background_value_mode" />
-              <label class={"tab tab-sm flex-1 #{@bg_mode == "constant" && "tab-active"}"}>
-                <input
-                  type="radio"
-                  name="value"
-                  value="constant"
-                  checked={@bg_mode == "constant"}
-                  class="sr-only"
-                />
-                {gettext("Constant")}
-              </label>
-              <label class={"tab tab-sm flex-1 #{@bg_mode == "variable" && "tab-active"}"}>
-                <input
-                  type="radio"
-                  name="value"
-                  value="variable"
-                  checked={@bg_mode == "variable"}
-                  class="sr-only"
-                />
-                {gettext("Variable")}
-              </label>
-            </form>
-          </div>
-
-          <%= if @bg_mode == "constant" do %>
-            <.media_field
-              target="background_value"
-              value={Map.get(@bg, "value", "")}
-              label={gettext("Image")}
+        <%= case @bg_type do %>
+          <% :solid -> %>
+            <.canvas_color_field
+              field="bg_color"
+              label={gettext("Color")}
+              value={Map.get(@bg, :color, "#0b1220")}
             />
-          <% else %>
+          <% :image -> %>
+            <.image_value_controls
+              value={Map.get(@bg, :value)}
+              media_target="background_value"
+              variable_field="bg_image_variable_name"
+              form_event="update_canvas"
+            />
             <div>
               <label class="label py-0.5">
-                <span class="label-text text-xs">{gettext("Variable name")}</span>
+                <span class="label-text text-xs">{gettext("Fit")}</span>
               </label>
-              <form phx-change="update_canvas" class="flex items-center gap-2">
-                <input type="hidden" name="field" value="background_variable_name" />
-                <span class="text-xs text-base-content/50 font-mono"><%= "{{" %></span>
-                <input
-                  type="text"
-                  name="value"
-                  value={Map.get(@bg, "value_name", strip_curlies(Map.get(@bg, "value", "")))}
-                  placeholder="background_image"
-                  class="input input-bordered input-sm flex-1 font-mono text-xs"
-                />
-                <span class="text-xs text-base-content/50 font-mono"><%= "}}" %></span>
-              </form>
-              <p class="text-xs text-base-content/50 mt-1">
-                {gettext(
-                  "Shows up on the Assignments page — pick which module variable it maps to."
-                )}
-              </p>
-            </div>
-          <% end %>
-
-          <div>
-            <label class="label py-0.5">
-              <span class="label-text text-xs">{gettext("Fit")}</span>
-            </label>
-            <% fit = Map.get(@bg, "fit", "fill") %>
-            <form phx-change="update_canvas" class="tabs tabs-boxed bg-base-200 p-0.5">
-              <input type="hidden" name="field" value="background_fit" />
-              <label
-                class={"tab tab-sm flex-1 #{fit == "fill" && "tab-active"}"}
-                title={gettext("Fill (crop overflow)")}
-              >
-                <input type="radio" name="value" value="fill" checked={fit == "fill"} class="sr-only" />
-                {gettext("Fill")}
-              </label>
-              <label
-                class={"tab tab-sm flex-1 #{fit == "contain" && "tab-active"}"}
-                title={gettext("Contain (fit inside)")}
-              >
-                <input
-                  type="radio"
-                  name="value"
-                  value="contain"
-                  checked={fit == "contain"}
-                  class="sr-only"
-                />
-                {gettext("Contain")}
-              </label>
-              <label
-                class={"tab tab-sm flex-1 #{fit == "stretch" && "tab-active"}"}
-                title={gettext("Stretch (distort)")}
-              >
-                <input
-                  type="radio"
-                  name="value"
-                  value="stretch"
-                  checked={fit == "stretch"}
-                  class="sr-only"
-                />
-                {gettext("Stretch")}
-              </label>
-            </form>
-          </div>
-
-          <fieldset class="space-y-2 pt-2 border-t border-base-300/60">
-            <legend class="text-xs font-medium text-base-content/60">
-              {gettext("Text-legibility overlay")}
-            </legend>
-
-            <div>
-              <label class="label py-0.5">
-                <span class="label-text text-xs">{gettext("Color")}</span>
-              </label>
+              <% fit = Map.get(@bg, :fit, :cover) %>
               <form phx-change="update_canvas" class="tabs tabs-boxed bg-base-200 p-0.5">
-                <input type="hidden" name="field" value="background_overlay_color" />
-                <label class={"tab tab-sm flex-1 #{@overlay_color == "dark" && "tab-active"}"}>
-                  <input
-                    type="radio"
-                    name="value"
-                    value="dark"
-                    checked={@overlay_color == "dark"}
-                    class="sr-only"
-                  />
-                  <span class="w-3 h-3 rounded-full bg-neutral mr-1.5 border border-base-content/20" />
-                  {gettext("Dark")}
-                </label>
-                <label class={"tab tab-sm flex-1 #{@overlay_color == "light" && "tab-active"}"}>
-                  <input
-                    type="radio"
-                    name="value"
-                    value="light"
-                    checked={@overlay_color == "light"}
-                    class="sr-only"
-                  />
-                  <span class="w-3 h-3 rounded-full bg-base-100 mr-1.5 border border-base-content/20" />
-                  {gettext("Light")}
+                <input type="hidden" name="field" value="bg_image_fit" />
+                <label
+                  :for={{v, l} <- [{"cover", gettext("Fill")}, {"contain", gettext("Contain")}, {"stretch", gettext("Stretch")}]}
+                  class={"tab tab-sm flex-1 #{to_string(fit) == v && "tab-active"}"}
+                >
+                  <input type="radio" name="value" value={v} checked={to_string(fit) == v} class="sr-only" />
+                  {l}
                 </label>
               </form>
             </div>
-
-            <div>
-              <label class="label py-0.5 flex items-center justify-between">
-                <span class="label-text text-xs">{gettext("Strength")}</span>
-                <span class="text-xs text-base-content/50">
-                  {round(@overlay_opacity * 100)}%
-                </span>
-              </label>
-              <form phx-change="update_canvas">
-                <input type="hidden" name="field" value="background_overlay_opacity" />
-                <input
-                  type="range"
-                  name="value"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={@overlay_opacity}
-                  class="range range-xs w-full"
-                />
-              </form>
-              <p class="text-xs text-base-content/50 mt-0.5">
-                {gettext("How much the dark/light tint darkens or lightens the background.")}
-              </p>
-            </div>
-          </fieldset>
+          <% :gradient -> %>
+            <.gradient_controls gradient={@bg} />
         <% end %>
       </section>
 
@@ -1426,98 +688,622 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
     """
   end
 
-  # =========================================================================
-  # Media picker field — a button + thumbnail preview that opens the
-  # shared MediaSelectorModal. `target` (e.g. `"background_value"` /
-  # `"element_src"`) tells the LV which field to write when the user
-  # confirms.
-  # =========================================================================
-  attr(:target, :string, required: true)
-  attr(:value, :string, required: true)
-  attr(:label, :string, required: true)
+  attr(:gradient, :map, required: true)
 
-  defp media_field(assigns) do
-    preview = media_preview_url(assigns.value)
-    assigns = assign(assigns, :preview, preview)
+  defp gradient_controls(assigns) do
+    stops = Map.get(assigns.gradient, :stops, [])
+    from = Enum.at(stops, 0, %{color: "#0b1220"})
+    to = Enum.at(stops, 1, %{color: "#2563eb"})
+
+    assigns =
+      assigns
+      |> assign(:angle, Map.get(assigns.gradient, :angle, 180))
+      |> assign(:from_color, Map.get(from, :color, "#0b1220"))
+      |> assign(:to_color, Map.get(to, :color, "#2563eb"))
 
     ~H"""
     <div class="space-y-2">
-      <label class="label py-0.5">
-        <span class="label-text text-xs">{@label}</span>
-      </label>
-      <%= if @preview do %>
-        <img
-          src={@preview}
-          alt={@label}
-          class="w-full rounded-lg border-2 border-base-300 object-cover max-h-40"
-          loading="lazy"
-        />
-        <div class="flex gap-2">
+      <.canvas_color_field field="bg_gradient_from" label={gettext("From")} value={@from_color} />
+      <.canvas_color_field field="bg_gradient_to" label={gettext("To")} value={@to_color} />
+      <div>
+        <label class="label py-0.5 flex items-center justify-between">
+          <span class="label-text text-xs">{gettext("Angle")}</span>
+          <span class="text-xs text-base-content/50">{@angle}°</span>
+        </label>
+        <form phx-change="update_canvas">
+          <input type="hidden" name="field" value="bg_gradient_angle" />
+          <input
+            type="range"
+            name="value"
+            min="0"
+            max="360"
+            step="15"
+            value={@angle}
+            class="range range-xs w-full"
+          />
+        </form>
+      </div>
+    </div>
+    """
+  end
+
+  # Shared Constant/Variable controls for an image value (element src or
+  # background image fill): Constant mode = media picker; Variable mode
+  # = a `{{name}}` slot input.
+  attr(:value, :any, required: true)
+  attr(:media_target, :string, required: true)
+  attr(:variable_field, :string, required: true)
+  attr(:form_event, :string, required: true)
+  attr(:el_id, :string, default: nil)
+
+  defp image_value_controls(assigns) do
+    {mode, literal, var_name} =
+      case assigns.value do
+        %{placeholder: name} -> {"variable", "", name}
+        v when is_binary(v) -> {"constant", v, ""}
+        _ -> {"constant", "", ""}
+      end
+
+    assigns =
+      assigns
+      |> assign(:mode, mode)
+      |> assign(:literal, literal)
+      |> assign(:var_name, var_name)
+
+    ~H"""
+    <div class="space-y-2">
+      <div>
+        <label class="label py-0.5">
+          <span class="label-text text-xs">{gettext("Source")}</span>
+        </label>
+        <div class="tabs tabs-boxed bg-base-200 p-0.5">
           <button
             type="button"
-            phx-click="open_media_picker"
-            phx-value-target={@target}
-            class="btn btn-outline btn-xs flex-1"
+            phx-click={mode_event(@el_id, "constant")}
+            class={["tab tab-sm flex-1", @mode == "constant" && "tab-active"]}
           >
-            <.icon name="hero-arrow-path" class="w-3 h-3 mr-1" />
-            {gettext("Change")}
+            {gettext("Constant")}
           </button>
           <button
             type="button"
-            phx-click="clear_media_field"
-            phx-value-target={@target}
-            class="btn btn-outline btn-error btn-xs flex-1"
+            phx-click={mode_event(@el_id, "variable")}
+            class={["tab tab-sm flex-1", @mode == "variable" && "tab-active"]}
           >
-            <.icon name="hero-trash" class="w-3 h-3 mr-1" />
-            {gettext("Remove")}
+            {gettext("Variable")}
           </button>
         </div>
+      </div>
+
+      <%= if @mode == "constant" do %>
+        <.media_field target={@media_target} value={@literal} label={gettext("Image")} />
       <% else %>
-        <button
-          type="button"
-          phx-click="open_media_picker"
-          phx-value-target={@target}
-          class="btn btn-outline btn-sm w-full"
-        >
-          <.icon name="hero-photo" class="w-4 h-4 mr-1" />
-          {gettext("Choose image")}
-        </button>
+        <div>
+          <label class="label py-0.5">
+            <span class="label-text text-xs">{gettext("Variable name")}</span>
+          </label>
+          <form phx-change={@form_event} class="flex items-center gap-2">
+            <input :if={@el_id} type="hidden" name="el_id" value={@el_id} />
+            <input type="hidden" name="field" value={@variable_field} />
+            <span class="text-xs text-base-content/50 font-mono"><%= "{{" %></span>
+            <input
+              type="text"
+              name="value"
+              value={@var_name}
+              placeholder="Image"
+              class="input input-bordered input-sm flex-1 font-mono text-xs"
+            />
+            <span class="text-xs text-base-content/50 font-mono"><%= "}}" %></span>
+          </form>
+          <p class="text-xs text-base-content/50 mt-1">
+            {gettext("Shows up on the Assignments page — pick which module variable it maps to.")}
+          </p>
+        </div>
       <% end %>
     </div>
     """
   end
 
-  # Resolves a media-uuid or URL into a preview URL for the small
-  # thumbnail. Slot placeholders and empty strings show no preview.
-  defp media_preview_url(nil), do: nil
-  defp media_preview_url(""), do: nil
-  defp media_preview_url("{{" <> _), do: nil
-  defp media_preview_url("http://" <> _ = url), do: url
-  defp media_preview_url("https://" <> _ = url), do: url
-  defp media_preview_url("/" <> _ = url), do: url
-  defp media_preview_url("data:" <> _ = url), do: url
-
-  defp media_preview_url(uuid) when is_binary(uuid) do
-    PhoenixKit.Modules.Storage.get_public_url_by_uuid(uuid, "medium") ||
-      PhoenixKit.Modules.Storage.get_public_url_by_uuid(uuid)
-  rescue
-    _ -> nil
+  # Background image mode switches ride update_canvas; element image
+  # mode switches ride set_image_mode (which seeds fresh slot names).
+  defp mode_event(nil, mode) do
+    JS.push("update_canvas",
+      value: %{field: "bg_image_variable_name", value: bg_mode_seed(mode)}
+    )
   end
 
-  defp media_preview_url(_), do: nil
-
-  # Strips the leading `{{` and trailing `}}` from a slot-shaped value
-  # so the Variable-mode input shows just the bare name — the pipeline
-  # only knows the canonical `{{name}}` form.
-  defp strip_curlies("{{" <> rest) do
-    case String.split(rest, "}}", parts: 2) do
-      [name, _] -> name
-      _ -> rest
-    end
+  defp mode_event(el_id, mode) do
+    JS.push("set_image_mode", value: %{el_id: el_id, mode: mode})
   end
 
-  defp strip_curlies(v) when is_binary(v), do: v
-  defp strip_curlies(_), do: ""
+  defp bg_mode_seed("variable"), do: "BackgroundImage"
+  defp bg_mode_seed(_), do: ""
+
+  # ==============================================================
+  # Property panel — selected element
+  # ==============================================================
+  attr(:selected, :map, required: true)
+  attr(:scene, :map, required: true)
+
+  defp property_panel(assigns) do
+    el = assigns.selected
+
+    assigns =
+      assigns
+      |> assign(:el, el)
+      |> assign(:type, Map.get(el, :type, :text))
+
+    ~H"""
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="font-semibold text-base">{type_label(@type)}</h2>
+        <button type="button" phx-click="deselect" class="btn btn-ghost btn-xs">
+          <.icon name="hero-x-mark" class="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <section class="rounded-lg border border-base-300/70 bg-base-200/30 p-3 space-y-2">
+        <header class="flex items-center gap-1.5">
+          <.icon name="hero-arrows-pointing-out" class="w-3.5 h-3.5 text-base-content/50" />
+          <h3 class="text-xs font-semibold text-base-content/70 uppercase tracking-wide">
+            {gettext("Position & size")}
+          </h3>
+        </header>
+        <div class="grid grid-cols-2 gap-2">
+          <.prop_number el_id={@el.id} field="x" label="X" value={@el.box.x} />
+          <.prop_number el_id={@el.id} field="y" label="Y" value={@el.box.y} />
+          <.prop_number el_id={@el.id} field="w" label={gettext("Width")} value={@el.box.w} />
+          <.prop_number el_id={@el.id} field="h" label={gettext("Height")} value={@el.box.h} />
+        </div>
+        <.anchor_controls el={@el} scene={@scene} />
+      </section>
+
+      <%= case @type do %>
+        <% t when t in [:text, :stamp] -> %>
+          <.text_props el={@el} />
+        <% :image -> %>
+          <.image_props el={@el} />
+        <% :shape -> %>
+          <.shape_props el={@el} />
+        <% :button -> %>
+          <.button_props el={@el} />
+        <% _ -> %>
+          <p class="text-xs text-base-content/50">{gettext("No editable properties.")}</p>
+      <% end %>
+    </div>
+    """
+  end
+
+  defp type_label(:text), do: gettext("Text")
+  defp type_label(:stamp), do: gettext("Stamp")
+  defp type_label(:image), do: gettext("Image")
+  defp type_label(:shape), do: gettext("Rectangle")
+  defp type_label(:button), do: gettext("Button")
+  defp type_label(other), do: to_string(other)
+
+  # Anchor: pin this element below/above another so it follows the
+  # target's rendered height (e.g. a CTA under a wrapping title).
+  attr(:el, :map, required: true)
+  attr(:scene, :map, required: true)
+
+  defp anchor_controls(assigns) do
+    anchor = Map.get(assigns.el, :anchor)
+
+    targets =
+      assigns.scene.elements
+      |> Enum.reject(&(&1.id == assigns.el.id))
+      |> Enum.map(& &1.id)
+
+    assigns =
+      assigns
+      |> assign(:anchor, anchor)
+      |> assign(:targets, targets)
+
+    ~H"""
+    <div class="pt-2 border-t border-base-300/60 space-y-2">
+      <label class="label py-0.5">
+        <span class="label-text text-xs">
+          {gettext("Anchor to")}
+          <span
+            class="text-base-content/40 cursor-help"
+            title={
+              gettext(
+                "Pins this element relative to another one. When the target grows (a title wrapping to two lines), this element moves with it."
+              )
+            }
+          >
+            ?
+          </span>
+        </span>
+      </label>
+      <form phx-change="update_prop">
+        <input type="hidden" name="el_id" value={@el.id} />
+        <input type="hidden" name="field" value="anchor_to" />
+        <label class="select select-bordered select-sm w-full">
+          <select name="value">
+            <option value="" selected={is_nil(@anchor)}>{gettext("Nothing (fixed position)")}</option>
+            <option :for={t <- @targets} value={t} selected={@anchor && @anchor.to == t}>
+              {t}
+            </option>
+          </select>
+        </label>
+      </form>
+
+      <div :if={@anchor} class="grid grid-cols-2 gap-2">
+        <div>
+          <form phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
+            <input type="hidden" name="el_id" value={@el.id} />
+            <input type="hidden" name="field" value="anchor_edge" />
+            <label class={"tab tab-sm flex-1 #{@anchor.edge == :below && "tab-active"}"}>
+              <input type="radio" name="value" value="below" checked={@anchor.edge == :below} class="sr-only" />
+              {gettext("Below")}
+            </label>
+            <label class={"tab tab-sm flex-1 #{@anchor.edge == :above && "tab-active"}"}>
+              <input type="radio" name="value" value="above" checked={@anchor.edge == :above} class="sr-only" />
+              {gettext("Above")}
+            </label>
+          </form>
+        </div>
+        <.prop_number el_id={@el.id} field="anchor_gap" label={gettext("Gap")} value={@anchor.gap} />
+      </div>
+    </div>
+    """
+  end
+
+  attr(:el, :map, required: true)
+
+  defp text_props(assigns) do
+    {mode, literal, var_name} =
+      case assigns.el.value do
+        %{placeholder: name} -> {"variable", "", name}
+        v when is_binary(v) -> {"constant", v, ""}
+        _ -> {"constant", "", ""}
+      end
+
+    assigns =
+      assigns
+      |> assign(:mode, mode)
+      |> assign(:literal, literal)
+      |> assign(:var_name, var_name)
+
+    ~H"""
+    <section class="rounded-lg border border-base-300/70 bg-base-200/30 p-3 space-y-2">
+      <header class="flex items-center gap-1.5">
+        <.icon name="hero-bars-3-bottom-left" class="w-3.5 h-3.5 text-base-content/50" />
+        <h3 class="text-xs font-semibold text-base-content/70 uppercase tracking-wide">
+          {gettext("Content")}
+        </h3>
+      </header>
+
+      <%= if @mode == "variable" do %>
+        <div>
+          <label class="label py-0.5">
+            <span class="label-text text-xs">{gettext("Variable name")}</span>
+          </label>
+          <form phx-change="update_prop_variable" class="flex items-center gap-2">
+            <input type="hidden" name="el_id" value={@el.id} />
+            <input type="hidden" name="field" value="value" />
+            <span class="text-xs text-base-content/50 font-mono"><%= "{{" %></span>
+            <input
+              type="text"
+              name="value"
+              value={@var_name}
+              class="input input-bordered input-sm flex-1 font-mono text-xs"
+            />
+            <span class="text-xs text-base-content/50 font-mono"><%= "}}" %></span>
+          </form>
+        </div>
+      <% else %>
+        <form phx-change="update_prop">
+          <input type="hidden" name="el_id" value={@el.id} />
+          <input type="hidden" name="field" value="value" />
+          <textarea
+            name="value"
+            rows="3"
+            class="textarea textarea-bordered textarea-sm w-full"
+            placeholder={gettext(~S|Text — inline {{slots}} and [[globals]] work too|)}
+          ><%= @literal %></textarea>
+        </form>
+      <% end %>
+
+      <div class="grid grid-cols-2 gap-2">
+        <.prop_number el_id={@el.id} field="size" label={gettext("Size")} value={@el.size} />
+        <.prop_number el_id={@el.id} field="weight" label={gettext("Weight")} value={@el.weight} />
+      </div>
+      <.prop_color el_id={@el.id} field="color" label={gettext("Color")} value={fill_color(@el)} />
+
+      <div>
+        <label class="label py-0.5">
+          <span class="label-text text-xs">{gettext("Align")}</span>
+        </label>
+        <form phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
+          <input type="hidden" name="el_id" value={@el.id} />
+          <input type="hidden" name="field" value="align" />
+          <label
+            :for={{v, l} <- [{"left", gettext("Left")}, {"center", gettext("Center")}, {"right", gettext("Right")}]}
+            class={"tab tab-sm flex-1 #{to_string(@el.align) == v && "tab-active"}"}
+          >
+            <input type="radio" name="value" value={v} checked={to_string(@el.align) == v} class="sr-only" />
+            {l}
+          </label>
+        </form>
+      </div>
+
+      <.underlay_controls el={@el} />
+    </section>
+    """
+  end
+
+  attr(:el, :map, required: true)
+
+  defp image_props(assigns) do
+    ~H"""
+    <section class="rounded-lg border border-base-300/70 bg-base-200/30 p-3 space-y-2">
+      <header class="flex items-center gap-1.5">
+        <.icon name="hero-photo" class="w-3.5 h-3.5 text-base-content/50" />
+        <h3 class="text-xs font-semibold text-base-content/70 uppercase tracking-wide">
+          {gettext("Image")}
+        </h3>
+      </header>
+
+      <.image_value_controls
+        value={@el.value}
+        media_target="element_src"
+        variable_field="value"
+        form_event="update_prop_variable"
+        el_id={@el.id}
+      />
+
+      <div>
+        <label class="label py-0.5">
+          <span class="label-text text-xs">{gettext("Fit")}</span>
+        </label>
+        <form phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
+          <input type="hidden" name="el_id" value={@el.id} />
+          <input type="hidden" name="field" value="fit" />
+          <label
+            :for={{v, l} <- [{"cover", gettext("Fill")}, {"contain", gettext("Contain")}, {"stretch", gettext("Stretch")}]}
+            class={"tab tab-sm flex-1 #{to_string(@el.fit) == v && "tab-active"}"}
+          >
+            <input type="radio" name="value" value={v} checked={to_string(@el.fit) == v} class="sr-only" />
+            {l}
+          </label>
+        </form>
+      </div>
+
+      <.prop_number el_id={@el.id} field="radius" label={gettext("Corner radius")} value={@el.radius} />
+    </section>
+    """
+  end
+
+  attr(:el, :map, required: true)
+
+  defp shape_props(assigns) do
+    ~H"""
+    <section class="rounded-lg border border-base-300/70 bg-base-200/30 p-3 space-y-2">
+      <header class="flex items-center gap-1.5">
+        <.icon name="hero-rectangle-group" class="w-3.5 h-3.5 text-base-content/50" />
+        <h3 class="text-xs font-semibold text-base-content/70 uppercase tracking-wide">
+          {gettext("Rectangle")}
+        </h3>
+      </header>
+      <.prop_color el_id={@el.id} field="color" label={gettext("Fill")} value={fill_color(@el)} />
+      <.prop_number el_id={@el.id} field="radius" label={gettext("Corner radius")} value={Map.get(@el, :radius, 0)} />
+    </section>
+    """
+  end
+
+  attr(:el, :map, required: true)
+
+  defp button_props(assigns) do
+    {label_mode, label_literal, label_var} =
+      case assigns.el.label do
+        %{placeholder: name} -> {"variable", "", name}
+        v when is_binary(v) -> {"constant", v, ""}
+        _ -> {"constant", "", ""}
+      end
+
+    assigns =
+      assigns
+      |> assign(:label_mode, label_mode)
+      |> assign(:label_literal, label_literal)
+      |> assign(:label_var, label_var)
+
+    ~H"""
+    <section class="rounded-lg border border-base-300/70 bg-base-200/30 p-3 space-y-2">
+      <header class="flex items-center gap-1.5">
+        <.icon name="hero-cursor-arrow-ripple" class="w-3.5 h-3.5 text-base-content/50" />
+        <h3 class="text-xs font-semibold text-base-content/70 uppercase tracking-wide">
+          {gettext("Button")}
+        </h3>
+      </header>
+
+      <%= if @label_mode == "variable" do %>
+        <div>
+          <label class="label py-0.5">
+            <span class="label-text text-xs">
+              {gettext("Label variable (translatable per post language)")}
+            </span>
+          </label>
+          <form phx-change="update_prop_variable" class="flex items-center gap-2">
+            <input type="hidden" name="el_id" value={@el.id} />
+            <input type="hidden" name="field" value="label" />
+            <span class="text-xs text-base-content/50 font-mono"><%= "{{" %></span>
+            <input
+              type="text"
+              name="value"
+              value={@label_var}
+              class="input input-bordered input-sm flex-1 font-mono text-xs"
+            />
+            <span class="text-xs text-base-content/50 font-mono"><%= "}}" %></span>
+          </form>
+        </div>
+      <% else %>
+        <div>
+          <label class="label py-0.5">
+            <span class="label-text text-xs">{gettext("Label")}</span>
+          </label>
+          <form phx-change="update_prop">
+            <input type="hidden" name="el_id" value={@el.id} />
+            <input type="hidden" name="field" value="label" />
+            <input
+              type="text"
+              name="value"
+              value={@label_literal}
+              class="input input-bordered input-sm w-full"
+              placeholder={gettext(~S|Label — or type {{cta}} to make it a slot|)}
+            />
+          </form>
+        </div>
+      <% end %>
+
+      <div>
+        <label class="label py-0.5">
+          <span class="label-text text-xs">{gettext("Style")}</span>
+        </label>
+        <form phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
+          <input type="hidden" name="el_id" value={@el.id} />
+          <input type="hidden" name="field" value="preset" />
+          <label
+            :for={{v, l} <- [{"solid", gettext("Solid")}, {"outline", gettext("Outline")}, {"soft", gettext("Soft")}]}
+            class={"tab tab-sm flex-1 #{to_string(Map.get(@el, :preset, :solid)) == v && "tab-active"}"}
+          >
+            <input
+              type="radio"
+              name="value"
+              value={v}
+              checked={to_string(Map.get(@el, :preset, :solid)) == v}
+              class="sr-only"
+            />
+            {l}
+          </label>
+        </form>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <.prop_color el_id={@el.id} field="color" label={gettext("Fill")} value={fill_color(@el)} />
+        <.prop_color
+          el_id={@el.id}
+          field="text_color"
+          label={gettext("Text")}
+          value={text_fill_color(@el)}
+        />
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <.prop_number el_id={@el.id} field="size" label={gettext("Text size")} value={@el.size} />
+        <.prop_number el_id={@el.id} field="radius" label={gettext("Radius")} value={@el.radius} />
+      </div>
+
+      <label class="label cursor-pointer justify-start gap-2 py-1">
+        <form phx-change="update_prop">
+          <input type="hidden" name="el_id" value={@el.id} />
+          <input type="hidden" name="field" value="auto_width" />
+          <input
+            type="checkbox"
+            name="value"
+            value="true"
+            checked={Map.get(@el, :auto_width, false)}
+            class="checkbox checkbox-sm"
+          />
+        </form>
+        <span class="label-text text-xs">
+          {gettext("Auto-width (grows with the label — recommended for translated labels)")}
+        </span>
+      </label>
+    </section>
+    """
+  end
+
+  attr(:el, :map, required: true)
+
+  defp underlay_controls(assigns) do
+    ~H"""
+    <div class="pt-2 border-t border-base-300/60 space-y-2">
+      <label class="label py-0.5 flex items-center justify-between">
+        <span class="label-text text-xs">{gettext("Legibility underlay")}</span>
+        <span class="text-xs text-base-content/50">
+          {round(Map.get(@el, :underlay_opacity, 0) * 100)}%
+        </span>
+      </label>
+      <form phx-change="update_prop">
+        <input type="hidden" name="el_id" value={@el.id} />
+        <input type="hidden" name="field" value="underlay_opacity" />
+        <input
+          type="range"
+          name="value"
+          min="0"
+          max="1"
+          step="0.05"
+          value={Map.get(@el, :underlay_opacity, 0)}
+          class="range range-xs w-full"
+        />
+      </form>
+    </div>
+    """
+  end
+
+  # =========================================================================
+  # Small field components
+  # =========================================================================
+
+  attr(:el_id, :string, required: true)
+  attr(:field, :string, required: true)
+  attr(:label, :string, required: true)
+  attr(:value, :any, required: true)
+
+  defp prop_number(assigns) do
+    ~H"""
+    <div>
+      <label class="label py-0.5">
+        <span class="label-text text-xs">{@label}</span>
+      </label>
+      <form phx-change="update_prop">
+        <input type="hidden" name="el_id" value={@el_id} />
+        <input type="hidden" name="field" value={@field} />
+        <input
+          type="number"
+          name="value"
+          value={round_num(@value)}
+          step="1"
+          class="input input-bordered input-sm w-full"
+        />
+      </form>
+    </div>
+    """
+  end
+
+  attr(:el_id, :string, required: true)
+  attr(:field, :string, required: true)
+  attr(:label, :string, required: true)
+  attr(:value, :any, required: true)
+
+  defp prop_color(assigns) do
+    ~H"""
+    <div>
+      <label class="label py-0.5">
+        <span class="label-text text-xs">{@label}</span>
+      </label>
+      <form phx-change="update_prop" class="flex items-center gap-2">
+        <input type="hidden" name="el_id" value={@el_id} />
+        <input type="hidden" name="field" value={@field} />
+        <input
+          type="color"
+          name="value"
+          value={normalize_color(@value)}
+          oninput="this.nextElementSibling.value = this.value"
+          class="w-10 h-8 rounded border border-base-300"
+        />
+        <input
+          type="text"
+          name="value"
+          value={@value}
+          oninput="this.previousElementSibling.value = this.value"
+          class="input input-bordered input-sm flex-1 font-mono text-xs"
+        />
+      </form>
+    </div>
+    """
+  end
 
   attr(:field, :string, required: true)
   attr(:label, :string, required: true)
@@ -1574,553 +1360,90 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
     """
   end
 
-  attr(:selected, :map, required: true)
-  attr(:canvas, :map, required: true)
+  attr(:target, :string, required: true)
+  attr(:value, :any, required: true)
+  attr(:label, :string, required: true)
 
-  defp property_panel(assigns) do
+  defp media_field(assigns) do
+    preview = media_preview_url(assigns.value)
+    assigns = assign(assigns, :preview, preview)
+
     ~H"""
-    <div class="space-y-4">
-      <div class="flex items-center justify-between">
-        <h2 class="font-semibold capitalize">{@selected["type"]}</h2>
-        <div class="flex items-center gap-1">
+    <div class="space-y-2">
+      <label class="label py-0.5">
+        <span class="label-text text-xs">{@label}</span>
+      </label>
+      <%= if @preview do %>
+        <img
+          src={@preview}
+          alt={@label}
+          class="w-full rounded-lg border-2 border-base-300 object-cover max-h-40"
+          loading="lazy"
+        />
+        <div class="flex gap-2">
           <button
             type="button"
-            phx-click="bring_to_front"
-            class="btn btn-ghost btn-xs"
-            title={gettext("Bring to front")}
+            phx-click="open_media_picker"
+            phx-value-target={@target}
+            class="btn btn-outline btn-xs flex-1"
           >
-            <.icon name="hero-chevron-double-up" class="w-3 h-3" />
+            <.icon name="hero-arrow-path" class="w-3 h-3 mr-1" />
+            {gettext("Change")}
           </button>
           <button
             type="button"
-            phx-click="send_to_back"
-            class="btn btn-ghost btn-xs"
-            title={gettext("Send to back")}
+            phx-click="clear_media_field"
+            phx-value-target={@target}
+            class="btn btn-outline btn-error btn-xs flex-1"
           >
-            <.icon name="hero-chevron-double-down" class="w-3 h-3" />
-          </button>
-          <button
-            type="button"
-            phx-click="delete_selected"
-            phx-disable-with={gettext("Deleting…")}
-            class="btn btn-ghost btn-xs text-error"
-            title={gettext("Delete")}
-          >
-            <.icon name="hero-trash" class="w-3 h-3" />
+            <.icon name="hero-trash" class="w-3 h-3 mr-1" />
+            {gettext("Remove")}
           </button>
         </div>
-      </div>
-
-      <%!-- Position + size --%>
-      <fieldset class="grid grid-cols-2 gap-2">
-        <.num_field selected={@selected} field="x" label="X" />
-        <.num_field selected={@selected} field="y" label="Y" />
-        <.num_field selected={@selected} field="width" label={gettext("Width")} />
-        <.num_field selected={@selected} field="height" label={gettext("Height")} />
-      </fieldset>
-
-      <%!-- Type-specific --%>
-      <%= case @selected["type"] do %>
-        <% "text" -> %>
-          <.text_props selected={@selected} />
-        <% "image" -> %>
-          <.image_props selected={@selected} canvas={@canvas} />
-        <% "rect" -> %>
-          <.rect_props selected={@selected} />
-        <% "stamp" -> %>
-          <.stamp_props selected={@selected} />
-        <% _ -> %>
-      <% end %>
-
-      <%!-- Shared underlay: a dark/light scrim under the element for text
-           legibility over busy backgrounds. Off by default (opacity 0). --%>
-      <.underlay_props selected={@selected} />
-    </div>
-    """
-  end
-
-  # ---- Per-type property groups ----
-
-  defp text_props(assigns) do
-    text = Map.get(assigns.selected, "text", "") || ""
-    assigns = assign(assigns, :globals_used, PhoenixKitOG.Slots.globals_used(text))
-
-    ~H"""
-    <fieldset class="space-y-2">
-      <legend class="text-xs font-semibold text-base-content/60">{gettext("Text")}</legend>
-
-      <.text_field selected={@selected} field="text" label={gettext("Text")} />
-      <p class="text-xs text-base-content/50 -mt-1">
-        {gettext(
-          ~S|Use {{name}} for a slot (wired at assignment time) or [[name]] for a global (auto-resolved from settings).|
-        )}
-      </p>
-      <.globals_info :if={@globals_used != []} names={@globals_used} />
-
-      <.num_field selected={@selected} field="size" label={gettext("Font size")} />
-      <.num_field selected={@selected} field="weight" label={gettext("Weight (100–900)")} />
-      <.color_field selected={@selected} field="color" label={gettext("Color")} />
-
-      <div class="grid grid-cols-2 gap-2">
-        <.select_field
-          selected={@selected}
-          field="align"
-          label={gettext("Align")}
-          options={[{"left", gettext("Left")}, {"center", gettext("Center")}, {"right", gettext("Right")}]}
-        />
-        <.select_field
-          selected={@selected}
-          field="valign"
-          label={gettext("V-align")}
-          options={[{"top", gettext("Top")}, {"middle", gettext("Middle")}, {"bottom", gettext("Bottom")}]}
-        />
-      </div>
-    </fieldset>
-    """
-  end
-
-  attr(:selected, :map, required: true)
-  attr(:canvas, :map, required: true)
-
-  defp image_props(assigns) do
-    src = Map.get(assigns.selected, "src", "")
-    mode = if is_binary(src) and String.starts_with?(src, "{{"), do: "variable", else: "constant"
-
-    assigns =
-      assigns
-      |> assign(:src, src)
-      |> assign(:mode, mode)
-
-    ~H"""
-    <fieldset class="space-y-2">
-      <legend class="text-xs font-semibold text-base-content/60">{gettext("Image")}</legend>
-
-      <div>
-        <label class="label py-0.5">
-          <span class="label-text text-xs">{gettext("Source")}</span>
-        </label>
-        <div class="tabs tabs-boxed bg-base-200 p-0.5">
-          <button
-            type="button"
-            class={"tab tab-sm flex-1 #{@mode == "constant" && "tab-active"}"}
-            phx-click="set_image_mode"
-            phx-value-el_id={@selected["id"]}
-            phx-value-mode="constant"
-          >
-            {gettext("Constant")}
-          </button>
-          <button
-            type="button"
-            class={"tab tab-sm flex-1 #{@mode == "variable" && "tab-active"}"}
-            phx-click="set_image_mode"
-            phx-value-el_id={@selected["id"]}
-            phx-value-mode="variable"
-          >
-            {gettext("Variable")}
-          </button>
-        </div>
-      </div>
-
-      <%= if @mode == "constant" do %>
-        <.media_field target="element_src" value={@src} label={gettext("Image")} />
-      <% end %>
-
-      <.select_field
-        selected={@selected}
-        field="fit"
-        label={gettext("Fit")}
-        options={[
-          {"fill", gettext("Fill (crop overflow)")},
-          {"contain", gettext("Contain (fit inside)")},
-          {"stretch", gettext("Stretch (distort)")}
-        ]}
-      />
-
-      <%= if @mode != "constant" do %>
-        <div>
-          <label class="label py-0.5">
-            <span class="label-text text-xs">{gettext("Variable name")}</span>
-          </label>
-          <form phx-change="update_prop_variable" class="flex items-center gap-2">
-            <input type="hidden" name="el_id" value={@selected["id"]} />
-            <input type="hidden" name="field" value="src" />
-            <span class="text-xs text-base-content/50 font-mono"><%= "{{" %></span>
-            <input
-              type="text"
-              name="value"
-              value={strip_curlies(@src)}
-              placeholder={gettext("Image")}
-              class="input input-bordered input-sm flex-1 font-mono text-xs"
-              phx-debounce="200"
-            />
-            <span class="text-xs text-base-content/50 font-mono"><%= "}}" %></span>
-          </form>
-          <p class="text-xs text-base-content/50 mt-1">
-            {gettext("Shows up on the Assignments page as an image slot to wire.")}
-          </p>
-        </div>
-      <% end %>
-    </fieldset>
-    """
-  end
-
-  defp rect_props(assigns) do
-    ~H"""
-    <fieldset class="space-y-2">
-      <legend class="text-xs font-semibold text-base-content/60">{gettext("Shape")}</legend>
-      <.color_field selected={@selected} field="fill" label={gettext("Fill")} />
-      <.color_field selected={@selected} field="stroke" label={gettext("Stroke")} />
-      <.num_field selected={@selected} field="stroke_width" label={gettext("Stroke width")} />
-      <.num_field selected={@selected} field="radius" label={gettext("Corner radius")} />
-    </fieldset>
-    """
-  end
-
-  defp stamp_props(assigns) do
-    content = Map.get(assigns.selected, "preset", "") || ""
-    assigns = assign(assigns, :globals_used, PhoenixKitOG.Slots.globals_used(content))
-
-    ~H"""
-    <fieldset class="space-y-2">
-      <legend class="text-xs font-semibold text-base-content/60">{gettext("Stamp")}</legend>
-      <.text_field selected={@selected} field="preset" label={gettext("Content")} />
-      <p class="text-xs text-base-content/50 -mt-1">
-        {gettext(~S|Use {{name}} for a slot or [[name]] for a global.|)}
-      </p>
-      <.globals_info :if={@globals_used != []} names={@globals_used} />
-      <.num_field selected={@selected} field="size" label={gettext("Font size")} />
-      <.color_field selected={@selected} field="color" label={gettext("Color")} />
-    </fieldset>
-    """
-  end
-
-  # ---- Field primitives ----
-
-  attr(:selected, :map, required: true)
-
-  defp underlay_props(assigns) do
-    opacity = Map.get(assigns.selected, "underlay_opacity", 0)
-    color = Map.get(assigns.selected, "underlay_color", "dark")
-    assigns = assigns |> assign(:opacity, opacity) |> assign(:color, color)
-
-    ~H"""
-    <fieldset class="space-y-2 pt-2 border-t border-base-300/60">
-      <legend class="text-xs font-semibold text-base-content/60">
-        {gettext("Underlay (behind this element)")}
-      </legend>
-
-      <div>
-        <label class="label py-0.5">
-          <span class="label-text text-xs">{gettext("Color")}</span>
-        </label>
-        <form phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
-          <input type="hidden" name="el_id" value={@selected["id"]} />
-          <input type="hidden" name="field" value="underlay_color" />
-          <label class={"tab tab-sm flex-1 #{@color == "dark" && "tab-active"}"}>
-            <input
-              type="radio"
-              name="value"
-              value="dark"
-              checked={@color == "dark"}
-              class="sr-only"
-            />
-            <span class="w-3 h-3 rounded-full bg-neutral mr-1.5 border border-base-content/20" />
-            {gettext("Dark")}
-          </label>
-          <label class={"tab tab-sm flex-1 #{@color == "light" && "tab-active"}"}>
-            <input
-              type="radio"
-              name="value"
-              value="light"
-              checked={@color == "light"}
-              class="sr-only"
-            />
-            <span class="w-3 h-3 rounded-full bg-base-100 mr-1.5 border border-base-content/20" />
-            {gettext("Light")}
-          </label>
-        </form>
-      </div>
-
-      <div>
-        <label class="label py-0.5 flex items-center justify-between">
-          <span class="label-text text-xs">{gettext("Strength")}</span>
-          <span class="text-xs text-base-content/50">
-            {round(@opacity * 100)}%
-          </span>
-        </label>
-        <form phx-change="update_prop">
-          <input type="hidden" name="el_id" value={@selected["id"]} />
-          <input type="hidden" name="field" value="underlay_opacity" />
-          <input
-            type="range"
-            name="value"
-            min="0"
-            max="1"
-            step="0.05"
-            value={@opacity}
-            class="range range-xs w-full"
-          />
-        </form>
-        <p :if={@opacity == 0} class="text-xs text-base-content/50 mt-0.5">
-          {gettext("Increase the strength to see the underlay behind the element.")}
-        </p>
-      </div>
-    </fieldset>
-    """
-  end
-
-  attr(:selected, :map, required: true)
-  attr(:field, :string, required: true)
-  attr(:label, :string, required: true)
-
-  defp num_field(assigns) do
-    ~H"""
-    <div>
-      <label class="label py-0.5">
-        <span class="label-text text-xs">{@label}</span>
-      </label>
-      <form phx-change="update_prop">
-        <input type="hidden" name="el_id" value={@selected["id"]} />
-        <input type="hidden" name="field" value={@field} />
-        <input
-          type="number"
-          name="value"
-          value={@selected[@field]}
-          step="1"
-          class="input input-bordered input-sm w-full"
-        />
-      </form>
-    </div>
-    """
-  end
-
-  attr(:selected, :map, required: true)
-  attr(:field, :string, required: true)
-  attr(:label, :string, required: true)
-
-  defp text_field(assigns) do
-    ~H"""
-    <div>
-      <label class="label py-0.5">
-        <span class="label-text text-xs">{@label}</span>
-      </label>
-      <form phx-change="update_prop">
-        <input type="hidden" name="el_id" value={@selected["id"]} />
-        <input type="hidden" name="field" value={@field} />
-        <input
-          type="text"
-          name="value"
-          value={@selected[@field]}
-          class="input input-bordered input-sm w-full"
-        />
-      </form>
-    </div>
-    """
-  end
-
-  attr(:selected, :map, required: true)
-  attr(:field, :string, required: true)
-  attr(:label, :string, required: true)
-
-  defp color_field(assigns) do
-    # Both inputs are named `value` so phx-change sees one param. Form
-    # serialization is last-wins, which meant whichever the user *didn't*
-    # touch would silently overwrite the one they did. `oninput`
-    # cross-syncs the two inputs on the client BEFORE phx-change fires,
-    # so the server always sees the freshly-typed / picked value in
-    # both slots.
-    ~H"""
-    <div>
-      <label class="label py-0.5">
-        <span class="label-text text-xs">{@label}</span>
-      </label>
-      <form phx-change="update_prop" class="flex items-center gap-2">
-        <input type="hidden" name="el_id" value={@selected["id"]} />
-        <input type="hidden" name="field" value={@field} />
-        <input
-          type="color"
-          name="value"
-          value={normalize_color(@selected[@field])}
-          oninput="this.nextElementSibling.value = this.value"
-          class="w-10 h-8 rounded border border-base-300"
-        />
-        <input
-          type="text"
-          name="value"
-          value={@selected[@field]}
-          oninput="this.previousElementSibling.value = this.value"
-          class="input input-bordered input-sm flex-1 font-mono text-xs"
-        />
-      </form>
-    </div>
-    """
-  end
-
-  attr(:selected, :map, required: true)
-  attr(:field, :string, required: true)
-  attr(:label, :string, required: true)
-  attr(:options, :list, required: true)
-
-  defp select_field(assigns) do
-    ~H"""
-    <div>
-      <label class="label py-0.5">
-        <span class="label-text text-xs">{@label}</span>
-      </label>
-      <form phx-change="update_prop">
-        <input type="hidden" name="el_id" value={@selected["id"]} />
-        <input type="hidden" name="field" value={@field} />
-        <select name="value" class="select select-bordered select-sm w-full">
-          <option :for={{val, lbl} <- @options} value={val} selected={@selected[@field] == val}>
-            {lbl}
-          </option>
-        </select>
-      </form>
-    </div>
-    """
-  end
-
-  # =========================================================================
-  # Helpers
-  # =========================================================================
-
-  # Info banner explaining where a `[[global]]` reference gets its
-  # value from, with a link to the settings page for the ones that
-  # are user-editable. Rendered when the current text/stamp contains
-  # at least one `[[...]]` reference.
-  attr(:names, :list, required: true)
-
-  defp globals_info(assigns) do
-    ~H"""
-    <div class="rounded-md border border-info/30 bg-info/5 px-3 py-2 space-y-1">
-      <p class="text-xs font-medium text-info flex items-center gap-1">
-        <.icon name="hero-information-circle" class="w-3.5 h-3.5" />
-        {gettext("Auto-filled from site config")}
-      </p>
-      <ul class="text-xs text-base-content/70 space-y-0.5">
-        <li :for={name <- @names} class="flex items-baseline gap-1">
-          <span class="font-mono text-base-content/50">[[{name}]]</span>
-          <span class="text-base-content/50">—</span>
-          <span>{Variables.global_description(name) || name}</span>
-        </li>
-      </ul>
-      <p class="text-xs text-base-content/50 pt-0.5">
-        {gettext("Site name is editable at")}
-        <.link
-          navigate={PhoenixKit.Utils.Routes.path("/admin/settings/organization")}
-          class="link link-primary"
+      <% else %>
+        <button
+          type="button"
+          phx-click="open_media_picker"
+          phx-value-target={@target}
+          class="btn btn-outline btn-sm w-full"
         >
-          {gettext("Admin → Settings → Organization")}
-        </.link>
-        {gettext(". Site URL/host come from the app's endpoint config.")}
-      </p>
+          <.icon name="hero-photo" class="w-4 h-4 mr-1" />
+          {gettext("Choose image")}
+        </button>
+      <% end %>
     </div>
     """
   end
 
-  # Layered `text-shadow` — four blurs at increasing radii with
-  # decreasing opacity produce a smooth aura around each glyph. Blur
-  # radii scale with the font size so a 24pt caption gets a subtle
-  # halo and a 96pt headline gets a bold one.
-  #
-  # Off (empty string) when `underlay_opacity` is 0.
-  defp text_highlight_style(el) do
-    opacity = Map.get(el, "underlay_opacity", 0)
+  # Resolves a media-uuid or URL into a preview URL for the small
+  # thumbnail. Empty strings show no preview.
+  defp media_preview_url(nil), do: nil
+  defp media_preview_url(""), do: nil
+  defp media_preview_url("http://" <> _ = url), do: url
+  defp media_preview_url("https://" <> _ = url), do: url
+  defp media_preview_url("/" <> _ = url), do: url
+  defp media_preview_url("data:" <> _ = url), do: url
 
-    if is_number(opacity) and opacity > 0 do
-      color = Map.get(el, "underlay_color", "dark")
-      base = if color == "light", do: "255,255,255", else: "0,0,0"
-      size = Map.get(el, "size", 32)
-
-      # Four falloff layers — inner is small + full opacity, outer is
-      # large + faint. Sum keeps the glow just below 100% at the core.
-      r1 = size * 0.15
-      r2 = size * 0.3
-      r3 = size * 0.6
-      r4 = size * 1.0
-
-      o1 = opacity * 0.95
-      o2 = opacity * 0.75
-      o3 = opacity * 0.5
-      o4 = opacity * 0.3
-
-      "text-shadow: " <>
-        "0 0 #{r1}px rgba(#{base},#{o1}), " <>
-        "0 0 #{r2}px rgba(#{base},#{o2}), " <>
-        "0 0 #{r3}px rgba(#{base},#{o3}), " <>
-        "0 0 #{r4}px rgba(#{base},#{o4});"
-    else
-      ""
-    end
+  defp media_preview_url(uuid) when is_binary(uuid) do
+    PhoenixKit.Modules.Storage.get_public_url_by_uuid(uuid, "medium") ||
+      PhoenixKit.Modules.Storage.get_public_url_by_uuid(uuid)
+  rescue
+    _ -> nil
   end
 
-  # Outer container — a flex column, positions the inner text block
-  # vertically inside the element's bounding box.
-  defp text_outer_style(el) do
-    valign = Map.get(el, "valign", "top")
+  defp media_preview_url(_), do: nil
 
-    justify =
-      case valign do
-        "top" -> "flex-start"
-        "middle" -> "center"
-        "bottom" -> "flex-end"
-        _ -> "flex-start"
-      end
+  defp fill_color(%{fill: %{type: :solid, color: color}}), do: color
+  defp fill_color(_), do: "#ffffff"
 
-    "width: 100%; height: 100%; display: flex; flex-direction: column; " <>
-      "justify-content: #{justify}; overflow: hidden;"
-  end
+  defp text_fill_color(%{text_fill: %{type: :solid, color: color}}), do: color
+  defp text_fill_color(_), do: "#ffffff"
 
-  # Inner container — a plain block that carries the font styling and
-  # horizontal alignment. Keeping this as a normal block (not a flex
-  # item) is what lets the `<span>` wrap across lines with
-  # `box-decoration-break: clone` — the per-line highlight.
-  defp text_inner_style(el) do
-    align = Map.get(el, "align", "left")
-    size = Map.get(el, "size", 32)
-    weight = Map.get(el, "weight", 400)
-    color = Map.get(el, "color", "#ffffff")
-    font = Map.get(el, "font", "Inter")
+  defp round_num(n) when is_float(n), do: round(n)
+  defp round_num(n), do: n
 
-    "text-align: #{align}; " <>
-      "font-family: #{font}, system-ui, sans-serif; " <>
-      "font-size: #{size}px; " <>
-      "font-weight: #{weight}; " <>
-      "color: #{color}; " <>
-      "line-height: 1.4; " <>
-      "word-break: break-word;"
-  end
-
-  defp image_src(""), do: nil
-  defp image_src(nil), do: nil
-
-  defp image_src(src) when is_binary(src) do
-    cond do
-      String.starts_with?(src, "{{") ->
-        nil
-
-      String.starts_with?(src, ["http://", "https://", "/", "data:"]) ->
-        src
-
-      true ->
-        # Media UUID — resolve via the shared storage helper.
-        try do
-          PhoenixKit.Modules.Storage.get_public_url_by_uuid(src, "medium") ||
-            PhoenixKit.Modules.Storage.get_public_url_by_uuid(src)
-        rescue
-          _ -> nil
-        end
-    end
-  end
-
-  defp blank_to_none(""), do: "none"
-  defp blank_to_none(nil), do: "none"
-  defp blank_to_none(v), do: v
-
-  defp normalize_color(nil), do: "#000000"
-  defp normalize_color(""), do: "#000000"
-
-  defp normalize_color(<<"#", _::binary-size(6)>> = v), do: v
-  defp normalize_color(<<"#", _::binary-size(3)>> = v), do: v
+  # The color input needs a #rrggbb value; pass anything else through
+  # as a neutral so the picker doesn't reject it.
+  defp normalize_color("#" <> _ = color) when byte_size(color) == 7, do: color
   defp normalize_color(_), do: "#000000"
 end

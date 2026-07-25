@@ -124,9 +124,8 @@ defmodule PhoenixKitOG.Variables do
   return nil for that slot — the renderer leaves `{{slot}}` visible,
   matching the workspace convention.
   """
-  @spec resolve([PhoenixKitOG.Slots.t()], %{String.t() => String.t()}, map()) :: %{
-          String.t() => String.t()
-        }
+  @spec resolve([%{name: String.t(), type: :text | :image}], %{String.t() => String.t()}, map()) ::
+          %{String.t() => String.t()}
   def resolve(slots, slot_mapping, context) do
     globals_values = resolve_globals(context)
 

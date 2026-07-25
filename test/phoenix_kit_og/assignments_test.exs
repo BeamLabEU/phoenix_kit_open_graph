@@ -6,7 +6,7 @@ defmodule PhoenixKitOG.AssignmentsTest do
   """
   use PhoenixKitOG.DataCase, async: false
 
-  alias PhoenixKitOG.{Assignments, Canvas, Templates}
+  alias PhoenixKitOG.{Assignments, SceneStore, Templates}
   alias PhoenixKitOG.Schemas.Assignment
 
   @module "publishing"
@@ -15,7 +15,7 @@ defmodule PhoenixKitOG.AssignmentsTest do
     {:ok, t} =
       Templates.create(%{
         "name" => name || "T-#{System.unique_integer([:positive])}",
-        "canvas" => Canvas.blank()
+        "canvas" => SceneStore.dump(SceneStore.blank())
       })
 
     t

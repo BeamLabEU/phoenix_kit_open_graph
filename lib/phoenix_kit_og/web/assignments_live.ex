@@ -24,7 +24,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   # "Choose image" instead of pasting a UUID.
   use PhoenixKitWeb.Components.MediaBrowser.Embed
 
-  alias PhoenixKitOG.{Assignments, Errors, Paths, Slots, Templates, Variables}
+  alias PhoenixKitOG.{Assignments, Errors, Paths, SceneStore, Templates, Variables}
 
   # Publishing groups/posts helpers live in the phoenix_kit_publishing
   # plugin — guarded by `Code.ensure_loaded?/1` in each helper, but the
@@ -347,8 +347,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
     if is_nil(template) do
       socket |> assign(preview_url: nil, preview_error: nil, preview_loading: false)
     else
-      canvas = template.canvas
-      slots = if is_map(canvas), do: Slots.used(canvas), else: []
+      slots = SceneStore.slots(SceneStore.load(template.canvas))
       mapping = st.slot_mapping || %{}
 
       # Look up the picked post so module vars (`post_title`,
@@ -369,33 +368,35 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
       wired = Variables.resolve(slots, mapping, context)
       globals = socket.assigns.global_values
 
+      # Unwired text slots get a readable sample; unwired IMAGE slots
+      # stay absent so OpenFresco draws its labeled stand-in (that's
+      # the :preview render mode's affordance).
       values =
-        slots
-        |> Enum.reduce(%{}, fn %{name: name, type: type}, acc ->
+        Enum.reduce(slots, %{}, fn %{name: name, type: type}, acc ->
           cond do
             Map.has_key?(wired, name) -> Map.put(acc, name, wired[name])
-            type == :image -> Map.put(acc, name, PhoenixKitOG.Render.Placeholder.data_url())
-            true -> Map.put(acc, name, "Sample #{name}")
+            type == :text -> Map.put(acc, name, "Sample #{name}")
+            true -> acc
           end
         end)
-        |> Map.merge(globals, fn _k, v1, _v2 -> v1 end)
 
-      # Wrap the template so the render pipeline treats every edit as
-      # a fresh input — the cache key hashes the canvas so unchanged
-      # renders are instant, but changes get a new URL.
       %PhoenixKitOG.Schemas.Template{} = template
-      render_template = %{template | updated_at: DateTime.utc_now()}
 
       # Render OFF the LV process: refresh_preview fires on EVERY modal
       # field change, and a synchronous rasterize (up to the 5s backend
       # timeout) would freeze the whole modal. cancel_async supersedes an
       # in-flight render so a rapid sequence of changes only completes the
-      # last one.
+      # last one. The cache key hashes the prepared scene + values, so
+      # unchanged renders are instant and changes get a new URL.
       socket
       |> assign(:preview_loading, true)
       |> cancel_async(:preview)
       |> start_async(:preview, fn ->
-        PhoenixKitOG.Render.render_url(render_template, %{values: values})
+        PhoenixKitOG.Render.render_url(template, %{
+          values: values,
+          globals: globals,
+          mode: :preview
+        })
       end)
     end
   end
@@ -624,7 +625,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
 
     slots =
       if template && is_map(template.canvas),
-        do: Slots.used(template.canvas),
+        do: SceneStore.slots(SceneStore.load(template.canvas)),
         else: []
 
     assigns =
@@ -694,7 +695,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
 
     slots =
       if selected_template && is_map(selected_template.canvas),
-        do: Slots.used(selected_template.canvas),
+        do: SceneStore.slots(SceneStore.load(selected_template.canvas)),
         else: []
 
     assigns =
