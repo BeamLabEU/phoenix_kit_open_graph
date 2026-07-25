@@ -5,7 +5,8 @@ renderer) and it works — verified in tests and in the browser: anchors
 follow text wrap, auto-width buttons measure per label, gradient masks,
 drag/select/delete on the stage, deterministic renders, clean escaping in
 every context we probed. This is everything we hit or foresee, in one
-list — **all of it is for the next version**. Items marked
+list — **all of it is for the next version**, and it is intentionally
+exhaustive: nothing here is optional or deferred. Items marked
 **[verified]** were reproduced against 0.1.0 source or a live host;
 **[design]** items are asks, not bugs.
 
@@ -208,8 +209,37 @@ list — **all of it is for the next version**. Items marked
     a conformance case. An exported test helper for hosts (assert-on-SVG,
     snapshot diffing) would let us CI our templates against your layout.
 
-Explicitly NOT asked for now (don't spend time on these): keyboard/ARIA
-operability on the stage, multi-select/batch ops.
+26. **Templating semantics, specified once for both surfaces.** Define
+    the substitution contract explicitly: escaping-by-default with an
+    explicit raw opt-out, and one documented policy for undefined
+    tokens (error / empty / literal pass-through) that the stage and
+    the PNG share. Item 14's globals divergence is a symptom of the
+    stage and renderer not sharing one resolution path — specify the
+    path, not just the fix.
+
+27. **Keyboard + ARIA operability on the stage.** Basic keyboard
+    exists (Delete/Backspace in the hook; hosts add arrow-nudge), but
+    make it first-class: Tab/Shift-Tab cycles element selection,
+    arrow-key nudge (with modifier for coarse steps) in the component
+    itself, Escape deselects, and ARIA on the stage (role, active
+    element announcement, drag/resize state) so the editor is usable
+    without a pointer and presentable to screen readers.
+
+28. **Multi-select + batch operations.** `Ops` is single-element only.
+    Add selection sets (shift-click / marquee), batch variants
+    (`move_many`, group delete/reorder), and group gesture commits —
+    designed together with items 2/9/10 so group drags ride the same
+    transactional commit + inverse-op protocol rather than being
+    retrofitted onto it. Defines the foundation align/distribute
+    tooling will need.
+
+29. **NIF crash-safety story.** Rustler catches Rust panics, but a
+    hard abort (allocator failure on a huge decode, stack overflow in
+    the native layer) still takes down the whole BEAM. Document the
+    actual failure envelope, keep decode/rasterize allocations bounded
+    (ties into item 23's budgets), and consider an optional
+    external-worker mode (Port-based) for hosts that want full
+    isolation on the crawler path.
 
 ---
 
