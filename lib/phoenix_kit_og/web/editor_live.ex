@@ -56,6 +56,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
           |> assign(:scene, scene)
           |> assign(:stage_id, @stage_id)
           |> assign(:selected_id, nil)
+          |> assign(:selected_ids, [])
           |> assign(:slots, SceneStore.slots(scene))
           |> assign(:media_resolver, PhoenixKitOG.Render.Media.resolver())
           |> assign(:preview_visible, true)
@@ -157,15 +158,16 @@ defmodule PhoenixKitOG.Web.EditorLive do
   end
 
   def handle_event("delete_selected", _params, socket) do
-    case socket.assigns.selected_id do
-      nil ->
+    case selection(socket) do
+      [] ->
         {:noreply, socket}
 
-      id ->
+      ids ->
         {:noreply,
          socket
-         |> put_scene(Ops.delete(socket.assigns.scene, id))
-         |> assign(:selected_id, nil)}
+         |> put_scene(Ops.delete_many(socket.assigns.scene, ids))
+         |> assign(:selected_id, nil)
+         |> assign(:selected_ids, [])}
     end
   end
 
@@ -288,10 +290,12 @@ defmodule PhoenixKitOG.Web.EditorLive do
       nil ->
         {:noreply, socket}
 
-      id ->
+      _id ->
         step = if shift?, do: 10, else: 1
         {dx, dy} = nudge_delta(key, step)
-        {:noreply, put_scene(socket, Ops.move(socket.assigns.scene, id, dx, dy))}
+
+        {:noreply,
+         put_scene(socket, Ops.move_many(socket.assigns.scene, selection(socket), dx, dy))}
     end
   end
 
@@ -316,7 +320,16 @@ defmodule PhoenixKitOG.Web.EditorLive do
   end
 
   def handle_info({:open_fresco_editor, @stage_id, {:selected, id}}, socket) do
-    {:noreply, assign(socket, :selected_id, id)}
+    {:noreply, socket |> assign(:selected_id, id) |> assign(:selected_ids, List.wrap(id))}
+  end
+
+  # Multi-select (shift-click / marquee): the property panel follows the
+  # last-selected element; group actions (delete, nudge) apply to the set.
+  def handle_info({:open_fresco_editor, @stage_id, {:selected_ids, ids}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:selected_ids, ids)
+     |> assign(:selected_id, List.last(ids))}
   end
 
   # Debounced always-on preview refresh — renders the CURRENT scene
@@ -432,6 +445,15 @@ defmodule PhoenixKitOG.Web.EditorLive do
   # =========================================================================
   # Helpers
   # =========================================================================
+
+  # The current selection set — the multi-select list when one is
+  # active, else the single selected id.
+  defp selection(socket) do
+    case socket.assigns.selected_ids do
+      [_ | _] = ids -> ids
+      _ -> List.wrap(socket.assigns.selected_id)
+    end
+  end
 
   # Every panel-side scene mutation flows through here: adopt the new
   # scene, refresh the slots panel, arm autosave + preview refresh.

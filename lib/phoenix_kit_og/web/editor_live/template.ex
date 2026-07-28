@@ -37,8 +37,6 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
     <div
       id="phoenix-kit-og-editor"
       phx-hook="PhoenixKitOGEditor"
-      phx-window-keydown="nudge"
-      phx-key="ArrowUp"
       class="w-full h-[calc(100vh-8rem)] flex flex-col bg-base-200"
     >
       <.toolbar

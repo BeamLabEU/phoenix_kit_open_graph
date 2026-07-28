@@ -212,6 +212,20 @@ editor from the Templates list (both in `live_session
 :phoenix_kit_admin`) left hooks unregistered. `js_sources/0` is the
 supported path and the only one that survives LiveView navigation.
 
+## Fonts, i18n text, multi-select (open_fresco 0.2.0)
+
+- **Brand fonts**: hosts configure `config :open_fresco, font_dirs:
+  [...], font_files: [...]` (resvg fontdb; cached — not rescanned per
+  render). Nothing to wire og-side; system fonts + the DejaVu chain are
+  the default.
+- **Line breaking**: og depends on `:unicode_string`, which upgrades
+  open_fresco's wrap to UAX #14 segmentation (CJK/Thai break points,
+  grapheme clusters) — og is multilingual, so estimates aren't enough.
+- **Multi-select**: the stage sends `{:selected_ids, [ids]}` for
+  shift-click/marquee sets; the property panel follows the last
+  selected element, while Delete and arrow-nudge apply to the whole
+  set (`Ops.delete_many/move_many`).
+
 ## Development
 
 Run `mix` from `/www/app/`, not from inside this plugin subdir (deps

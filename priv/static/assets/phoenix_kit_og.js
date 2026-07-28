@@ -449,6 +449,20 @@
           return;
         }
 
+        // Ctrl+S saves from anywhere on the page.
+        if ((evt.ctrlKey || evt.metaKey) && evt.key === "s") {
+          evt.preventDefault();
+          this.pushEvent("save_now", {});
+          return;
+        }
+
+        // When the OpenFresco stage owns focus, ITS keyboard handling
+        // applies (Tab-cycle, arrow-nudge, Delete, multi-select aware)
+        // — pushing ours too would double every action.
+        if (t && t.closest && t.closest('[phx-hook="OpenFrescoEditor"]')) {
+          return;
+        }
+
         if (evt.key === "Delete" || evt.key === "Backspace") {
           evt.preventDefault();
           this.pushEvent("delete_selected", {});
@@ -457,9 +471,6 @@
         } else if (evt.key.startsWith("Arrow")) {
           evt.preventDefault();
           this.pushEvent("nudge", { key: evt.key, shift: evt.shiftKey });
-        } else if ((evt.ctrlKey || evt.metaKey) && evt.key === "s") {
-          evt.preventDefault();
-          this.pushEvent("save_now", {});
         }
       };
 
