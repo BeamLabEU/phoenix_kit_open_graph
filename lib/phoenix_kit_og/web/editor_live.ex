@@ -44,7 +44,9 @@ defmodule PhoenixKitOG.Web.EditorLive do
   def mount(params, _session, socket) do
     case load_or_create_template(params, socket.assigns.live_action, socket) do
       {:ok, template} ->
-        scene = SceneStore.load(template.canvas)
+        # Every OG card is 1200×630 (the universal 1.91:1 social-card
+        # size) — a stray custom-sized scene snaps back on edit.
+        scene = template.canvas |> SceneStore.load() |> OpenFresco.Scene.put_size(1200, 630)
 
         socket =
           socket

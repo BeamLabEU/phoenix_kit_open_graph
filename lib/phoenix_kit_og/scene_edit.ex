@@ -198,12 +198,6 @@ defmodule PhoenixKitOG.SceneEdit do
   @spec update_canvas(Scene.t(), String.t(), term()) :: Scene.t()
   def update_canvas(%Scene{} = scene, field, value) do
     case field do
-      "width" ->
-        Scene.put_size(scene, dim(value, scene.canvas.width), scene.canvas.height)
-
-      "height" ->
-        Scene.put_size(scene, scene.canvas.width, dim(value, scene.canvas.height))
-
       "bg_color" ->
         put_background(scene, Scene.solid(to_string(value)))
 

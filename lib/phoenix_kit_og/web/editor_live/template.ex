@@ -638,12 +638,15 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
             {gettext("Canvas")}
           </h3>
         </header>
-        <div class="grid grid-cols-2 gap-2">
-          <.canvas_field field="width" label={gettext("Width")} value={@scene.canvas.width} />
-          <.canvas_field field="height" label={gettext("Height")} value={@scene.canvas.height} />
+
+        <div class="flex items-center justify-between">
+          <p class="text-sm font-semibold">1200 × 630</p>
+          <span class="badge badge-ghost badge-sm">{gettext("universal")}</span>
         </div>
         <p class="text-xs text-base-content/50">
-          {gettext("OpenGraph consumers expect 1200×630. Custom sizes render fine.")}
+          {gettext(
+            "One 1.91:1 card covers Facebook, X, LinkedIn, Telegram, WhatsApp, Discord and Slack — every template uses it."
+          )}
         </p>
       </section>
 
@@ -1330,30 +1333,6 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           value={@value}
           oninput="this.previousElementSibling.value = this.value"
           class="input input-bordered input-sm flex-1 font-mono text-xs"
-        />
-      </form>
-    </div>
-    """
-  end
-
-  attr(:field, :string, required: true)
-  attr(:label, :string, required: true)
-  attr(:value, :any, required: true)
-
-  defp canvas_field(assigns) do
-    ~H"""
-    <div>
-      <label class="label py-0.5">
-        <span class="label-text text-xs">{@label}</span>
-      </label>
-      <form phx-change="update_canvas">
-        <input type="hidden" name="field" value={@field} />
-        <input
-          type="number"
-          name="value"
-          value={@value}
-          step="1"
-          class="input input-bordered input-sm w-full"
         />
       </form>
     </div>

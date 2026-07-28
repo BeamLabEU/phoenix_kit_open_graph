@@ -114,13 +114,12 @@ defmodule PhoenixKitOG.SceneEditTest do
   end
 
   describe "update_canvas/3" do
-    test "canvas size clamps to sane dimensions" do
+    test "canvas size is pinned - width/height fields are ignored" do
       scene = SceneEdit.update_canvas(SceneStore.blank(), "width", "800")
-      assert scene.canvas.width == 800
+      assert scene.canvas.width == 1200
 
-      # Out-of-range keeps the previous value.
-      scene = SceneEdit.update_canvas(scene, "width", "99999999")
-      assert scene.canvas.width == 800
+      scene = SceneEdit.update_canvas(scene, "height", "99999999")
+      assert scene.canvas.height == 630
     end
 
     test "gradient stops + angle edit in place" do
