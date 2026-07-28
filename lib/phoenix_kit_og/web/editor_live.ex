@@ -58,6 +58,8 @@ defmodule PhoenixKitOG.Web.EditorLive do
           |> assign(:selected_id, nil)
           |> assign(:selected_ids, [])
           |> assign(:slots, SceneStore.slots(scene))
+          |> assign(:stage_preview, true)
+          |> assign(:stage_values, stage_values(SceneStore.slots(scene), true))
           |> assign(:media_resolver, PhoenixKitOG.Render.Media.resolver())
           |> assign(:preview_visible, true)
           |> assign(:preview_platform, "card")
@@ -187,6 +189,18 @@ defmodule PhoenixKitOG.Web.EditorLive do
     end
   end
 
+  # The stage doubles as the preview: sample values (and the arrows
+  # stand-in for image slots) substitute by default; toggling off shows
+  # the raw {{slot}} / [[global]] tokens for authors who want them.
+  def handle_event("toggle_stage_preview", _params, socket) do
+    preview? = !socket.assigns.stage_preview
+
+    {:noreply,
+     socket
+     |> assign(:stage_preview, preview?)
+     |> assign(:stage_values, stage_values(socket.assigns.slots, preview?))}
+  end
+
   # Show/hide the always-on preview pane. Turning it on renders
   # immediately; turning it off cancels any pending or in-flight render.
   def handle_event("toggle_preview_pane", _params, socket) do
@@ -312,10 +326,13 @@ defmodule PhoenixKitOG.Web.EditorLive do
   # delete) — adopt its scene as ours and autosave. No put_scene/2 here:
   # the component already re-rendered itself.
   def handle_info({:open_fresco_editor, @stage_id, {:scene_changed, scene}}, socket) do
+    slots = SceneStore.slots(scene)
+
     {:noreply,
      socket
      |> assign(:scene, scene)
-     |> assign(:slots, SceneStore.slots(scene))
+     |> assign(:slots, slots)
+     |> assign(:stage_values, stage_values(slots, socket.assigns.stage_preview))
      |> mark_dirty()}
   end
 
@@ -446,6 +463,18 @@ defmodule PhoenixKitOG.Web.EditorLive do
   # Helpers
   # =========================================================================
 
+  # Sample values for the stage's preview mode: text slots read
+  # "Sample <name>", image slots get the arrows stand-in (browser-only
+  # — see StagePlaceholder's moduledoc). Raw mode substitutes nothing.
+  defp stage_values(slots, true) do
+    Enum.into(slots, %{}, fn
+      %{name: name, type: :image} -> {name, PhoenixKitOG.Web.StagePlaceholder.data_url()}
+      %{name: name} -> {name, "Sample #{name}"}
+    end)
+  end
+
+  defp stage_values(_slots, false), do: %{}
+
   # The current selection set — the multi-select list when one is
   # active, else the single selected id.
   defp selection(socket) do
@@ -458,9 +487,12 @@ defmodule PhoenixKitOG.Web.EditorLive do
   # Every panel-side scene mutation flows through here: adopt the new
   # scene, refresh the slots panel, arm autosave + preview refresh.
   defp put_scene(socket, scene) do
+    slots = SceneStore.slots(scene)
+
     socket
     |> assign(:scene, scene)
-    |> assign(:slots, SceneStore.slots(scene))
+    |> assign(:slots, slots)
+    |> assign(:stage_values, stage_values(slots, socket.assigns.stage_preview))
     |> mark_dirty()
   end
 

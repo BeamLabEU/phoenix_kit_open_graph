@@ -57,22 +57,52 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
               </div>
             </noscript>
 
+            <div class="w-full max-w-5xl flex items-center justify-end gap-2">
+              <span class="text-xs text-base-content/50">
+                {if @stage_preview,
+                  do: gettext("Showing sample values"),
+                  else: gettext("Showing raw variables")}
+              </span>
+              <button
+                type="button"
+                phx-click="toggle_stage_preview"
+                class="btn btn-ghost btn-xs"
+                title={
+                  if @stage_preview,
+                    do: gettext("Show the raw {{slot}} and [[global]] tokens"),
+                    else: gettext("Show sample values and the placeholder image")
+                }
+              >
+                <.icon
+                  name={(@stage_preview && "hero-variable") || "hero-sparkles"}
+                  class="w-3.5 h-3.5 mr-1"
+                />
+                {if @stage_preview, do: gettext("Raw variables"), else: gettext("Sample values")}
+              </button>
+            </div>
+
             <div class="shadow-lg border border-base-300 bg-base-100 max-w-full overflow-auto">
               <.live_component
                 module={OpenFresco.Editor}
                 id={@stage_id}
                 scene={@scene}
-                values={%{}}
-                globals={@global_values}
+                values={@stage_values}
+                globals={(@stage_preview && @global_values) || %{}}
                 resolver={@media_resolver}
                 selected={@selected_id}
               />
             </div>
 
             <p class="text-xs text-base-content/40">
-              {gettext(
-                "Drag to move, corner handles to resize, Delete removes. Unwired slot tokens render as-is here — the preview below substitutes sample values."
-              )}
+              {if @stage_preview,
+                do:
+                  gettext(
+                    "Drag to move, corner handles to resize, Delete removes. Sample values are stand-ins — wire real data on the Assignments page."
+                  ),
+                else:
+                  gettext(
+                    "Raw template view — {{slots}} and [[globals]] show as tokens. Toggle back for sample values."
+                  )}
             </p>
           </main>
 
