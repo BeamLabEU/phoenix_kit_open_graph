@@ -494,25 +494,6 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
 
       <section class="rounded-lg border border-base-300/70 bg-base-200/30 p-3 space-y-2">
         <header class="flex items-center gap-1.5">
-          <.icon name="hero-viewfinder-circle" class="w-3.5 h-3.5 text-base-content/50" />
-          <h3 class="text-xs font-semibold text-base-content/70 uppercase tracking-wide">
-            {gettext("Canvas")}
-          </h3>
-        </header>
-
-        <div class="flex items-center justify-between">
-          <p class="text-sm font-semibold">1200 × 630</p>
-          <span class="badge badge-ghost badge-sm">{gettext("universal")}</span>
-        </div>
-        <p class="text-xs text-base-content/50">
-          {gettext(
-            "One 1.91:1 card covers Facebook, X, LinkedIn, Telegram, WhatsApp, Discord and Slack — every template uses it."
-          )}
-        </p>
-      </section>
-
-      <section class="rounded-lg border border-base-300/70 bg-base-200/30 p-3 space-y-2">
-        <header class="flex items-center gap-1.5">
           <.icon name="hero-paint-brush" class="w-3.5 h-3.5 text-base-content/50" />
           <h3 class="text-xs font-semibold text-base-content/70 uppercase tracking-wide">
             {gettext("Background")}
@@ -614,6 +595,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
             max="360"
             step="15"
             value={@angle}
+            phx-debounce="200"
             class="range range-xs w-full"
           />
         </form>
@@ -894,6 +876,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           <textarea
             name="value"
             rows="3"
+            phx-debounce="300"
             class="textarea textarea-bordered textarea-sm w-full"
             placeholder={gettext(~S|Text — inline {{slots}} and [[globals]] work too|)}
           ><%= @literal %></textarea>
@@ -1130,6 +1113,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           max="1"
           step="0.05"
           value={Map.get(@el, :underlay_opacity, 0)}
+          phx-debounce="200"
           class="range range-xs w-full"
         />
       </form>
@@ -1160,6 +1144,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           name="value"
           value={round_num(@value)}
           step="1"
+          phx-debounce="250"
           class="input input-bordered input-sm w-full"
         />
       </form>
@@ -1186,6 +1171,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           name="value"
           value={normalize_color(@value)}
           oninput="this.nextElementSibling.value = this.value"
+          phx-debounce="200"
           class="w-10 h-8 rounded border border-base-300"
         />
         <input
@@ -1193,6 +1179,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           name="value"
           value={@value}
           oninput="this.previousElementSibling.value = this.value"
+          phx-debounce="300"
           class="input input-bordered input-sm flex-1 font-mono text-xs"
         />
       </form>
@@ -1217,6 +1204,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           name="value"
           value={normalize_color(@value)}
           oninput="this.nextElementSibling.value = this.value"
+          phx-debounce="200"
           class="w-10 h-8 rounded border border-base-300"
         />
         <input
@@ -1224,6 +1212,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           name="value"
           value={@value}
           oninput="this.previousElementSibling.value = this.value"
+          phx-debounce="300"
           class="input input-bordered input-sm flex-1 font-mono text-xs"
         />
       </form>

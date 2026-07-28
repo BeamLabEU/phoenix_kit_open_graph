@@ -241,6 +241,19 @@ exhaustive: nothing here is optional or deferred. Items marked
     external-worker mode (Port-based) for hosts that want full
     isolation on the crawler path.
 
+30. **[verified] UAX-14 line breaking is ~370ms per call — memoize it.**
+    With `:unicode_string` installed, `Layout`'s `wrap_line_uax` calls
+    `Unicode.String.split(line, break: :line)`, which costs ~367ms per
+    call (unicode_string 1.8.0, M-series Mac) — a scene with three text
+    elements takes ~1s per `render_svg`, which makes every editor-stage
+    re-render (each property change) visibly laggy. Two asks: (1)
+    memoize segmentation on the line's content (ETS/persistent_term) —
+    the editor re-renders the SAME strings constantly, so a cache makes
+    repeat renders ~free; (2) a per-call `:line_breaking` option
+    (`:uax | :simple`) so hosts can pick the fast path for interactive
+    stages and the exact path for final renders. (og mitigates today by
+    debouncing panel inputs, but the underlying cost is per render.)
+
 ---
 
 ## Where phoenix_kit_og stands meanwhile (so you know the workarounds)
