@@ -89,27 +89,27 @@ defmodule PhoenixKitOG.SceneEditTest do
     end
   end
 
-  describe "background type switch" do
-    test "solid -> image -> gradient -> solid round-trips via the stash" do
+  describe "background type switch (Scene.switch_fill)" do
+    test "solid -> image -> gradient -> solid round-trips losslessly" do
       scene = SceneStore.blank()
       scene = SceneEdit.update_canvas(scene, "bg_color", "#ff6600")
-      stash = %{}
 
-      {scene, stash} = SceneEdit.switch_background(scene, "image", stash)
+      scene = SceneEdit.switch_background(scene, "image")
       assert scene.canvas.background.type == :image
 
-      {scene, stash} = SceneEdit.switch_background(scene, "gradient", stash)
+      scene = SceneEdit.switch_background(scene, "gradient")
       assert scene.canvas.background.type == :gradient
 
-      {scene, _stash} = SceneEdit.switch_background(scene, "solid", stash)
-      assert scene.canvas.background == %{type: :solid, color: "#ff6600"}
+      scene = SceneEdit.switch_background(scene, "solid")
+      # 0.2.0 retains inactive variants inside the fill map itself.
+      assert scene.canvas.background.type == :solid
+      assert scene.canvas.background.color == "#ff6600"
     end
 
-    test "re-selecting the current type is a no-op" do
+    test "re-selecting the current type keeps the fill" do
       scene = SceneStore.blank()
-      {same, stash} = SceneEdit.switch_background(scene, "solid", %{})
-      assert same == scene
-      assert stash == %{}
+      same = SceneEdit.switch_background(scene, "solid")
+      assert same.canvas.background.type == :solid
     end
   end
 
@@ -124,7 +124,7 @@ defmodule PhoenixKitOG.SceneEditTest do
     end
 
     test "gradient stops + angle edit in place" do
-      {scene, _} = SceneEdit.switch_background(SceneStore.blank(), "gradient", %{})
+      scene = SceneEdit.switch_background(SceneStore.blank(), "gradient")
 
       scene = SceneEdit.update_canvas(scene, "bg_gradient_from", "#111111")
       scene = SceneEdit.update_canvas(scene, "bg_gradient_to", "#222222")
@@ -138,7 +138,7 @@ defmodule PhoenixKitOG.SceneEditTest do
     end
 
     test "bg variable name wraps into a placeholder" do
-      {scene, _} = SceneEdit.switch_background(SceneStore.blank(), "image", %{})
+      scene = SceneEdit.switch_background(SceneStore.blank(), "image")
       scene = SceneEdit.update_canvas(scene, "bg_image_variable_name", "BackgroundImage")
       assert scene.canvas.background.value == %{placeholder: "BackgroundImage"}
     end

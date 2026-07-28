@@ -7,10 +7,9 @@ defmodule PhoenixKitOG.SceneEdit do
   unknown field or junk value returns the scene unchanged.
 
   Also owns element insertion defaults (the Insert menu) and the
-  background fill-type switch with per-type value stashing, so
-  Color → Image → Gradient → Color round-trips without losing what the
-  author had configured on each tab. The stash lives in the LiveView's
-  memory (not the stored scene) — see `switch_background/3`.
+  background fill-type switch (`Scene.switch_fill/2` retains inactive
+  variants in the fill map itself, so Color → Image → Gradient → Color
+  round-trips losslessly — persisted with the scene).
   """
 
   alias OpenFresco.Editor.Ops
@@ -184,12 +183,9 @@ defmodule PhoenixKitOG.SceneEdit do
     end
   end
 
-  @doc "Moves the element's `z` below every other element's."
+  @doc "Moves the element behind every other element (0.2.0 stacking API)."
   @spec send_to_back(Scene.t(), String.t()) :: Scene.t()
-  def send_to_back(%Scene{} = scene, id) do
-    min_z = scene.elements |> Enum.map(&Map.get(&1, :z, 0)) |> Enum.min(fn -> 0 end)
-    put_field(scene, id, :z, min_z - 1)
-  end
+  defdelegate send_to_back(scene, id), to: Ops
 
   # =========================================================================
   # Canvas / background updates
@@ -197,7 +193,7 @@ defmodule PhoenixKitOG.SceneEdit do
 
   @doc """
   Applies a template-props field change (canvas size, background value
-  fields). Background *type* switches go through `switch_background/3`.
+  fields). Background *type* switches go through `switch_background/2`.
   """
   @spec update_canvas(Scene.t(), String.t(), term()) :: Scene.t()
   def update_canvas(%Scene{} = scene, field, value) do
@@ -242,36 +238,20 @@ defmodule PhoenixKitOG.SceneEdit do
   end
 
   @doc """
-  Switches the background fill type, restoring the stash entry for the
-  incoming type and returning the updated stash (keyed by type atom)
-  with the outgoing fill saved — the Color ↔ Image ↔ Gradient tabs
-  round-trip without data loss. The stash is LiveView state, not part
-  of the persisted scene.
+  Switches the background fill type via `Scene.switch_fill/2` (0.2.0):
+  the fill map itself retains inactive variants, so Color ↔ Image ↔
+  Gradient round-trips losslessly — in the persisted scene, no
+  LiveView-side stash needed.
   """
-  @spec switch_background(Scene.t(), String.t(), map()) :: {Scene.t(), map()}
-  def switch_background(%Scene{} = scene, type, stash) when type in ~w(solid image gradient) do
-    current = scene.canvas.background
-    current_type = if is_map(current), do: Map.get(current, :type), else: nil
+  @spec switch_background(Scene.t(), String.t()) :: Scene.t()
+  def switch_background(%Scene{} = scene, type) when type in ~w(solid image gradient) do
     target = String.to_existing_atom(type)
+    current = scene.canvas.background || Scene.solid("#0b1220")
 
-    if current_type == target do
-      {scene, stash}
-    else
-      stash = if current_type, do: Map.put(stash, current_type, current), else: stash
-
-      restored =
-        Map.get(stash, target) ||
-          case target do
-            :solid -> Scene.solid("#0b1220")
-            :image -> Scene.image_fill("", :cover)
-            :gradient -> default_gradient()
-          end
-
-      {put_background(scene, restored), stash}
-    end
+    put_background(scene, Scene.switch_fill(current, target))
   end
 
-  def switch_background(scene, _type, stash), do: {scene, stash}
+  def switch_background(scene, _type), do: scene
 
   # =========================================================================
   # Internals
@@ -356,13 +336,6 @@ defmodule PhoenixKitOG.SceneEdit do
 
   defp put_stop_color(%{stops: stops} = gradient, index, color) do
     %{gradient | stops: List.update_at(stops, index, &%{&1 | color: to_string(color)})}
-  end
-
-  defp default_gradient do
-    Scene.gradient(180, [
-      %{offset: 0.0, color: "#0b1220", alpha: 1.0},
-      %{offset: 1.0, color: "#2563eb", alpha: 1.0}
-    ])
   end
 
   defp gen_id(kind) do

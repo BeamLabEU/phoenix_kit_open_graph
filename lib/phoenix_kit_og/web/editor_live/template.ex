@@ -65,12 +65,15 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
                 id={@stage_id}
                 scene={@scene}
                 values={%{}}
+                globals={@global_values}
+                resolver={@media_resolver}
+                selected={@selected_id}
               />
             </div>
 
             <p class="text-xs text-base-content/40">
               {gettext(
-                "Drag to move, corner handles to resize, Delete removes. Slot tokens render as-is here — the preview below substitutes sample values."
+                "Drag to move, corner handles to resize, Delete removes. Unwired slot tokens render as-is here — the preview below substitutes sample values."
               )}
             </p>
           </main>

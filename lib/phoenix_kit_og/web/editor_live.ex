@@ -57,7 +57,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
           |> assign(:stage_id, @stage_id)
           |> assign(:selected_id, nil)
           |> assign(:slots, SceneStore.slots(scene))
-          |> assign(:bg_stash, %{})
+          |> assign(:media_resolver, PhoenixKitOG.Render.Media.resolver())
           |> assign(:preview_visible, true)
           |> assign(:preview_platform, "card")
           |> assign(:preview_timer, nil)
@@ -110,13 +110,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
   end
 
   def handle_event("update_canvas", %{"field" => "bg_type", "value" => type}, socket) do
-    {scene, stash} =
-      SceneEdit.switch_background(socket.assigns.scene, type, socket.assigns.bg_stash)
-
-    {:noreply,
-     socket
-     |> assign(:bg_stash, stash)
-     |> put_scene(scene)}
+    {:noreply, put_scene(socket, SceneEdit.switch_background(socket.assigns.scene, type))}
   end
 
   def handle_event("update_canvas", %{"field" => field, "value" => value}, socket) do

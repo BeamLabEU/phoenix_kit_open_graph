@@ -67,7 +67,7 @@ defmodule PhoenixKitOG.MixProject do
       # storage format, text measurement/wrap, anchors, gradients, and
       # the rasterizer chain; this module keeps slot wiring, assignment
       # hierarchy, media-UUID resolution, caching, and serving.
-      {:open_fresco, "~> 0.1.0"},
+      {:open_fresco, "~> 0.2"},
       # SVG → PNG rendering. Ships a precompiled NIF via rustler_precompiled
       # — no system binary needed in the common case. Optional: resvg 0.5.0
       # (the latest on Hex) hard-pins `rustler_precompiled ~> 0.8.1`, which

@@ -24,9 +24,12 @@ defmodule PhoenixKitOG.SceneStore do
   """
   @spec load(map() | nil) :: Scene.t()
   def load(%{"version" => _} = scene_map) do
-    Scene.from_map!(scene_map)
-  rescue
-    _ -> blank()
+    case Scene.from_map(scene_map) do
+      {:ok, scene} -> scene
+      # A corrupt row renders as blank rather than crashing; the decode
+      # error (with JSON path) is available to surface in admin UIs later.
+      {:error, _reason} -> blank()
+    end
   end
 
   def load(%{} = canvas) when map_size(canvas) > 0 do

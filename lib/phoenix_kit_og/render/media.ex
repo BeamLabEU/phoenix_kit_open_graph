@@ -66,6 +66,38 @@ defmodule PhoenixKitOG.Render.Media do
   end
 
   @doc """
+  OpenFresco resource-resolver fun (the 0.2.0 shared stage/rasterizer
+  contract): media UUIDs resolve to local file bytes; anything else is
+  `:skip` so OpenFresco's deny-by-default href policy applies. Used by
+  the editor stage so authors see their picked media instead of a
+  stand-in — the PNG path keeps its own pre-resolution (the cache key
+  must reflect the actual image bytes, since a media UUID's content can
+  change under it, e.g. rotation).
+  """
+  @spec resolver() :: (String.t() -> {:ok, map()} | :skip)
+  def resolver do
+    fn ref ->
+      case read_any_local_bytes(ref) do
+        {:ok, bytes, mime} -> {:ok, %{data: bytes, mime: mime}}
+        :error -> :skip
+      end
+    end
+  end
+
+  defp read_any_local_bytes(ref) when is_binary(ref) do
+    Enum.reduce_while(["medium", "original"], :error, fn variant, acc ->
+      case read_local_bytes(ref, variant) do
+        {:ok, bytes, mime} -> {:halt, {:ok, bytes, mime}}
+        :error -> {:cont, acc}
+      end
+    end)
+  rescue
+    _ -> :error
+  end
+
+  defp read_any_local_bytes(_), do: :error
+
+  @doc """
   Resolves a single image reference. Returns the renderable value or
   `nil` when it can't be used (unresolvable UUID, `file://`,
   host-relative path, non-binary).
