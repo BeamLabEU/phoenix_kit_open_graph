@@ -6,13 +6,11 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
   The layout is:
 
       ┌───────────────────────────────────────────────────┐
-      │  Toolbar: name | save state | insert | preview |save│
+      │  Toolbar: name | save state | insert | save        │
       ├──────────────────────────────┬────────────────────┤
-      │  OpenFresco.Editor stage     │  Slots used        │
-      │  (server-authoritative SVG,  │  Selected props /  │
-      │   drag/resize/delete)        │  template props    │
-      ├──────────────────────────────┤                    │
-      │  Always-on preview pane      │                    │
+      │  Platform tabs + raw toggle  │  Slots used        │
+      │  OpenFresco.Editor stage     │  Selected props /  │
+      │  inside the platform frame   │  template props    │
       └──────────────────────────────┴────────────────────┘
 
   The stage is OpenFresco's LiveComponent; everything around it is
@@ -39,12 +37,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
       phx-hook="PhoenixKitOGEditor"
       class="w-full h-[calc(100vh-8rem)] flex flex-col bg-base-200"
     >
-      <.toolbar
-        template={@template}
-        save_state={@save_state}
-        preview_visible={@preview_visible}
-        selected={@selected}
-      />
+      <.toolbar template={@template} save_state={@save_state} selected={@selected} />
 
       <div class="flex-1 flex overflow-hidden">
         <div class="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -57,31 +50,48 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
               </div>
             </noscript>
 
-            <div class="w-full max-w-5xl flex items-center justify-end gap-2">
-              <span class="text-xs text-base-content/50">
-                {if @stage_preview,
-                  do: gettext("Showing sample values"),
-                  else: gettext("Showing raw variables")}
-              </span>
-              <button
-                type="button"
-                phx-click="toggle_stage_preview"
-                class="btn btn-ghost btn-xs"
-                title={
-                  if @stage_preview,
-                    do: gettext("Show the raw {{slot}} and [[global]] tokens"),
-                    else: gettext("Show sample values and the placeholder image")
-                }
-              >
-                <.icon
-                  name={(@stage_preview && "hero-variable") || "hero-sparkles"}
-                  class="w-3.5 h-3.5 mr-1"
-                />
-                {if @stage_preview, do: gettext("Raw variables"), else: gettext("Sample values")}
-              </button>
+            <div class="w-full max-w-5xl flex flex-wrap items-center justify-between gap-2">
+              <%!-- Platform frames are chrome around the LIVE stage — the
+                   card is identical everywhere (1.91:1), so no separate
+                   rendered preview is needed. --%>
+              <div class="tabs tabs-boxed tabs-sm bg-base-200 p-0.5">
+                <button
+                  :for={{key, label} <- platform_tabs()}
+                  type="button"
+                  phx-click="set_preview_platform"
+                  phx-value-platform={key}
+                  class={["tab tab-sm", @preview_platform == key && "tab-active"]}
+                >
+                  {label}
+                </button>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-base-content/50">
+                  {if @stage_preview,
+                    do: gettext("Showing sample values"),
+                    else: gettext("Showing raw variables")}
+                </span>
+                <button
+                  type="button"
+                  phx-click="toggle_stage_preview"
+                  class="btn btn-ghost btn-xs"
+                  title={
+                    if @stage_preview,
+                      do: gettext("Show the raw {{slot}} and [[global]] tokens"),
+                      else: gettext("Show sample values and the placeholder image")
+                  }
+                >
+                  <.icon
+                    name={(@stage_preview && "hero-variable") || "hero-sparkles"}
+                    class="w-3.5 h-3.5 mr-1"
+                  />
+                  {if @stage_preview, do: gettext("Raw variables"), else: gettext("Sample values")}
+                </button>
+              </div>
             </div>
 
-            <div class="shadow-lg border border-base-300 bg-base-100 max-w-full overflow-auto">
+            <.platform_frame platform={@preview_platform} global_values={@global_values}>
               <.live_component
                 module={OpenFresco.Editor}
                 id={@stage_id}
@@ -91,7 +101,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
                 resolver={@media_resolver}
                 selected={@selected_id}
               />
-            </div>
+            </.platform_frame>
 
             <p class="text-xs text-base-content/40">
               {if @stage_preview,
@@ -105,15 +115,6 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
                   )}
             </p>
           </main>
-
-          <.preview_pane
-            :if={@preview_visible}
-            loading={@preview_loading}
-            url={@preview_url}
-            error={@preview_error}
-            platform={@preview_platform}
-            global_values={@global_values}
-          />
         </div>
 
         <.right_panel selected={@selected} slots={@slots} scene={@scene} />
@@ -135,18 +136,29 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
     """
   end
 
-  # =========================================================================
-  # Preview pane — the always-on strip under the stage. Renders the
-  # current template as a PNG and shows it either raw ("Card") or inside
-  # a platform mockup, one platform per tab. Toggleable from the toolbar.
-  # =========================================================================
-  attr(:loading, :boolean, default: false)
-  attr(:url, :string, default: nil)
-  attr(:error, :string, default: nil)
+  # Tab keys must stay in sync with the LV's @preview_platforms whitelist.
+  defp platform_tabs do
+    [
+      {"card", gettext("Card")},
+      {"facebook", "Facebook"},
+      {"x", "X (Twitter)"},
+      {"linkedin", "LinkedIn"},
+      {"discord", "Discord / Slack"}
+    ]
+  end
+
+  # ==============================================================
+  # Platform frames — the platform "views" are just chrome around the
+  # live editing stage: the card itself is identical everywhere
+  # (1.91:1), so each frame renders realistic surrounding UI and the
+  # stage stays fully editable inside it (the stage scales to its
+  # container with transform-safe pointer math).
+  # ==============================================================
   attr(:platform, :string, required: true)
   attr(:global_values, :map, required: true)
+  slot(:inner_block, required: true)
 
-  defp preview_pane(assigns) do
+  defp platform_frame(assigns) do
     assigns =
       assigns
       |> assign_new(:site_host, fn ->
@@ -163,187 +175,50 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
       end)
 
     ~H"""
-    <section class="shrink-0 max-h-[45%] flex flex-col border-t border-base-300 bg-base-100">
-      <header class="flex items-center gap-3 px-4 py-1.5 border-b border-base-300/60">
-        <h3
-          class="text-xs font-semibold text-base-content/70 uppercase tracking-wide cursor-help"
-          title={
-            gettext(
-              "How this template will appear when shared. Slot values here are placeholder previews — real posts substitute their own values at render time."
-            )
-          }
-        >
-          {gettext("Preview")}
-        </h3>
-        <span :if={@loading} class="loading loading-spinner loading-xs text-base-content/40"></span>
-
-        <div class="tabs tabs-boxed tabs-sm bg-base-200 p-0.5 ml-auto">
-          <button
-            :for={{key, label} <- platform_tabs()}
-            type="button"
-            phx-click="set_preview_platform"
-            phx-value-platform={key}
-            class={["tab tab-sm", @platform == key && "tab-active"]}
-          >
-            {label}
-          </button>
-        </div>
-
-        <button
-          type="button"
-          phx-click="toggle_preview_pane"
-          class="btn btn-ghost btn-xs"
-          title={gettext("Hide preview")}
-        >
-          <.icon name="hero-eye-slash" class="w-3.5 h-3.5" />
-        </button>
-      </header>
-
-      <div class="flex-1 overflow-auto p-4">
-        <div :if={@error} class="mx-auto max-w-2xl mb-3">
-          <div class="rounded-md border border-error/30 bg-error/5 px-4 py-3 text-sm text-error">
-            {@error}
-          </div>
-        </div>
-
-        <div
-          :if={is_nil(@url) and is_nil(@error)}
-          class="flex items-center justify-center gap-3 py-10 text-base-content/60"
-        >
-          <span class="loading loading-spinner loading-md"></span>
-          <span class="text-sm">{gettext("Rendering preview…")}</span>
-        </div>
-
-        <div :if={@url} class={["mx-auto", (@platform == "card" && "max-w-2xl") || "max-w-md"]}>
-          <div :if={@platform == "card"}>
-            <img
-              src={@url}
-              alt={gettext("OG preview")}
-              class="w-full rounded border border-base-300 shadow-sm"
-              loading="lazy"
-            />
-            <p class="text-xs text-base-content/50 mt-1.5 text-center">
-              {gettext("Rendered image (1200 × 630)")}
+    <%= case @platform do %>
+      <% "facebook" -> %>
+        <div class="w-full max-w-xl rounded-lg border border-base-300 bg-base-100 overflow-hidden shadow-sm">
+          <div class="overflow-hidden">{render_slot(@inner_block)}</div>
+          <div class="bg-[#f0f2f5] px-3 py-2 border-t border-base-300">
+            <p class="text-[10px] uppercase text-neutral-500 truncate">{@site_host}</p>
+            <p class="text-sm font-semibold text-neutral-900 leading-snug line-clamp-2">
+              {@sample_title}
             </p>
-          </div>
-
-          <div
-            :if={@platform != "card"}
-            class="rounded-lg border border-base-300 bg-base-100 overflow-hidden"
-          >
-            <.fb_card
-              :if={@platform == "facebook"}
-              image={@url}
-              title={@sample_title}
-              description={@sample_desc}
-              host={@site_host}
-            />
-            <.twitter_card
-              :if={@platform == "x"}
-              image={@url}
-              title={@sample_title}
-              description={@sample_desc}
-              host={@site_host}
-            />
-            <.linkedin_card
-              :if={@platform == "linkedin"}
-              image={@url}
-              title={@sample_title}
-              description={@sample_desc}
-              host={@site_host}
-            />
-            <.discord_card
-              :if={@platform == "discord"}
-              image={@url}
-              title={@sample_title}
-              description={@sample_desc}
-              host={@site_host}
-              site_name={@site_name}
-            />
+            <p class="text-xs text-neutral-500 leading-snug line-clamp-2 mt-0.5">{@sample_desc}</p>
           </div>
         </div>
-      </div>
-    </section>
-    """
-  end
-
-  # Tab keys must stay in sync with the LV's @preview_platforms whitelist.
-  defp platform_tabs do
-    [
-      {"card", gettext("Card")},
-      {"facebook", "Facebook"},
-      {"x", "X (Twitter)"},
-      {"linkedin", "LinkedIn"},
-      {"discord", "Discord / Slack"}
-    ]
-  end
-
-  attr(:image, :string, required: true)
-  attr(:title, :string, required: true)
-  attr(:description, :string, required: true)
-  attr(:host, :string, required: true)
-
-  defp fb_card(assigns) do
-    ~H"""
-    <div>
-      <img src={@image} alt="" class="w-full aspect-[1.91/1] object-cover" />
-      <div class="bg-[#f0f2f5] px-3 py-2 border-t border-base-300">
-        <p class="text-[10px] uppercase text-neutral-500 truncate">{@host}</p>
-        <p class="text-sm font-semibold text-neutral-900 leading-snug line-clamp-2">{@title}</p>
-        <p class="text-xs text-neutral-500 leading-snug line-clamp-2 mt-0.5">{@description}</p>
-      </div>
-    </div>
-    """
-  end
-
-  attr(:image, :string, required: true)
-  attr(:title, :string, required: true)
-  attr(:description, :string, required: true)
-  attr(:host, :string, required: true)
-
-  defp twitter_card(assigns) do
-    ~H"""
-    <div class="border border-neutral-300 rounded-2xl overflow-hidden">
-      <img src={@image} alt="" class="w-full aspect-[1.91/1] object-cover" />
-      <div class="bg-white px-3 py-2 border-t border-neutral-200">
-        <p class="text-xs text-neutral-500">{@host}</p>
-        <p class="text-sm text-neutral-900 leading-snug line-clamp-2">{@title}</p>
-      </div>
-    </div>
-    """
-  end
-
-  attr(:image, :string, required: true)
-  attr(:title, :string, required: true)
-  attr(:description, :string, required: true)
-  attr(:host, :string, required: true)
-
-  defp linkedin_card(assigns) do
-    ~H"""
-    <div>
-      <img src={@image} alt="" class="w-full aspect-[1.91/1] object-cover" />
-      <div class="bg-white px-3 py-2 border-t border-neutral-200">
-        <p class="text-sm font-semibold text-neutral-900 leading-snug line-clamp-2">{@title}</p>
-        <p class="text-xs text-neutral-500 mt-1 truncate">{@host}</p>
-      </div>
-    </div>
-    """
-  end
-
-  attr(:image, :string, required: true)
-  attr(:title, :string, required: true)
-  attr(:description, :string, required: true)
-  attr(:host, :string, required: true)
-  attr(:site_name, :string, required: true)
-
-  defp discord_card(assigns) do
-    ~H"""
-    <div class="bg-[#2b2d31] p-3 border-l-4 border-l-[#5865f2]">
-      <p class="text-[11px] text-[#f2f3f5]/70">{@site_name}</p>
-      <p class="text-sm text-[#00a8fc] font-semibold leading-snug line-clamp-1 mt-0.5">{@title}</p>
-      <p class="text-xs text-[#dbdee1] mt-1 line-clamp-3">{@description}</p>
-      <img src={@image} alt="" class="w-full rounded mt-2 aspect-[1.91/1] object-cover" />
-    </div>
+      <% "x" -> %>
+        <div class="w-full max-w-xl border border-neutral-300 rounded-2xl overflow-hidden shadow-sm">
+          <div class="overflow-hidden">{render_slot(@inner_block)}</div>
+          <div class="bg-white px-3 py-2 border-t border-neutral-200">
+            <p class="text-xs text-neutral-500">{@site_host}</p>
+            <p class="text-sm text-neutral-900 leading-snug line-clamp-2">{@sample_title}</p>
+          </div>
+        </div>
+      <% "linkedin" -> %>
+        <div class="w-full max-w-xl rounded-lg border border-base-300 bg-base-100 overflow-hidden shadow-sm">
+          <div class="overflow-hidden">{render_slot(@inner_block)}</div>
+          <div class="bg-white px-3 py-2 border-t border-neutral-200">
+            <p class="text-sm font-semibold text-neutral-900 leading-snug line-clamp-2">
+              {@sample_title}
+            </p>
+            <p class="text-xs text-neutral-500 mt-1 truncate">{@site_host}</p>
+          </div>
+        </div>
+      <% "discord" -> %>
+        <div class="w-full max-w-lg bg-[#2b2d31] p-3 border-l-4 border-l-[#5865f2] rounded-r-lg shadow-sm">
+          <p class="text-[11px] text-[#f2f3f5]/70">{@site_name}</p>
+          <p class="text-sm text-[#00a8fc] font-semibold leading-snug line-clamp-1 mt-0.5">
+            {@sample_title}
+          </p>
+          <p class="text-xs text-[#dbdee1] mt-1 line-clamp-3">{@sample_desc}</p>
+          <div class="rounded overflow-hidden mt-2">{render_slot(@inner_block)}</div>
+        </div>
+      <% _ -> %>
+        <div class="w-full max-w-5xl shadow-lg border border-base-300 bg-base-100 overflow-hidden">
+          {render_slot(@inner_block)}
+        </div>
+    <% end %>
     """
   end
 
@@ -402,20 +277,6 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           </button>
           <div class="divider divider-horizontal mx-0" />
         </div>
-
-        <button
-          type="button"
-          phx-click="toggle_preview_pane"
-          class={["btn btn-ghost btn-sm", @preview_visible && "btn-active"]}
-          title={
-            if @preview_visible,
-              do: gettext("Hide the live preview pane"),
-              else: gettext("Show the live preview pane")
-          }
-        >
-          <.icon name={(@preview_visible && "hero-eye") || "hero-eye-slash"} class="w-4 h-4 mr-1" />
-          {gettext("Preview")}
-        </button>
 
         <button
           type="button"
