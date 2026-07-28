@@ -143,6 +143,38 @@ defmodule PhoenixKitOG.SceneEditTest do
     end
   end
 
+  describe "image fade masks" do
+    test "mask_edge presets set and clear gradient masks" do
+      {scene, id} = SceneEdit.insert(SceneStore.blank(), "image")
+
+      scene = SceneEdit.update_element(scene, id, "mask_edge", "left")
+      el = Enum.find(scene.elements, &(&1.id == id))
+      assert %{angle: 0, stops: [%{alpha: 0.0} | _]} = el.mask
+      assert SceneEdit.mask_edge_of(el) == "left"
+
+      scene = SceneEdit.update_element(scene, id, "mask_edge", "bottom")
+      el = Enum.find(scene.elements, &(&1.id == id))
+      assert el.mask.angle == 270
+      assert SceneEdit.mask_edge_of(el) == "bottom"
+
+      scene = SceneEdit.update_element(scene, id, "mask_edge", "none")
+      el = Enum.find(scene.elements, &(&1.id == id))
+      assert el.mask == nil
+      assert SceneEdit.mask_edge_of(el) == "none"
+    end
+
+    test "a hand-built mask reads back as custom; non-image elements no-op" do
+      {scene, id} = SceneEdit.insert(SceneStore.blank(), "image")
+      scene = SceneEdit.update_element(scene, id, "mask_edge", "left")
+      el = Enum.find(scene.elements, &(&1.id == id))
+      weird = %{el | mask: %{el.mask | angle: 45}}
+      assert SceneEdit.mask_edge_of(weird) == "custom"
+
+      {scene2, tid} = SceneEdit.insert(SceneStore.blank(), "text")
+      assert SceneEdit.update_element(scene2, tid, "mask_edge", "left") == scene2
+    end
+  end
+
   test "send_to_back/2 drops the element under everything" do
     {scene, a} = SceneEdit.insert(SceneStore.blank(), "rect")
     {scene, b} = SceneEdit.insert(scene, "rect")

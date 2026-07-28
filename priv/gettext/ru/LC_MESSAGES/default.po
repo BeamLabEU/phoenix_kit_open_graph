@@ -91,7 +91,7 @@ msgstr "Отмена"
 msgid "Center"
 msgstr "По центру"
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1251
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1302
 #, elixir-autogen, elixir-format
 msgid "Change"
 msgstr "Изменить"
@@ -106,7 +106,7 @@ msgstr ""
 msgid "Choose"
 msgstr "Выбрать"
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1271
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1322
 #, elixir-autogen, elixir-format
 msgid "Choose image"
 msgstr "Выбрать изображение"
@@ -139,7 +139,7 @@ msgid "Content"
 msgstr "Содержимое"
 
 #: lib/phoenix_kit_og/web/editor_live/template.ex:951
-#: lib/phoenix_kit_og/web/editor_live/template.ex:968
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1019
 #, elixir-autogen, elixir-format
 msgid "Corner radius"
 msgstr ""
@@ -231,8 +231,8 @@ msgstr ""
 
 #: lib/phoenix_kit_og/web/editor_live/template.ex:547
 #: lib/phoenix_kit_og/web/editor_live/template.ex:942
-#: lib/phoenix_kit_og/web/editor_live/template.ex:967
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1061
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1018
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1112
 #, elixir-autogen, elixir-format
 msgid "Fill"
 msgstr ""
@@ -301,6 +301,7 @@ msgid "JavaScript is disabled — the template editor needs it for dragging, res
 msgstr ""
 
 #: lib/phoenix_kit_og/web/editor_live/template.ex:900
+#: lib/phoenix_kit_og/web/editor_live/template.ex:989
 #, elixir-autogen, elixir-format
 msgid "Left"
 msgstr "Слева"
@@ -413,13 +414,14 @@ msgstr ""
 
 #: lib/phoenix_kit_og/web/editor_live/template.ex:359
 #: lib/phoenix_kit_og/web/editor_live/template.ex:756
-#: lib/phoenix_kit_og/web/editor_live/template.ex:964
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1015
 #, elixir-autogen, elixir-format
 msgid "Rectangle"
 msgstr ""
 
 #: lib/phoenix_kit_og/web/assignments_live.ex:667
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1260
+#: lib/phoenix_kit_og/web/editor_live/template.ex:977
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1311
 #, elixir-autogen, elixir-format
 msgid "Remove"
 msgstr ""
@@ -440,6 +442,7 @@ msgid "Rendering…"
 msgstr "Рендеринг…"
 
 #: lib/phoenix_kit_og/web/editor_live/template.ex:900
+#: lib/phoenix_kit_og/web/editor_live/template.ex:990
 #, elixir-autogen, elixir-format
 msgid "Right"
 msgstr "Справа"
@@ -550,7 +553,7 @@ msgstr ""
 
 #: lib/phoenix_kit_og/web/editor_live/template.ex:310
 #: lib/phoenix_kit_og/web/editor_live/template.ex:753
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1065
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1116
 #, elixir-autogen, elixir-format
 msgid "Text"
 msgstr ""
@@ -724,7 +727,7 @@ msgstr ""
 msgid "Auto-sizes to its translatable label."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1088
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1139
 #, elixir-autogen, elixir-format
 msgid "Auto-width (grows with the label — recommended for translated labels)"
 msgstr ""
@@ -735,7 +738,7 @@ msgid "Below"
 msgstr ""
 
 #: lib/phoenix_kit_og/web/editor_live/template.ex:757
-#: lib/phoenix_kit_og/web/editor_live/template.ex:994
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1045
 #, elixir-autogen, elixir-format
 msgid "Button"
 msgstr ""
@@ -765,22 +768,22 @@ msgstr ""
 msgid "Gradient"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1021
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1072
 #, elixir-autogen, elixir-format
 msgid "Label"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1002
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1053
 #, elixir-autogen, elixir-format
 msgid "Label variable (translatable per post language)"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1031
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1082
 #, elixir-autogen, elixir-format
 msgid "Label — or type {{cta}} to make it a slot"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1101
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1152
 #, elixir-autogen, elixir-format
 msgid "Legibility underlay"
 msgstr ""
@@ -795,7 +798,7 @@ msgstr ""
 msgid "Nothing (fixed position)"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1045
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1096
 #, elixir-autogen, elixir-format
 msgid "Outline"
 msgstr ""
@@ -815,7 +818,7 @@ msgstr ""
 msgid "Position & size"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1072
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1123
 #, elixir-autogen, elixir-format
 msgid "Radius"
 msgstr ""
@@ -835,12 +838,12 @@ msgstr ""
 msgid "Size"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1045
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1096
 #, elixir-autogen, elixir-format
 msgid "Soft"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1045
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1096
 #, elixir-autogen, elixir-format
 msgid "Solid"
 msgstr ""
@@ -850,12 +853,12 @@ msgstr ""
 msgid "Solid fill, rounded corners."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1039
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1090
 #, elixir-autogen, elixir-format
 msgid "Style"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1071
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1122
 #, elixir-autogen, elixir-format
 msgid "Text size"
 msgstr ""
@@ -923,4 +926,34 @@ msgstr ""
 #: lib/phoenix_kit_og/web/editor_live/template.ex:72
 #, elixir-autogen, elixir-format
 msgid "Showing sample values"
+msgstr ""
+
+#: lib/phoenix_kit_og/web/editor_live/template.ex:992
+#, elixir-autogen, elixir-format
+msgid "Bottom"
+msgstr ""
+
+#: lib/phoenix_kit_og/web/editor_live/template.ex:972
+#, elixir-autogen, elixir-format
+msgid "Custom mask (set via API)"
+msgstr ""
+
+#: lib/phoenix_kit_og/web/editor_live/template.ex:956
+#, elixir-autogen, elixir-format
+msgid "Fade edge"
+msgstr ""
+
+#: lib/phoenix_kit_og/web/editor_live/template.ex:960
+#, elixir-autogen, elixir-format
+msgid "Fades the image out toward the chosen edge — e.g. a photo on the right half fading left into the text field."
+msgstr ""
+
+#: lib/phoenix_kit_og/web/editor_live/template.ex:988
+#, elixir-autogen, elixir-format
+msgid "None"
+msgstr ""
+
+#: lib/phoenix_kit_og/web/editor_live/template.ex:991
+#, elixir-autogen, elixir-format
+msgid "Top"
 msgstr ""

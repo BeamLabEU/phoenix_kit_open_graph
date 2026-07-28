@@ -949,6 +949,57 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
       </div>
 
       <.prop_number el_id={@el.id} field="radius" label={gettext("Corner radius")} value={@el.radius} />
+
+      <div>
+        <label class="label py-0.5">
+          <span class="label-text text-xs">
+            {gettext("Fade edge")}
+            <span
+              class="text-base-content/40 cursor-help"
+              title={
+                gettext(
+                  "Fades the image out toward the chosen edge — e.g. a photo on the right half fading left into the text field."
+                )
+              }
+            >
+              ?
+            </span>
+          </span>
+        </label>
+        <% mask_edge = PhoenixKitOG.SceneEdit.mask_edge_of(@el) %>
+        <%= if mask_edge == "custom" do %>
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs text-base-content/50">{gettext("Custom mask (set via API)")}</span>
+            <form phx-change="update_prop">
+              <input type="hidden" name="el_id" value={@el.id} />
+              <input type="hidden" name="field" value="mask_edge" />
+              <button type="submit" name="value" value="none" class="btn btn-outline btn-xs">
+                {gettext("Remove")}
+              </button>
+            </form>
+          </div>
+        <% else %>
+          <form phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
+            <input type="hidden" name="el_id" value={@el.id} />
+            <input type="hidden" name="field" value="mask_edge" />
+            <label
+              :for={
+                {v, l} <- [
+                  {"none", gettext("None")},
+                  {"left", gettext("Left")},
+                  {"right", gettext("Right")},
+                  {"top", gettext("Top")},
+                  {"bottom", gettext("Bottom")}
+                ]
+              }
+              class={"tab tab-sm flex-1 #{mask_edge == v && "tab-active"}"}
+            >
+              <input type="radio" name="value" value={v} checked={mask_edge == v} class="sr-only" />
+              {l}
+            </label>
+          </form>
+        <% end %>
+      </div>
     </section>
     """
   end

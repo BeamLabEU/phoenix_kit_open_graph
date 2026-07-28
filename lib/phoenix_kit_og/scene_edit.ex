@@ -169,6 +169,9 @@ defmodule PhoenixKitOG.SceneEdit do
       field == "auto_width" ->
         put_field(scene, id, :auto_width, value in [true, "true", "on"])
 
+      field == "mask_edge" ->
+        set_mask_edge(scene, id, value)
+
       field == "anchor_to" ->
         set_anchor(scene, id, :to, value)
 
@@ -308,6 +311,55 @@ defmodule PhoenixKitOG.SceneEdit do
 
       true ->
         scene
+    end
+  end
+
+  # Preset gradient masks for the image "Fade edge" control — the
+  # split-card effect (photo fading into the text field). Angle
+  # semantics per OpenFresco: offset 0 sits at the named edge.
+  @mask_angles %{"left" => 0, "right" => 180, "top" => 90, "bottom" => 270}
+
+  @doc "Mask-edge preset names the Fade control offers."
+  @spec mask_edges() :: [String.t()]
+  def mask_edges, do: ["none" | Map.keys(@mask_angles) |> Enum.sort()]
+
+  @doc """
+  Reads an image element's mask back into a preset name — "none",
+  one of the edges, or "custom" for a mask this module didn't build.
+  """
+  @spec mask_edge_of(map()) :: String.t()
+  def mask_edge_of(%{mask: nil}), do: "none"
+
+  def mask_edge_of(%{mask: %{angle: angle, stops: [%{alpha: a0} | _]}}) when a0 < 0.05 do
+    Enum.find_value(@mask_angles, "custom", fn {edge, a} -> a == angle && edge end)
+  end
+
+  def mask_edge_of(%{mask: %{}}), do: "custom"
+  def mask_edge_of(_), do: "none"
+
+  defp set_mask_edge(scene, id, value) do
+    with %{type: :image} <- find(scene, id) do
+      cond do
+        value == "none" ->
+          put_field(scene, id, :mask, nil)
+
+        angle = @mask_angles[value] ->
+          put_field(
+            scene,
+            id,
+            :mask,
+            Scene.gradient(angle, [
+              %{offset: 0.0, color: "#000000", alpha: 0.0},
+              %{offset: 0.4, color: "#000000", alpha: 1.0},
+              %{offset: 1.0, color: "#000000", alpha: 1.0}
+            ])
+          )
+
+        true ->
+          scene
+      end
+    else
+      _ -> scene
     end
   end
 
