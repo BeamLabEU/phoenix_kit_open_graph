@@ -338,28 +338,30 @@ defmodule PhoenixKitOG.SceneEdit do
   def mask_edge_of(_), do: "none"
 
   defp set_mask_edge(scene, id, value) do
-    with %{type: :image} <- find(scene, id) do
-      cond do
-        value == "none" ->
-          put_field(scene, id, :mask, nil)
+    case find(scene, id) do
+      %{type: :image} ->
+        cond do
+          value == "none" ->
+            put_field(scene, id, :mask, nil)
 
-        angle = @mask_angles[value] ->
-          put_field(
-            scene,
-            id,
-            :mask,
-            Scene.gradient(angle, [
-              %{offset: 0.0, color: "#000000", alpha: 0.0},
-              %{offset: 0.4, color: "#000000", alpha: 1.0},
-              %{offset: 1.0, color: "#000000", alpha: 1.0}
-            ])
-          )
+          angle = @mask_angles[value] ->
+            put_field(
+              scene,
+              id,
+              :mask,
+              Scene.gradient(angle, [
+                %{offset: 0.0, color: "#000000", alpha: 0.0},
+                %{offset: 0.4, color: "#000000", alpha: 1.0},
+                %{offset: 1.0, color: "#000000", alpha: 1.0}
+              ])
+            )
 
-        true ->
-          scene
-      end
-    else
-      _ -> scene
+          true ->
+            scene
+        end
+
+      _ ->
+        scene
     end
   end
 
