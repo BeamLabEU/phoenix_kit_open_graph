@@ -196,6 +196,51 @@ defmodule PhoenixKitOG do
   end
 
   @doc """
+  Renders the OG image for ANY module's resource, or `:none`.
+
+  The publishing-shaped `refine_og/4` above is one consumer of this; it is
+  not the only kind there can be. A module supplies its own scope
+  hierarchy — most specific first, `{"default", nil}` trailing — and gets
+  back an absolute URL to a cached PNG, or `:none` when no template is
+  assigned, the module is off, or rendering fails.
+
+      PhoenixKitOG.og_image_url("projects", [
+        {"project", project.uuid},
+        {"default", nil}
+      ], project, conn)
+
+  Never raises: an OG image is decoration, and decoration must not be able
+  to take down the page it decorates.
+  """
+  @spec og_image_url(
+          String.t(),
+          [{String.t(), binary() | nil}],
+          map(),
+          Plug.Conn.t() | nil,
+          keyword()
+        ) ::
+          {:ok, String.t()} | :none
+  def og_image_url(module_key, hierarchy, resource, conn, opts \\ []) do
+    language = Keyword.get(opts, :language)
+
+    with true <- enabled?(),
+         {:ok, template, slot_mapping} <-
+           Assignments.resolve_template_with_mapping(module_key, hierarchy),
+         {values, globals} <-
+           resolve_values(module_key, template, slot_mapping, conn, resource, language),
+         {:ok, path} <-
+           Render.render_url(template, %{values: values, globals: globals, mode: :public}) do
+      {:ok, absolutize(conn, path)}
+    else
+      _ -> :none
+    end
+  rescue
+    _ -> :none
+  catch
+    :exit, _ -> :none
+  end
+
+  @doc """
   Returns `{:ok, url}` with the OG-plugin-generated image for a post,
   or `:none` when no template resolves. Used by publishing's editor to
   render a "what the plugin will produce" preview alongside the manual
@@ -243,15 +288,18 @@ defmodule PhoenixKitOG do
   # Resolves the slot mapping against the consumer's `og_resolve/2`,
   # returning `{values, globals}` — OpenFresco takes `{{slot}}` values
   # and `[[global]]` values as separate maps.
-  defp resolve_values(template, slot_mapping, conn, post, language) do
+  defp resolve_values(template, slot_mapping, conn, post, language),
+    do: resolve_values("publishing", template, slot_mapping, conn, post, language)
+
+  defp resolve_values(module_key, template, slot_mapping, conn, resource, language) do
     slots = template.canvas |> SceneStore.load() |> SceneStore.slots()
 
     context = %{
-      module_key: "publishing",
-      resource: post,
+      module_key: module_key,
+      resource: resource,
       conn: conn,
       language: language,
-      page_url: Map.get(post || %{}, :url) || Map.get(post || %{}, "url")
+      page_url: Map.get(resource || %{}, :url) || Map.get(resource || %{}, "url")
     }
 
     {Variables.resolve(slots, slot_mapping, context), Variables.global_values(context)}
