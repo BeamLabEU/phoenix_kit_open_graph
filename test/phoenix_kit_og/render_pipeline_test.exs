@@ -1,4 +1,6 @@
 defmodule PhoenixKitOG.RenderPipelineTest do
+  alias PhoenixKitOG.Render.Cache
+
   # async: false — writes to the shared on-disk render cache.
   use ExUnit.Case, async: false
 
@@ -66,7 +68,7 @@ defmodule PhoenixKitOG.RenderPipelineTest do
     assert url =~ "/og-image/"
 
     key = url |> String.split("/") |> List.last()
-    assert {:ok, png} = PhoenixKitOG.Render.Cache.read(key)
+    assert {:ok, png} = Cache.read(key)
     assert <<137, ?P, ?N, ?G, _::binary>> = png
   end
 

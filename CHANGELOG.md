@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.0 - 2026-08-10
+
+### Changed
+
+- **⚠️ Requires `phoenix_kit ~> 2.0`.** The core pin moved to `~> 2.0`, so this
+  release no longer resolves against core 1.7.
+
+  Core 2.0.0 squashes the migration chain into a single `V135` baseline and makes
+  V135 the chain's floor: `mix ecto.migrate` now *refuses* on a database below it
+  rather than migrating. Check `mix phoenix_kit.status` **before** upgrading. A
+  host below V135 must install `phoenix_kit 1.7.236` — the migration bridge, the
+  last release carrying the full pre-squash chain — migrate until the reported
+  version is at least V135, and only then move to 2.0.
+
+  This package does not call migration internals, so the change is the pin
+  itself.
+
+### Added
+
+- **Any module can render an OG image (PR #5).** `PhoenixKitOG.og_image_url/5`
+  is now the generic entry point; the previous publishing-only coupling lived in
+  the call shape, not in anything essential. Scene storage plus the OpenFresco
+  editor and renderer sit behind it.
+
+### Changed
+
+- **`mix precommit` passes again.** It had been failing on `main` — 22 credo
+  findings, unchanged since well before this release. Cleared all 22: missing
+  aliases for nested modules, six too-deeply-nested function bodies extracted
+  into named helpers, and four over-complex dispatch functions in `SceneEdit`
+  (`update_element/4`, `update_canvas/3`, `set_anchor/4`, `insert/2`) re-shaped
+  from wide `cond`/`case` blocks into function clauses over the same keys. All
+  behaviour-preserving; `scene_edit_test.exs` passes throughout.
+- Clearing credo let dialyzer run for the first time (`quality.ci` halts at the
+  first failure). Six findings surfaced, none a defect — two are artifacts of
+  the optional PNG rasterizer backend being absent in this package's own
+  environment, four are defensive clauses dialyzer can prove dead from today's
+  callers. Recorded in a new `.dialyzer_ignore.exs`, each with its reason.
+- The optional calls into `phoenix_kit_publishing` use `apply/3` so dialyzer
+  does not report `unknown_function` for a peer that is not a dependency. The
+  runtime guards (`Code.ensure_loaded?` + `function_exported?` + `rescue`) are
+  unchanged and remain the real contract.
+
 ## 0.2.1 - 2026-07-20
 
 ### Fixed

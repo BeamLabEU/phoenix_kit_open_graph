@@ -72,15 +72,16 @@ defmodule PhoenixKitOG.Schemas.Assignment do
   # into the storage layer; keep it strict.
   defp validate_slot_mapping(changeset) do
     case get_field(changeset, :slot_mapping) do
-      m when is_map(m) ->
-        if Enum.all?(m, fn {k, v} -> is_binary(k) and is_binary(v) end) do
-          changeset
-        else
-          add_error(changeset, :slot_mapping, "keys and values must be strings")
-        end
+      m when is_map(m) -> validate_flat_string_map(changeset, m)
+      _ -> add_error(changeset, :slot_mapping, "must be a map")
+    end
+  end
 
-      _ ->
-        add_error(changeset, :slot_mapping, "must be a map")
+  defp validate_flat_string_map(changeset, map) do
+    if Enum.all?(map, fn {k, v} -> is_binary(k) and is_binary(v) end) do
+      changeset
+    else
+      add_error(changeset, :slot_mapping, "keys and values must be strings")
     end
   end
 end

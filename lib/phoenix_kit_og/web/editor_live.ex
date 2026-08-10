@@ -36,7 +36,9 @@ defmodule PhoenixKitOG.Web.EditorLive do
 
   alias OpenFresco.Editor.Ops
   alias PhoenixKitOG.{Errors, Paths, SceneEdit, SceneStore, Templates, Variables}
+  alias PhoenixKitOG.Render.Media
   alias PhoenixKitOG.Schemas.Template
+  alias PhoenixKitOG.Web.StagePlaceholder
 
   @stage_id "og-editor-stage"
 
@@ -62,7 +64,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
           |> assign(:slots, SceneStore.slots(scene))
           |> assign(:stage_preview, true)
           |> assign(:stage_values, stage_values(SceneStore.slots(scene), true))
-          |> assign(:media_resolver, PhoenixKitOG.Render.Media.resolver())
+          |> assign(:media_resolver, Media.resolver())
           |> assign(:preview_platform, "card")
           |> assign(:save_state, :saved)
           |> assign(:autosave_timer, nil)
@@ -374,7 +376,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
   # — see StagePlaceholder's moduledoc). Raw mode substitutes nothing.
   defp stage_values(slots, true) do
     Enum.into(slots, %{}, fn
-      %{name: name, type: :image} -> {name, PhoenixKitOG.Web.StagePlaceholder.data_url()}
+      %{name: name, type: :image} -> {name, StagePlaceholder.data_url()}
       %{name: name} -> {name, "Sample #{name}"}
     end)
   end

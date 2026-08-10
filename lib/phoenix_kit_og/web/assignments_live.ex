@@ -24,6 +24,9 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   # "Choose image" instead of pasting a UUID.
   use PhoenixKitWeb.Components.MediaBrowser.Embed
 
+  alias PhoenixKit.Modules.Publishing.Groups
+  alias PhoenixKit.Modules.Publishing.Posts
+  alias PhoenixKit.Modules.Storage
   alias PhoenixKitOG.{Assignments, Errors, Paths, SceneStore, Templates, Variables}
 
   # Publishing groups/posts helpers live in the phoenix_kit_publishing
@@ -340,6 +343,16 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   # module-vars are resolved against the picked preview post; unwired
   # slots fall back to friendly placeholders so the preview is always
   # readable.
+  # Unwired text slots get a readable sample; unwired IMAGE slots stay absent
+  # so OpenFresco draws its labeled stand-in (the :preview mode affordance).
+  defp put_preview_value(%{name: name, type: type}, acc, wired) do
+    cond do
+      Map.has_key?(wired, name) -> Map.put(acc, name, wired[name])
+      type == :text -> Map.put(acc, name, "Sample #{name}")
+      true -> acc
+    end
+  end
+
   defp refresh_preview(socket) do
     st = socket.assigns.edit_state
     template = Enum.find(socket.assigns.templates, &(&1.uuid == st.template_uuid))
@@ -371,14 +384,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
       # Unwired text slots get a readable sample; unwired IMAGE slots
       # stay absent so OpenFresco draws its labeled stand-in (that's
       # the :preview render mode's affordance).
-      values =
-        Enum.reduce(slots, %{}, fn %{name: name, type: type}, acc ->
-          cond do
-            Map.has_key?(wired, name) -> Map.put(acc, name, wired[name])
-            type == :text -> Map.put(acc, name, "Sample #{name}")
-            true -> acc
-          end
-        end)
+      values = Enum.reduce(slots, %{}, &put_preview_value(&1, &2, wired))
 
       %PhoenixKitOG.Schemas.Template{} = template
 
@@ -461,9 +467,15 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   defp list_publishing_posts(nil), do: []
 
   defp list_publishing_posts(slug) when is_binary(slug) do
-    if Code.ensure_loaded?(PhoenixKit.Modules.Publishing.Posts) and
-         function_exported?(PhoenixKit.Modules.Publishing.Posts, :list_posts, 1) do
-      PhoenixKit.Modules.Publishing.Posts.list_posts(slug)
+    # apply/3, not a direct call: phoenix_kit_publishing is an OPTIONAL peer
+    # and is not a dependency of this package, so a static call is an
+    # `unknown_function` to dialyzer. The guard below is the real contract.
+    # Credo's Refactor.Apply wants the direct call dialyzer rejects — the two
+    # checks genuinely conflict here, so that one check is disabled at the
+    # call rather than the module.
+    if Code.ensure_loaded?(Posts) and function_exported?(Posts, :list_posts, 1) do
+      # credo:disable-for-next-line Credo.Check.Refactor.Apply
+      apply(Posts, :list_posts, [slug])
     else
       []
     end
@@ -498,9 +510,10 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   end
 
   defp list_publishing_groups do
-    if Code.ensure_loaded?(PhoenixKit.Modules.Publishing.Groups) and
-         function_exported?(PhoenixKit.Modules.Publishing.Groups, :list_groups, 1) do
-      PhoenixKit.Modules.Publishing.Groups.list_groups("active")
+    # apply/3 for the same reason as list_publishing_posts/1 above.
+    if Code.ensure_loaded?(Groups) and function_exported?(Groups, :list_groups, 1) do
+      # credo:disable-for-next-line Credo.Check.Refactor.Apply
+      apply(Groups, :list_groups, ["active"])
     else
       []
     end
@@ -1101,8 +1114,8 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   defp media_preview_url("data:" <> _ = url), do: url
 
   defp media_preview_url(uuid) when is_binary(uuid) do
-    PhoenixKit.Modules.Storage.get_public_url_by_uuid(uuid, "medium") ||
-      PhoenixKit.Modules.Storage.get_public_url_by_uuid(uuid)
+    Storage.get_public_url_by_uuid(uuid, "medium") ||
+      Storage.get_public_url_by_uuid(uuid)
   rescue
     _ -> nil
   end

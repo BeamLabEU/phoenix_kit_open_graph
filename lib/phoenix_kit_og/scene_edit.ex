@@ -30,63 +30,67 @@ defmodule PhoenixKitOG.SceneEdit do
     id = gen_id(kind)
     {x, y} = stagger(scene)
 
-    element =
-      case kind do
-        "text" ->
-          Scene.text(id,
-            box: %{x: x, y: y, w: 500, h: 90},
-            value: "Edit this text",
-            size: 48,
-            weight: 700,
-            fill: Scene.solid("#ffffff")
-          )
-
-        "text_var" ->
-          Scene.text(id,
-            box: %{x: x, y: y, w: 500, h: 90},
-            value: Scene.placeholder(next_slot_name(scene, "Text")),
-            size: 48,
-            weight: 700,
-            fill: Scene.solid("#ffffff")
-          )
-
-        "image" ->
-          Scene.image(id, box: %{x: x, y: y, w: 320, h: 220}, value: "", fit: :cover)
-
-        "image_var" ->
-          Scene.image(id,
-            box: %{x: x, y: y, w: 320, h: 220},
-            value: Scene.placeholder(next_slot_name(scene, "Image")),
-            fit: :cover
-          )
-
-        "rect" ->
-          Scene.shape(id, box: %{x: x, y: y, w: 260, h: 160}, fill: Scene.solid("#1e293b"))
-
-        "button" ->
-          Scene.button(id,
-            box: %{x: x, y: y, w: 220, h: 56},
-            label: "Read more",
-            auto_width: true
-          )
-
-        "stamp" ->
-          Scene.stamp(id, box: %{x: x, y: y, w: 260, h: 48}, value: "NEW")
-
-        "global:" <> global ->
-          Scene.text(id,
-            box: %{x: x, y: y, w: 500, h: 48},
-            value: "[[#{global}]]",
-            size: 24,
-            fill: Scene.solid("#94a3b8")
-          )
-
-        _ ->
-          Scene.text(id, box: %{x: x, y: y, w: 500, h: 90}, value: "Edit this text")
-      end
+    element = build_element(kind, scene, id, x, y)
 
     {Scene.add(scene, element), id}
   end
+
+  defp build_element("text", _scene, id, x, y) do
+    Scene.text(id,
+      box: %{x: x, y: y, w: 500, h: 90},
+      value: "Edit this text",
+      size: 48,
+      weight: 700,
+      fill: Scene.solid("#ffffff")
+    )
+  end
+
+  defp build_element("text_var", scene, id, x, y) do
+    Scene.text(id,
+      box: %{x: x, y: y, w: 500, h: 90},
+      value: Scene.placeholder(next_slot_name(scene, "Text")),
+      size: 48,
+      weight: 700,
+      fill: Scene.solid("#ffffff")
+    )
+  end
+
+  defp build_element("image", _scene, id, x, y),
+    do: Scene.image(id, box: %{x: x, y: y, w: 320, h: 220}, value: "", fit: :cover)
+
+  defp build_element("image_var", scene, id, x, y) do
+    Scene.image(id,
+      box: %{x: x, y: y, w: 320, h: 220},
+      value: Scene.placeholder(next_slot_name(scene, "Image")),
+      fit: :cover
+    )
+  end
+
+  defp build_element("rect", _scene, id, x, y),
+    do: Scene.shape(id, box: %{x: x, y: y, w: 260, h: 160}, fill: Scene.solid("#1e293b"))
+
+  defp build_element("button", _scene, id, x, y) do
+    Scene.button(id,
+      box: %{x: x, y: y, w: 220, h: 56},
+      label: "Read more",
+      auto_width: true
+    )
+  end
+
+  defp build_element("stamp", _scene, id, x, y),
+    do: Scene.stamp(id, box: %{x: x, y: y, w: 260, h: 48}, value: "NEW")
+
+  defp build_element("global:" <> global, _scene, id, x, y) do
+    Scene.text(id,
+      box: %{x: x, y: y, w: 500, h: 48},
+      value: "[[#{global}]]",
+      size: 24,
+      fill: Scene.solid("#94a3b8")
+    )
+  end
+
+  defp build_element(_kind, _scene, id, x, y),
+    do: Scene.text(id, box: %{x: x, y: y, w: 500, h: 90}, value: "Edit this text")
 
   @doc "Next free `PrefixN` slot name (`Text`, `Text2`, `Text3`, …)."
   @spec next_slot_name(Scene.t(), String.t()) :: String.t()
@@ -130,61 +134,77 @@ defmodule PhoenixKitOG.SceneEdit do
   """
   @spec update_element(Scene.t(), String.t(), String.t(), term()) :: Scene.t()
   def update_element(%Scene{} = scene, id, field, value) do
-    cond do
-      field in @text_fields ->
-        put_field(scene, id, String.to_existing_atom(field), text_value(value))
-
-      field in ~w(x y w h) ->
-        with %{box: box} <- find(scene, id),
-             {n, _} <- Float.parse(to_string(value)) do
-          Ops.set_box(scene, id, Map.put(box, String.to_existing_atom(field), n))
-        else
-          _ -> scene
-        end
-
-      Map.has_key?(@num_fields, field) ->
-        {min, max} = @num_fields[field]
-
-        case Float.parse(to_string(value)) do
-          {n, _} -> put_field(scene, id, String.to_existing_atom(field), clamp(n, min, max))
-          :error -> scene
-        end
-
-      Map.has_key?(@enum_fields, field) and field != "anchor_edge" ->
-        if value in @enum_fields[field] do
-          put_field(scene, id, String.to_existing_atom(field), String.to_existing_atom(value))
-        else
-          scene
-        end
-
-      field == "color" ->
-        put_field(scene, id, :fill, Scene.solid(to_string(value)))
-
-      field == "text_color" ->
-        put_field(scene, id, :text_fill, Scene.solid(to_string(value)))
-
-      field == "font" ->
-        put_field(scene, id, :font, to_string(value))
-
-      field == "auto_width" ->
-        put_field(scene, id, :auto_width, value in [true, "true", "on"])
-
-      field == "mask_edge" ->
-        set_mask_edge(scene, id, value)
-
-      field == "anchor_to" ->
-        set_anchor(scene, id, :to, value)
-
-      field == "anchor_edge" ->
-        set_anchor(scene, id, :edge, value)
-
-      field == "anchor_gap" ->
-        set_anchor(scene, id, :gap, value)
-
-      true ->
-        scene
+    case field_kind(field) do
+      :text -> put_field(scene, id, String.to_existing_atom(field), text_value(value))
+      :box -> put_box_field(scene, id, field, value)
+      :num -> put_num_field(scene, id, field, value)
+      :enum -> put_enum_field(scene, id, field, value)
+      :named -> put_named_field(scene, id, field, value)
+      :anchor -> put_anchor_field(scene, id, field, value)
+      :unknown -> scene
     end
   end
+
+  # Which family a property-panel field belongs to. Split out of the `cond`
+  # this used to be so each family's coercion lives in its own function —
+  # the router stays flat and the branches stay individually readable.
+  @anchor_fields %{"anchor_to" => :to, "anchor_edge" => :edge, "anchor_gap" => :gap}
+  @named_fields ~w(color text_color font auto_width mask_edge)
+
+  defp field_kind(field) do
+    cond do
+      field in @text_fields -> :text
+      field in ~w(x y w h) -> :box
+      Map.has_key?(@num_fields, field) -> :num
+      Map.has_key?(@enum_fields, field) and field != "anchor_edge" -> :enum
+      field in @named_fields -> :named
+      Map.has_key?(@anchor_fields, field) -> :anchor
+      true -> :unknown
+    end
+  end
+
+  defp put_box_field(scene, id, field, value) do
+    with %{box: box} <- find(scene, id),
+         {n, _} <- Float.parse(to_string(value)) do
+      Ops.set_box(scene, id, Map.put(box, String.to_existing_atom(field), n))
+    else
+      _ -> scene
+    end
+  end
+
+  defp put_num_field(scene, id, field, value) do
+    {min, max} = @num_fields[field]
+
+    case Float.parse(to_string(value)) do
+      {n, _} -> put_field(scene, id, String.to_existing_atom(field), clamp(n, min, max))
+      :error -> scene
+    end
+  end
+
+  defp put_enum_field(scene, id, field, value) do
+    if value in @enum_fields[field] do
+      put_field(scene, id, String.to_existing_atom(field), String.to_existing_atom(value))
+    else
+      scene
+    end
+  end
+
+  defp put_named_field(scene, id, "color", value),
+    do: put_field(scene, id, :fill, Scene.solid(to_string(value)))
+
+  defp put_named_field(scene, id, "text_color", value),
+    do: put_field(scene, id, :text_fill, Scene.solid(to_string(value)))
+
+  defp put_named_field(scene, id, "font", value),
+    do: put_field(scene, id, :font, to_string(value))
+
+  defp put_named_field(scene, id, "auto_width", value),
+    do: put_field(scene, id, :auto_width, value in [true, "true", "on"])
+
+  defp put_named_field(scene, id, "mask_edge", value), do: set_mask_edge(scene, id, value)
+
+  defp put_anchor_field(scene, id, field, value),
+    do: set_anchor(scene, id, @anchor_fields[field], value)
 
   @doc "Moves the element behind every other element (0.2.0 stacking API)."
   @spec send_to_back(Scene.t(), String.t()) :: Scene.t()
@@ -199,38 +219,37 @@ defmodule PhoenixKitOG.SceneEdit do
   fields). Background *type* switches go through `switch_background/2`.
   """
   @spec update_canvas(Scene.t(), String.t(), term()) :: Scene.t()
-  def update_canvas(%Scene{} = scene, field, value) do
-    case field do
-      "bg_color" ->
-        put_background(scene, Scene.solid(to_string(value)))
+  def update_canvas(%Scene{} = scene, field, value), do: put_canvas_field(scene, field, value)
 
-      "bg_image_value" ->
-        update_background(scene, fn bg -> %{bg | value: text_value(value)} end)
+  defp put_canvas_field(scene, "bg_color", value),
+    do: put_background(scene, Scene.solid(to_string(value)))
 
-      # The Variable-mode name input sends the BARE name; wrap it into a
-      # placeholder (empty name = back to constant-with-no-image).
-      "bg_image_variable_name" ->
-        update_background(scene, fn bg ->
-          case String.trim(to_string(value)) do
-            "" -> %{bg | value: ""}
-            name -> %{bg | value: Scene.placeholder(name)}
-          end
-        end)
+  defp put_canvas_field(scene, "bg_image_value", value),
+    do: update_background(scene, fn bg -> %{bg | value: text_value(value)} end)
 
-      "bg_image_fit" when value in ~w(cover contain stretch) ->
-        update_background(scene, fn bg -> %{bg | fit: String.to_existing_atom(value)} end)
+  # The Variable-mode name input sends the BARE name; wrap it into a
+  # placeholder (empty name = back to constant-with-no-image).
+  defp put_canvas_field(scene, "bg_image_variable_name", value),
+    do: update_background(scene, fn bg -> %{bg | value: bg_variable_value(value)} end)
 
-      "bg_gradient_angle" ->
-        update_gradient(scene, fn g -> %{g | angle: dim(value, 0)} end)
+  defp put_canvas_field(scene, "bg_image_fit", value) when value in ~w(cover contain stretch),
+    do: update_background(scene, fn bg -> %{bg | fit: String.to_existing_atom(value)} end)
 
-      "bg_gradient_from" ->
-        update_gradient(scene, fn g -> put_stop_color(g, 0, value) end)
+  defp put_canvas_field(scene, "bg_gradient_angle", value),
+    do: update_gradient(scene, fn g -> %{g | angle: dim(value, 0)} end)
 
-      "bg_gradient_to" ->
-        update_gradient(scene, fn g -> put_stop_color(g, 1, value) end)
+  defp put_canvas_field(scene, "bg_gradient_from", value),
+    do: update_gradient(scene, fn g -> put_stop_color(g, 0, value) end)
 
-      _ ->
-        scene
+  defp put_canvas_field(scene, "bg_gradient_to", value),
+    do: update_gradient(scene, fn g -> put_stop_color(g, 1, value) end)
+
+  defp put_canvas_field(scene, _field, _value), do: scene
+
+  defp bg_variable_value(value) do
+    case String.trim(to_string(value)) do
+      "" -> ""
+      name -> Scene.placeholder(name)
     end
   end
 
@@ -277,42 +296,52 @@ defmodule PhoenixKitOG.SceneEdit do
   end
 
   defp set_anchor(scene, id, key, value) do
-    el = find(scene, id)
-
-    cond do
-      is_nil(el) ->
-        scene
-
-      key == :to and value in [nil, ""] ->
-        put_field(scene, id, :anchor, nil)
-
-      key == :to ->
-        # No self-anchoring, and the target must exist. (Cycle chains
-        # are OpenFresco's concern at layout time; the panel prevents
-        # the trivial self-loop.)
-        if value != id and find(scene, to_string(value)) do
-          anchor = el[:anchor] || Scene.anchor(to_string(value), :below, gap: 16)
-          put_field(scene, id, :anchor, %{anchor | to: to_string(value)})
-        else
-          scene
-        end
-
-      is_nil(el[:anchor]) ->
-        scene
-
-      key == :edge and value in @enum_fields["anchor_edge"] ->
-        put_field(scene, id, :anchor, %{el[:anchor] | edge: String.to_existing_atom(value)})
-
-      key == :gap ->
-        case Float.parse(to_string(value)) do
-          {n, _} -> put_field(scene, id, :anchor, %{el[:anchor] | gap: clamp(n, 0, 400)})
-          :error -> scene
-        end
-
-      true ->
-        scene
+    case find(scene, id) do
+      nil -> scene
+      el -> put_anchor(scene, id, el, key, value)
     end
   end
+
+  # Clearing the target removes the anchor outright; every other key needs an
+  # anchor already present, so those funnel through put_existing_anchor/5.
+  defp put_anchor(scene, id, _el, :to, value) when value in [nil, ""],
+    do: put_field(scene, id, :anchor, nil)
+
+  defp put_anchor(scene, id, el, :to, value) do
+    # No self-anchoring, and the target must exist. (Cycle chains are
+    # OpenFresco's concern at layout time; the panel prevents the trivial
+    # self-loop.)
+    if value != id and find(scene, to_string(value)) do
+      anchor = el[:anchor] || Scene.anchor(to_string(value), :below, gap: 16)
+      put_field(scene, id, :anchor, %{anchor | to: to_string(value)})
+    else
+      scene
+    end
+  end
+
+  defp put_anchor(scene, id, el, key, value) do
+    case el[:anchor] do
+      nil -> scene
+      anchor -> put_existing_anchor(scene, id, anchor, key, value)
+    end
+  end
+
+  defp put_existing_anchor(scene, id, anchor, :edge, value) do
+    if value in @enum_fields["anchor_edge"] do
+      put_field(scene, id, :anchor, %{anchor | edge: String.to_existing_atom(value)})
+    else
+      scene
+    end
+  end
+
+  defp put_existing_anchor(scene, id, anchor, :gap, value) do
+    case Float.parse(to_string(value)) do
+      {n, _} -> put_field(scene, id, :anchor, %{anchor | gap: clamp(n, 0, 400)})
+      :error -> scene
+    end
+  end
+
+  defp put_existing_anchor(scene, _id, _anchor, _key, _value), do: scene
 
   # Preset gradient masks for the image "Fade edge" control — the
   # split-card effect (photo fading into the text field). Angle

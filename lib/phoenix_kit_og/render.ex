@@ -96,18 +96,22 @@ defmodule PhoenixKitOG.Render do
   # legitimately exceed this.
   @max_dimension 4_000
 
+  defp cache_and_url(key, png_bytes) do
+    case Cache.write(key, png_bytes) do
+      :ok ->
+        {:ok, cache_url(key)}
+
+      {:error, reason} = err ->
+        Logger.warning("[PhoenixKitOG.Render] cache write failed: #{inspect(reason)}")
+        err
+    end
+  end
+
   defp render_and_cache(scene, values, globals, key) do
     if OpenFresco.rasterizer_available?() do
       case OpenFresco.render(scene, values, globals: globals, max_dimension: @max_dimension) do
         {:ok, png_bytes, _meta} ->
-          case Cache.write(key, png_bytes) do
-            :ok ->
-              {:ok, cache_url(key)}
-
-            {:error, reason} = err ->
-              Logger.warning("[PhoenixKitOG.Render] cache write failed: #{inspect(reason)}")
-              err
-          end
+          cache_and_url(key, png_bytes)
 
         {:error, reason} = err ->
           Logger.warning("[PhoenixKitOG.Render] render failed: #{inspect(reason)}")

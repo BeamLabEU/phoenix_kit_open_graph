@@ -1,4 +1,6 @@
 defmodule PhoenixKitOG.AssignmentsTest do
+  alias PhoenixKitOG.Test.Repo
+
   @moduledoc """
   Context tests for Assignments — the set/clear/update upsert paths, the
   concurrent-set constraint guard, and (the crown jewel) the
@@ -55,7 +57,7 @@ defmodule PhoenixKitOG.AssignmentsTest do
                  scope_uuid: g,
                  template_uuid: t.uuid
                })
-               |> PhoenixKitOG.Test.Repo.insert()
+               |> Repo.insert()
 
       assert existing.template_uuid == t.uuid
     end

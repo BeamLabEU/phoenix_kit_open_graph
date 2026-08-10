@@ -22,6 +22,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
   use Gettext, backend: PhoenixKitOG.Gettext
 
   alias Phoenix.LiveView.JS
+  alias PhoenixKit.Modules.Storage
   alias PhoenixKitOG.Paths
 
   def render(assigns) do
@@ -1336,8 +1337,8 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
   defp media_preview_url("data:" <> _ = url), do: url
 
   defp media_preview_url(uuid) when is_binary(uuid) do
-    PhoenixKit.Modules.Storage.get_public_url_by_uuid(uuid, "medium") ||
-      PhoenixKit.Modules.Storage.get_public_url_by_uuid(uuid)
+    Storage.get_public_url_by_uuid(uuid, "medium") ||
+      Storage.get_public_url_by_uuid(uuid)
   rescue
     _ -> nil
   end

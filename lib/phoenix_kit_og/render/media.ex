@@ -26,6 +26,8 @@ defmodule PhoenixKitOG.Render.Media do
   """
 
   alias OpenFresco.Scene
+  alias PhoenixKit.Modules.Storage
+  alias PhoenixKit.Modules.Storage.Manager
 
   @public_bg_fallback "#0b1220"
 
@@ -53,16 +55,20 @@ defmodule PhoenixKitOG.Render.Media do
   def resolve_values(values, slots) do
     image_slots = for %{name: n, type: :image} <- slots, into: MapSet.new(), do: n
 
-    Enum.reduce(values, %{}, fn {k, v}, acc ->
-      if MapSet.member?(image_slots, k) do
-        case resolve_image_value(v) do
-          nil -> acc
-          resolved -> Map.put(acc, k, resolved)
-        end
-      else
-        Map.put(acc, k, v)
+    Enum.reduce(values, %{}, &put_resolved(&1, &2, image_slots))
+  end
+
+  # An image slot whose value cannot be resolved is DROPPED rather than kept
+  # as-is — the caller treats a missing key as "unresolved".
+  defp put_resolved({k, v}, acc, image_slots) do
+    if MapSet.member?(image_slots, k) do
+      case resolve_image_value(v) do
+        nil -> acc
+        resolved -> Map.put(acc, k, resolved)
       end
-    end)
+    else
+      Map.put(acc, k, v)
+    end
   end
 
   @doc """
@@ -151,20 +157,18 @@ defmodule PhoenixKitOG.Render.Media do
         end)
       end)
 
-    update_in(scene.canvas, fn canvas ->
-      case canvas do
-        %{background: %{type: :image, value: value}} ->
-          if unresolved_image?(value, values) do
-            %{canvas | background: Scene.solid(@public_bg_fallback)}
-          else
-            canvas
-          end
-
-        _ ->
-          canvas
-      end
-    end)
+    update_in(scene.canvas, &fallback_background(&1, values))
   end
+
+  defp fallback_background(%{background: %{type: :image, value: value}} = canvas, values) do
+    if unresolved_image?(value, values) do
+      %{canvas | background: Scene.solid(@public_bg_fallback)}
+    else
+      canvas
+    end
+  end
+
+  defp fallback_background(canvas, _values), do: canvas
 
   defp unresolved_image?(%{placeholder: name}, values) do
     case Map.get(values, name) do
@@ -197,9 +201,9 @@ defmodule PhoenixKitOG.Render.Media do
 
   defp read_local_bytes(uuid, variant) do
     with %{file_name: file_path, mime_type: mime} <-
-           PhoenixKit.Modules.Storage.get_file_instance_by_name(uuid, variant),
+           Storage.get_file_instance_by_name(uuid, variant),
          {:ok, local_path} <-
-           PhoenixKit.Modules.Storage.Manager.get_local_file_path(file_path),
+           Manager.get_local_file_path(file_path),
          {:ok, bytes} <- File.read(local_path) do
       {:ok, bytes, mime || "application/octet-stream"}
     else

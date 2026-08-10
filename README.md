@@ -29,7 +29,7 @@ Add `phoenix_kit_og` to your `mix.exs` deps, alongside `phoenix_kit` itself:
 def deps do
   [
     {:phoenix_kit, "~> 1.7"},
-    {:phoenix_kit_og, "~> 0.1"}
+    {:phoenix_kit_og, "~> 0.3"}
   ]
 end
 ```

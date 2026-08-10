@@ -1,7 +1,7 @@
 defmodule PhoenixKitOG.MixProject do
   use Mix.Project
 
-  @version "0.2.1"
+  @version "0.3.0"
   @source_url "https://github.com/BeamLabEU/phoenix_kit_og"
 
   def project do
@@ -15,7 +15,7 @@ defmodule PhoenixKitOG.MixProject do
       aliases: aliases(),
       description: "OpenGraph template + hierarchical assignment module for PhoenixKit",
       package: package(),
-      dialyzer: [plt_add_apps: [:phoenix_kit]],
+      dialyzer: [plt_add_apps: [:phoenix_kit], ignore_warnings: ".dialyzer_ignore.exs"],
       name: "PhoenixKitOG",
       source_url: @source_url,
       docs: docs()
@@ -58,7 +58,7 @@ defmodule PhoenixKitOG.MixProject do
 
   defp deps do
     [
-      pk_dep(:phoenix_kit, "~> 1.7.189"),
+      pk_dep(:phoenix_kit, "~> 2.0"),
       {:phoenix_live_view, "~> 1.1"},
       {:ecto_sql, "~> 3.13"},
       # Scene model + editor stage + server-side SVG/PNG rendering for OG
