@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.1 - 2026-08-11
+
+### Added
+
+- **A conformance test for the `:phoenix_kit` requirement** (#6). The pin is a
+  contract with consumers and nothing here exercised it: a host depending on
+  both this module and a core version the requirement excludes gets an
+  unsolvable dependency set and `mix deps.get` fails outright, while this
+  repo's own suite stays green. The specific trap is the three-segment form —
+  `~> 2.0.x` expands to `< 2.1.0`, so no core 2.1 satisfies it.
+
+  The check reads the resolved dep first and falls back to the committed
+  literal in `mix.exs`, so it stays meaningful under the `PHOENIX_KIT_PATH`
+  override while still failing when a `path:` dep is genuinely committed.
+
 ## 0.3.0 - 2026-08-10
 
 ### Changed
