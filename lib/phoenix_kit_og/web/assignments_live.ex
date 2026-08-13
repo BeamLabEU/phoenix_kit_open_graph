@@ -581,6 +581,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
         module_variables={@module_variables}
         preview_url={@preview_url}
         preview_error={@preview_error}
+        preview_loading={@preview_loading}
         preview_group_slug={@preview_group_slug}
         preview_posts={@preview_posts}
         preview_post_uuid={@preview_post_uuid}
@@ -698,6 +699,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   attr(:module_variables, :list, required: true)
   attr(:preview_url, :string, default: nil)
   attr(:preview_error, :string, default: nil)
+  attr(:preview_loading, :boolean, default: false)
   attr(:preview_group_slug, :string, default: nil)
   attr(:preview_posts, :list, default: [])
   attr(:preview_post_uuid, :string, default: nil)
