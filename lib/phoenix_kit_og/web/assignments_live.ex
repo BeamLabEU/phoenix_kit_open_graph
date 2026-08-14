@@ -738,10 +738,10 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
         <div class="space-y-3">
           <div>
             <label class="label py-0.5">
-              <span class="label-text text-xs font-medium">{gettext("Applies to")}</span>
+              <span class="fieldset-legend text-xs font-medium">{gettext("Applies to")}</span>
             </label>
             <form phx-change="edit_change_scope">
-              <select name="scope" class="select select-bordered select-sm w-full">
+              <select name="scope" class="select select-sm w-full">
                 <option value="default" selected={@state.scope == "default"}>
                   {gettext("Whole Publishing module (default)")}
                 </option>
@@ -754,10 +754,10 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
 
           <div :if={@state.scope == "group"}>
             <label class="label py-0.5">
-              <span class="label-text text-xs font-medium">{gettext("Group")}</span>
+              <span class="fieldset-legend text-xs font-medium">{gettext("Group")}</span>
             </label>
             <form phx-change="edit_change_group">
-              <select name="group_uuid" class="select select-bordered select-sm w-full">
+              <select name="group_uuid" class="select select-sm w-full">
                 <option value="">{gettext("— pick a group —")}</option>
                 <option
                   :for={g <- @groups}
@@ -775,10 +775,10 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
 
           <div>
             <label class="label py-0.5">
-              <span class="label-text text-xs font-medium">{gettext("Template")}</span>
+              <span class="fieldset-legend text-xs font-medium">{gettext("Template")}</span>
             </label>
             <form phx-change="edit_change_template">
-              <select name="template_uuid" class="select select-bordered select-sm w-full">
+              <select name="template_uuid" class="select select-sm w-full">
                 <option value="">{gettext("— pick a template —")}</option>
                 <option
                   :for={t <- @templates}
@@ -854,11 +854,11 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
       <div class="grid grid-cols-2 gap-2 mb-2">
         <form phx-change="change_preview_group">
           <label class="label py-0.5">
-            <span class="label-text text-[10px] uppercase tracking-wide text-base-content/50">
+            <span class="fieldset-legend text-[10px] uppercase tracking-wide text-base-content/50">
               {gettext("Group")}
             </span>
           </label>
-          <select name="group_slug" class="select select-bordered select-xs w-full">
+          <select name="group_slug" class="select select-xs w-full">
             <option value="">{gettext("— none —")}</option>
             <option
               :for={g <- @groups}
@@ -872,13 +872,13 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
 
         <form phx-change="change_preview_post">
           <label class="label py-0.5">
-            <span class="label-text text-[10px] uppercase tracking-wide text-base-content/50">
+            <span class="fieldset-legend text-[10px] uppercase tracking-wide text-base-content/50">
               {gettext("Post")}
             </span>
           </label>
           <select
             name="post_uuid"
-            class="select select-bordered select-xs w-full"
+            class="select select-xs w-full"
             disabled={@posts == []}
           >
             <%= if @posts == [] do %>
@@ -1005,7 +1005,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
       <div class="space-y-1">
         <form phx-change="edit_wire_slot">
           <input type="hidden" name="slot" value={@slot.name} />
-          <select name="variable" class="select select-bordered select-sm w-full">
+          <select name="variable" class="select select-sm w-full">
             <option value="">{gettext("— Not wired —")}</option>
             <optgroup label={gettext("Variables")}>
               <option
@@ -1036,7 +1036,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
                 value={@custom_value}
                 phx-debounce="200"
                 placeholder={gettext("Literal text (or {{name}} / [[name]])")}
-                class="input input-bordered input-sm w-full font-mono text-xs"
+                class="input input-sm w-full font-mono text-xs"
               />
             </form>
           <% end %>
@@ -1078,7 +1078,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
             value={@value}
             phx-debounce="200"
             placeholder={gettext("Media UUID or URL")}
-            class="input input-bordered input-sm w-full font-mono text-xs"
+            class="input input-sm w-full font-mono text-xs"
           />
         </form>
         <button
