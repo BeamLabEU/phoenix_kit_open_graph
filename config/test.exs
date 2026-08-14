@@ -17,3 +17,17 @@ config :phoenix_kit, repo: PhoenixKitOG.Test.Repo
 config :phoenix, :json_library, Jason
 
 config :logger, level: :warning
+
+# Test endpoint config — minimal but sufficient for Phoenix.LiveViewTest.
+# Real apps load their full endpoint config from runtime.exs; this is just
+# enough for `live/2` to drive the LiveViews. Same recipe as
+# phoenix_kit_entities.
+config :phoenix_kit_og, PhoenixKitOG.Test.Endpoint,
+  url: [host: "localhost"],
+  secret_key_base: String.duplicate("a", 64),
+  live_view: [signing_salt: "og-lv-test-salt"],
+  render_errors: [
+    formats: [html: PhoenixKitOG.Test.Layouts],
+    layout: false
+  ],
+  server: false

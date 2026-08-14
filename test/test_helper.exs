@@ -106,6 +106,13 @@ end
 if Code.ensure_loaded?(PhoenixKit.PubSub.Manager), do: PhoenixKit.PubSub.Manager.start_link([])
 if Code.ensure_loaded?(PhoenixKit.ModuleRegistry), do: PhoenixKit.ModuleRegistry.start_link([])
 
+# Start the test endpoint so Phoenix.LiveViewTest can drive the admin LVs.
+# Needs the repo: every LV loads from the DB at mount, so LiveCase tests are
+# `:integration`-tagged and excluded together with the rest when it's absent.
+if repo_available and og_tables_present do
+  {:ok, _pid} = PhoenixKitOG.Test.Endpoint.start_link()
+end
+
 :persistent_term.put({PhoenixKit.Config, :url_prefix}, "/")
 
 # Quiet expected "Failed to query setting …" OwnershipError noise: background
