@@ -742,7 +742,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
             <label class="label py-0.5">
               <span class="label-text text-xs font-medium">{gettext("Applies to")}</span>
             </label>
-            <form phx-change="edit_change_scope">
+            <form id="og-assign-scope-form" phx-change="edit_change_scope">
               <select name="scope" class="select select-bordered select-sm w-full">
                 <option value="default" selected={@state.scope == "default"}>
                   {gettext("Whole Publishing module (default)")}
@@ -758,7 +758,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
             <label class="label py-0.5">
               <span class="label-text text-xs font-medium">{gettext("Group")}</span>
             </label>
-            <form phx-change="edit_change_group">
+            <form id="og-assign-group-form" phx-change="edit_change_group">
               <select name="group_uuid" class="select select-bordered select-sm w-full">
                 <option value="">{gettext("— pick a group —")}</option>
                 <option
@@ -779,7 +779,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
             <label class="label py-0.5">
               <span class="label-text text-xs font-medium">{gettext("Template")}</span>
             </label>
-            <form phx-change="edit_change_template">
+            <form id="og-assign-template-form" phx-change="edit_change_template">
               <select name="template_uuid" class="select select-bordered select-sm w-full">
                 <option value="">{gettext("— pick a template —")}</option>
                 <option
@@ -854,7 +854,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
       </div>
 
       <div class="grid grid-cols-2 gap-2 mb-2">
-        <form phx-change="change_preview_group">
+        <form id="og-preview-group-form" phx-change="change_preview_group">
           <label class="label py-0.5">
             <span class="label-text text-[10px] uppercase tracking-wide text-base-content/50">
               {gettext("Group")}
@@ -872,7 +872,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
           </select>
         </form>
 
-        <form phx-change="change_preview_post">
+        <form id="og-preview-post-form" phx-change="change_preview_post">
           <label class="label py-0.5">
             <span class="label-text text-[10px] uppercase tracking-wide text-base-content/50">
               {gettext("Post")}
@@ -1005,7 +1005,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
       </span>
       <span class="text-base-content/40 mt-1.5">→</span>
       <div class="space-y-1">
-        <form phx-change="edit_wire_slot">
+        <form id={"og-wire-slot-form-#{@slot.name}"} phx-change="edit_wire_slot">
           <input type="hidden" name="slot" value={@slot.name} />
           <select name="variable" class="select select-bordered select-sm w-full">
             <option value="">{gettext("— Not wired —")}</option>
@@ -1030,7 +1030,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
           <%= if @slot.type == :image do %>
             <.slot_custom_media slot={@slot.name} value={@custom_value} />
           <% else %>
-            <form phx-change="edit_wire_slot_custom">
+            <form id={"og-wire-slot-custom-form-#{@slot.name}"} phx-change="edit_wire_slot_custom">
               <input type="hidden" name="slot" value={@slot.name} />
               <input
                 type="text"
@@ -1072,7 +1072,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
         />
       <% end %>
       <div class="flex items-center gap-1">
-        <form phx-change="edit_wire_slot_custom" class="flex-1">
+        <form id={"og-wire-slot-media-form-#{@slot}"} phx-change="edit_wire_slot_custom" class="flex-1">
           <input type="hidden" name="slot" value={@slot} />
           <input
             type="text"
