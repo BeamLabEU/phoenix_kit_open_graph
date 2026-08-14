@@ -60,7 +60,7 @@ defmodule PhoenixKitOG do
   # ===========================================================================
 
   @impl PhoenixKit.Module
-  def version, do: "0.3.2"
+  def version, do: "0.3.3"
 
   @impl PhoenixKit.Module
   def permission_metadata do

@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.3 - 2026-08-14
+
+### Fixed
+
+- **The assignment modal crashed with `KeyError :preview_loading` as soon as a
+  template was picked**, which made the assignments screen unusable end to end:
+  an assignment cannot be saved without choosing a template, and choosing one is
+  what crashed. `edit_modal/1` is a function component, so `@preview_loading` in
+  its body reads *that component's* assigns — and it was neither declared as an
+  `attr` nor passed at the call site. Both are now in place (#8, #7).
+
+  It survived four releases because the read sits behind
+  `:if={@selected_template}`, and HEEx wraps the whole component invocation —
+  attribute expressions included — in that conditional, so the modal rendered
+  fine until a template was picked. Nothing warns at compile time.
+
+- **The three scope/group/template forms had no `id`.** A `phx-change` form
+  without one silently disables LiveView form recovery.
+
+### Added
+
+- **LiveView test plumbing** (`test/support/{live_case,test_endpoint,test_hooks,
+  test_layouts,test_router}.ex`) — this package had none, so nothing could
+  render a LiveView under test. Plus a regression guard pinning the invariant
+  the bug broke: `edit_modal/1` reads no assign it neither declares nor assigns,
+  and the call site passes `preview_loading` through (the attr defaults to
+  `false`, so a dropped pass-through would otherwise kill the spinner silently).
+
+### Changed
+
+- Dependency updates: `phoenix_kit` 2.4.0. The `~> 2.0` pin is unchanged —
+  nothing here uses core's new `Slug.put_slug/3`.
+
 ## 0.3.2 - 2026-08-11
 
 ### Changed
