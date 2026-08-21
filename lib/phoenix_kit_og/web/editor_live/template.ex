@@ -55,7 +55,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
               <%!-- Platform frames are chrome around the LIVE stage — the
                    card is identical everywhere (1.91:1), so no separate
                    rendered preview is needed. --%>
-              <div class="tabs tabs-boxed tabs-sm bg-base-200 p-0.5">
+              <div class="tabs tabs-box tabs-sm bg-base-200 p-0.5">
                 <button
                   :for={{key, label} <- platform_tabs()}
                   type="button"
@@ -234,7 +234,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         <.link navigate={Paths.templates()} class="btn btn-ghost btn-sm">
           <.icon name="hero-arrow-left" class="w-4 h-4" />
         </.link>
-        <form phx-change="update_template_name" class="flex-1 min-w-0">
+        <form id="og-editor-name-form" phx-change="update_template_name" class="flex-1 min-w-0">
           <input
             type="text"
             name="name"
@@ -501,7 +501,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           </h3>
         </header>
 
-        <form phx-change="update_canvas" class="tabs tabs-boxed bg-base-200 p-0.5">
+        <form id="og-canvas-size-form" phx-change="update_canvas" class="tabs tabs-box bg-base-200 p-0.5">
           <input type="hidden" name="field" value="bg_type" />
           <label class={"tab tab-sm flex-1 #{@bg_type == :solid && "tab-active"}"}>
             <input type="radio" name="value" value="solid" checked={@bg_type == :solid} class="sr-only" />
@@ -542,7 +542,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
                 <span class="fieldset-legend text-xs">{gettext("Fit")}</span>
               </label>
               <% fit = Map.get(@bg, :fit, :cover) %>
-              <form phx-change="update_canvas" class="tabs tabs-boxed bg-base-200 p-0.5">
+              <form id="og-canvas-bg-type-form" phx-change="update_canvas" class="tabs tabs-box bg-base-200 p-0.5">
                 <input type="hidden" name="field" value="bg_image_fit" />
                 <label
                   :for={{v, l} <- [{"cover", gettext("Fill")}, {"contain", gettext("Contain")}, {"stretch", gettext("Stretch")}]}
@@ -587,7 +587,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           <span class="fieldset-legend text-xs">{gettext("Angle")}</span>
           <span class="text-xs text-base-content/50">{@angle}°</span>
         </label>
-        <form phx-change="update_canvas">
+        <form id={"og-gradient-dir-form"} phx-change="update_canvas">
           <input type="hidden" name="field" value="bg_gradient_angle" />
           <input
             type="range"
@@ -634,7 +634,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         <label class="label py-0.5">
           <span class="fieldset-legend text-xs">{gettext("Source")}</span>
         </label>
-        <div class="tabs tabs-boxed bg-base-200 p-0.5">
+        <div class="tabs tabs-box bg-base-200 p-0.5">
           <button
             type="button"
             phx-click={mode_event(@el_id, "constant")}
@@ -659,7 +659,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           <label class="label py-0.5">
             <span class="fieldset-legend text-xs">{gettext("Variable name")}</span>
           </label>
-          <form phx-change={@form_event} class="flex items-center gap-2">
+          <form id={"og-image-value-form-#{@el_id || "canvas"}-#{@variable_field}"} phx-change={@form_event} class="flex items-center gap-2">
             <input :if={@el_id} type="hidden" name="el_id" value={@el_id} />
             <input type="hidden" name="field" value={@variable_field} />
             <span class="text-xs text-base-content/50 font-mono"><%= "{{" %></span>
@@ -793,7 +793,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           </span>
         </span>
       </label>
-      <form phx-change="update_prop">
+      <form id={"og-anchor-x-form-#{@el.id}"} phx-change="update_prop">
         <input type="hidden" name="el_id" value={@el.id} />
         <input type="hidden" name="field" value="anchor_to" />
         <label class="select select-sm w-full">
@@ -808,7 +808,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
 
       <div :if={@anchor} class="grid grid-cols-2 gap-2">
         <div>
-          <form phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
+          <form id={"og-anchor-y-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-box bg-base-200 p-0.5">
             <input type="hidden" name="el_id" value={@el.id} />
             <input type="hidden" name="field" value="anchor_edge" />
             <label class={"tab tab-sm flex-1 #{@anchor.edge == :below && "tab-active"}"}>
@@ -857,7 +857,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           <label class="label py-0.5">
             <span class="fieldset-legend text-xs">{gettext("Variable name")}</span>
           </label>
-          <form phx-change="update_prop_variable" class="flex items-center gap-2">
+          <form id={"og-text-variable-form-#{@el.id}"} phx-change="update_prop_variable" class="flex items-center gap-2">
             <input type="hidden" name="el_id" value={@el.id} />
             <input type="hidden" name="field" value="value" />
             <span class="text-xs text-base-content/50 font-mono"><%= "{{" %></span>
@@ -871,7 +871,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           </form>
         </div>
       <% else %>
-        <form phx-change="update_prop">
+        <form id={"og-text-value-form-#{@el.id}"} phx-change="update_prop">
           <input type="hidden" name="el_id" value={@el.id} />
           <input type="hidden" name="field" value="value" />
           <textarea
@@ -894,7 +894,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         <label class="label py-0.5">
           <span class="fieldset-legend text-xs">{gettext("Align")}</span>
         </label>
-        <form phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
+        <form id={"og-text-align-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-box bg-base-200 p-0.5">
           <input type="hidden" name="el_id" value={@el.id} />
           <input type="hidden" name="field" value="align" />
           <label
@@ -936,7 +936,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         <label class="label py-0.5">
           <span class="fieldset-legend text-xs">{gettext("Fit")}</span>
         </label>
-        <form phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
+        <form id={"og-image-fit-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-box bg-base-200 p-0.5">
           <input type="hidden" name="el_id" value={@el.id} />
           <input type="hidden" name="field" value="fit" />
           <label
@@ -971,7 +971,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         <%= if mask_edge == "custom" do %>
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs text-base-content/50">{gettext("Custom mask (set via API)")}</span>
-            <form phx-change="update_prop">
+            <form id={"og-image-radius-form-#{@el.id}"} phx-change="update_prop">
               <input type="hidden" name="el_id" value={@el.id} />
               <input type="hidden" name="field" value="mask_edge" />
               <button type="submit" name="value" value="none" class="btn btn-outline btn-xs">
@@ -980,7 +980,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
             </form>
           </div>
         <% else %>
-          <form phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
+          <form id={"og-image-mask-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-box bg-base-200 p-0.5">
             <input type="hidden" name="el_id" value={@el.id} />
             <input type="hidden" name="field" value="mask_edge" />
             <label
@@ -1054,7 +1054,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
               {gettext("Label variable (translatable per post language)")}
             </span>
           </label>
-          <form phx-change="update_prop_variable" class="flex items-center gap-2">
+          <form id={"og-button-variable-form-#{@el.id}"} phx-change="update_prop_variable" class="flex items-center gap-2">
             <input type="hidden" name="el_id" value={@el.id} />
             <input type="hidden" name="field" value="label" />
             <span class="text-xs text-base-content/50 font-mono"><%= "{{" %></span>
@@ -1072,7 +1072,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           <label class="label py-0.5">
             <span class="fieldset-legend text-xs">{gettext("Label")}</span>
           </label>
-          <form phx-change="update_prop">
+          <form id={"og-button-label-form-#{@el.id}"} phx-change="update_prop">
             <input type="hidden" name="el_id" value={@el.id} />
             <input type="hidden" name="field" value="label" />
             <input
@@ -1090,7 +1090,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         <label class="label py-0.5">
           <span class="fieldset-legend text-xs">{gettext("Style")}</span>
         </label>
-        <form phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
+        <form id={"og-button-align-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-box bg-base-200 p-0.5">
           <input type="hidden" name="el_id" value={@el.id} />
           <input type="hidden" name="field" value="preset" />
           <label
@@ -1125,7 +1125,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
       </div>
 
       <label class="label cursor-pointer justify-start gap-2 py-1">
-        <form phx-change="update_prop">
+        <form id={"og-button-radius-form-#{@el.id}"} phx-change="update_prop">
           <input type="hidden" name="el_id" value={@el.id} />
           <input type="hidden" name="field" value="auto_width" />
           <input
@@ -1155,7 +1155,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           {round(Map.get(@el, :underlay_opacity, 0) * 100)}%
         </span>
       </label>
-      <form phx-change="update_prop">
+      <form id={"og-underlay-form-#{@el.id}"} phx-change="update_prop">
         <input type="hidden" name="el_id" value={@el.id} />
         <input type="hidden" name="field" value="underlay_opacity" />
         <input
@@ -1188,7 +1188,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
       <label class="label py-0.5">
         <span class="fieldset-legend text-xs">{@label}</span>
       </label>
-      <form phx-change="update_prop">
+      <form id={"og-prop-number-form-#{@el_id}-#{@field}"} phx-change="update_prop">
         <input type="hidden" name="el_id" value={@el_id} />
         <input type="hidden" name="field" value={@field} />
         <input
@@ -1215,7 +1215,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
       <label class="label py-0.5">
         <span class="fieldset-legend text-xs">{@label}</span>
       </label>
-      <form phx-change="update_prop" class="flex items-center gap-2">
+      <form id={"og-prop-color-form-#{@el_id}-#{@field}"} phx-change="update_prop" class="flex items-center gap-2">
         <input type="hidden" name="el_id" value={@el_id} />
         <input type="hidden" name="field" value={@field} />
         <input
@@ -1249,7 +1249,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
       <label class="label py-0.5">
         <span class="fieldset-legend text-xs">{@label}</span>
       </label>
-      <form phx-change="update_canvas" class="flex items-center gap-2">
+      <form id={"og-canvas-color-form-#{@field}"} phx-change="update_canvas" class="flex items-center gap-2">
         <input type="hidden" name="field" value={@field} />
         <input
           type="color"
