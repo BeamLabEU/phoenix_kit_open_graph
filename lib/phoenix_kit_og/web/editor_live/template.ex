@@ -55,7 +55,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
               <%!-- Platform frames are chrome around the LIVE stage — the
                    card is identical everywhere (1.91:1), so no separate
                    rendered preview is needed. --%>
-              <div class="tabs tabs-boxed tabs-sm bg-base-200 p-0.5">
+              <div class="tabs tabs-box tabs-sm bg-base-200 p-0.5">
                 <button
                   :for={{key, label} <- platform_tabs()}
                   type="button"
@@ -501,7 +501,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           </h3>
         </header>
 
-        <form id="og-canvas-size-form" phx-change="update_canvas" class="tabs tabs-boxed bg-base-200 p-0.5">
+        <form id="og-canvas-size-form" phx-change="update_canvas" class="tabs tabs-box bg-base-200 p-0.5">
           <input type="hidden" name="field" value="bg_type" />
           <label class={"tab tab-sm flex-1 #{@bg_type == :solid && "tab-active"}"}>
             <input type="radio" name="value" value="solid" checked={@bg_type == :solid} class="sr-only" />
@@ -542,7 +542,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
                 <span class="fieldset-legend text-xs">{gettext("Fit")}</span>
               </label>
               <% fit = Map.get(@bg, :fit, :cover) %>
-              <form id="og-canvas-bg-type-form" phx-change="update_canvas" class="tabs tabs-boxed bg-base-200 p-0.5">
+              <form id="og-canvas-bg-type-form" phx-change="update_canvas" class="tabs tabs-box bg-base-200 p-0.5">
                 <input type="hidden" name="field" value="bg_image_fit" />
                 <label
                   :for={{v, l} <- [{"cover", gettext("Fill")}, {"contain", gettext("Contain")}, {"stretch", gettext("Stretch")}]}
@@ -634,7 +634,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         <label class="label py-0.5">
           <span class="fieldset-legend text-xs">{gettext("Source")}</span>
         </label>
-        <div class="tabs tabs-boxed bg-base-200 p-0.5">
+        <div class="tabs tabs-box bg-base-200 p-0.5">
           <button
             type="button"
             phx-click={mode_event(@el_id, "constant")}
@@ -808,7 +808,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
 
       <div :if={@anchor} class="grid grid-cols-2 gap-2">
         <div>
-          <form id={"og-anchor-y-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
+          <form id={"og-anchor-y-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-box bg-base-200 p-0.5">
             <input type="hidden" name="el_id" value={@el.id} />
             <input type="hidden" name="field" value="anchor_edge" />
             <label class={"tab tab-sm flex-1 #{@anchor.edge == :below && "tab-active"}"}>
@@ -894,7 +894,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         <label class="label py-0.5">
           <span class="fieldset-legend text-xs">{gettext("Align")}</span>
         </label>
-        <form id={"og-text-align-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
+        <form id={"og-text-align-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-box bg-base-200 p-0.5">
           <input type="hidden" name="el_id" value={@el.id} />
           <input type="hidden" name="field" value="align" />
           <label
@@ -936,7 +936,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         <label class="label py-0.5">
           <span class="fieldset-legend text-xs">{gettext("Fit")}</span>
         </label>
-        <form id={"og-image-fit-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
+        <form id={"og-image-fit-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-box bg-base-200 p-0.5">
           <input type="hidden" name="el_id" value={@el.id} />
           <input type="hidden" name="field" value="fit" />
           <label
@@ -980,7 +980,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
             </form>
           </div>
         <% else %>
-          <form id={"og-image-mask-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
+          <form id={"og-image-mask-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-box bg-base-200 p-0.5">
             <input type="hidden" name="el_id" value={@el.id} />
             <input type="hidden" name="field" value="mask_edge" />
             <label
@@ -1090,7 +1090,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         <label class="label py-0.5">
           <span class="fieldset-legend text-xs">{gettext("Style")}</span>
         </label>
-        <form id={"og-button-align-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-boxed bg-base-200 p-0.5">
+        <form id={"og-button-align-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-box bg-base-200 p-0.5">
           <input type="hidden" name="el_id" value={@el.id} />
           <input type="hidden" name="field" value="preset" />
           <label
