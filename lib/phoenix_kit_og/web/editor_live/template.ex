@@ -501,7 +501,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           </h3>
         </header>
 
-        <form id="og-canvas-size-form" phx-change="update_canvas" class="tabs tabs-box bg-base-200 p-0.5">
+        <form id="og-canvas-bg-type-form" phx-change="update_canvas" class="tabs tabs-box bg-base-200 p-0.5">
           <input type="hidden" name="field" value="bg_type" />
           <label class={"tab tab-sm flex-1 #{@bg_type == :solid && "tab-active"}"}>
             <input type="radio" name="value" value="solid" checked={@bg_type == :solid} class="sr-only" />
@@ -542,7 +542,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
                 <span class="fieldset-legend text-xs">{gettext("Fit")}</span>
               </label>
               <% fit = Map.get(@bg, :fit, :cover) %>
-              <form id="og-canvas-bg-type-form" phx-change="update_canvas" class="tabs tabs-box bg-base-200 p-0.5">
+              <form id="og-canvas-bg-fit-form" phx-change="update_canvas" class="tabs tabs-box bg-base-200 p-0.5">
                 <input type="hidden" name="field" value="bg_image_fit" />
                 <label
                   :for={{v, l} <- [{"cover", gettext("Fill")}, {"contain", gettext("Contain")}, {"stretch", gettext("Stretch")}]}
@@ -587,7 +587,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
           <span class="fieldset-legend text-xs">{gettext("Angle")}</span>
           <span class="text-xs text-base-content/50">{@angle}°</span>
         </label>
-        <form id={"og-gradient-dir-form"} phx-change="update_canvas">
+        <form id="og-gradient-dir-form" phx-change="update_canvas">
           <input type="hidden" name="field" value="bg_gradient_angle" />
           <input
             type="range"
@@ -1090,7 +1090,7 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
         <label class="label py-0.5">
           <span class="fieldset-legend text-xs">{gettext("Style")}</span>
         </label>
-        <form id={"og-button-align-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-box bg-base-200 p-0.5">
+        <form id={"og-button-preset-form-#{@el.id}"} phx-change="update_prop" class="tabs tabs-box bg-base-200 p-0.5">
           <input type="hidden" name="el_id" value={@el.id} />
           <input type="hidden" name="field" value="preset" />
           <label

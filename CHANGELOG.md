@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.4 - 2026-08-21
+
+### Fixed
+
+- **Every editor `phx-change` form now has an `id`**, so LiveView form
+  recovery actually works on the canvas — the same gap 0.3.3 closed for
+  the three scope/group/template forms (#9).
+- **daisyUI 4 `tabs-boxed` → v5 `tabs-box`** on the editor's segmented
+  controls. These stay radio inputs in a form, not core's `<.nav_tabs>`
+  (#9).
+- Post-merge: two canvas form ids named for the wrong field
+  (`og-canvas-size-form` was `bg_type`; `og-canvas-bg-type-form` was
+  `bg_image_fit`) plus the button style strip (`preset`, not align).
+
 ## 0.3.3 - 2026-08-14
 
 ### Fixed
