@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.5 - 2026-08-22
+
+### Changed
+
+- **The preview-platform switcher is core's `<.nav_tabs>`** instead of a
+  hand-rolled `tabs-box` strip. Event tabs dispatch `phx-value-tab`, so
+  the handler now matches `%{"tab" => _}` rather than `%{"platform" =>
+  _}` (#10). The nine property-panel segmented controls stay radio
+  inputs in `phx-change` forms — they are not tabs.
+
+- Dependency lock: `phoenix_kit` 2.13.5 → 2.13.6. This call site uses
+  the event-tab API that already shipped in 2.13.5 (`on_change` +
+  `phx-value-tab`); it does not need `:border` or verbatim `:patch`.
+
+### Fixed
+
+- Post-merge: `class="tabs-sm p-0.5"` was appended to boxed's baked-in
+  `p-1`. `class` can only add, so the two padding utilities fought
+  (stylesheet order, not HTML order — `p-1` wins). Dropped `p-0.5` and
+  kept `tabs-sm`. Tab ids are now maps at the source, matching every
+  other event-tab strip.
+
+### Added
+
+- Regression tests for the payload-key contract: a source-level guard
+  that the template is `<.nav_tabs>` matching `%{"tab" => _}` and that
+  `platform_tabs/0` ids stay in sync with `@preview_platforms`, plus a
+  LiveView click that wraps the stage in Facebook chrome and proves the
+  old `%{"platform" => _}` payload is a silent no-op.
+
 ## 0.3.4 - 2026-08-21
 
 ### Fixed

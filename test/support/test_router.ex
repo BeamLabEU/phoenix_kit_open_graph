@@ -1,9 +1,9 @@
 defmodule PhoenixKitOG.Test.Router do
   @moduledoc """
   Minimal Router for the LiveView test suite. Routes match the URLs the OG
-  admin LiveViews are mounted at in production (`/admin/open-graph` and
-  `.../assignments`, with the default "en" locale prefix) so `live/2` calls
-  work with a production-ish URL shape.
+  admin LiveViews are mounted at in production (`/admin/open-graph`,
+  `.../assignments`, and `.../:uuid/edit`, with the default "en" locale
+  prefix) so `live/2` calls work with a production-ish URL shape.
   """
 
   use Phoenix.Router
@@ -26,6 +26,7 @@ defmodule PhoenixKitOG.Test.Router do
       on_mount: {PhoenixKitOG.Test.Hooks, :assign_scope} do
       live("/", TemplatesLive, :index, as: :og_templates)
       live("/assignments", AssignmentsLive, :index, as: :og_assignments)
+      live("/:uuid/edit", EditorLive, :edit, as: :og_editor)
     end
   end
 end

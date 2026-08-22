@@ -55,15 +55,15 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
               <%!-- Platform frames are chrome around the LIVE stage — the
                    card is identical everywhere (1.91:1), so no separate
                    rendered preview is needed. --%>
-              <%!-- Core's <.nav_tabs>, boxed like before (this strip was
-                   tabs-box). Payload key moves platform -> tab. The
-                   phx-change segmented controls further down are NOT tabs
-                   and deliberately stay hand-rolled. --%>
+              <%!-- Core's <.nav_tabs>, boxed (the default — this strip
+                   was tabs-box). Payload key is `tab`. The phx-change
+                   segmented controls further down are radio inputs in
+                   forms, not tabs, and stay hand-rolled. --%>
               <.nav_tabs
-                class="tabs-sm p-0.5"
+                class="tabs-sm"
                 active_tab={@preview_platform}
                 on_change="set_preview_platform"
-                tabs={Enum.map(platform_tabs(), fn {key, label} -> %{id: key, label: label} end)}
+                tabs={platform_tabs()}
               />
 
               <div class="flex items-center gap-2">
@@ -136,14 +136,14 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
     """
   end
 
-  # Tab keys must stay in sync with the LV's @preview_platforms whitelist.
+  # Tab ids must stay in sync with the LV's @preview_platforms whitelist.
   defp platform_tabs do
     [
-      {"card", gettext("Card")},
-      {"facebook", "Facebook"},
-      {"x", "X (Twitter)"},
-      {"linkedin", "LinkedIn"},
-      {"discord", "Discord / Slack"}
+      %{id: "card", label: gettext("Card")},
+      %{id: "facebook", label: "Facebook"},
+      %{id: "x", label: "X (Twitter)"},
+      %{id: "linkedin", label: "LinkedIn"},
+      %{id: "discord", label: "Discord / Slack"}
     ]
   end
 
