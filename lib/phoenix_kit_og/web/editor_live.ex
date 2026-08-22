@@ -197,7 +197,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
   # the card is the same 1.91:1 everywhere, so no separate render.
   @preview_platforms ~w(card facebook x linkedin discord)
 
-  def handle_event("set_preview_platform", %{"platform" => platform}, socket)
+  def handle_event("set_preview_platform", %{"tab" => platform}, socket)
       when platform in @preview_platforms do
     {:noreply, assign(socket, :preview_platform, platform)}
   end

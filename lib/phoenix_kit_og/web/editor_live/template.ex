@@ -55,17 +55,16 @@ defmodule PhoenixKitOG.Web.EditorLive.Template do
               <%!-- Platform frames are chrome around the LIVE stage — the
                    card is identical everywhere (1.91:1), so no separate
                    rendered preview is needed. --%>
-              <div class="tabs tabs-box tabs-sm bg-base-200 p-0.5">
-                <button
-                  :for={{key, label} <- platform_tabs()}
-                  type="button"
-                  phx-click="set_preview_platform"
-                  phx-value-platform={key}
-                  class={["tab tab-sm", @preview_platform == key && "tab-active"]}
-                >
-                  {label}
-                </button>
-              </div>
+              <%!-- Core's <.nav_tabs>, boxed like before (this strip was
+                   tabs-box). Payload key moves platform -> tab. The
+                   phx-change segmented controls further down are NOT tabs
+                   and deliberately stay hand-rolled. --%>
+              <.nav_tabs
+                class="tabs-sm p-0.5"
+                active_tab={@preview_platform}
+                on_change="set_preview_platform"
+                tabs={Enum.map(platform_tabs(), fn {key, label} -> %{id: key, label: label} end)}
+              />
 
               <div class="flex items-center gap-2">
                 <span class="text-xs text-base-content/50">
