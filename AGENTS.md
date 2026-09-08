@@ -363,7 +363,7 @@ otherwise. UUIDv7 PKs; `use PhoenixKit.SchemaPrefix` on both schemas.
 
 - Test DB `phoenix_kit_og_test` (+ `MIX_TEST_PARTITION`). `config/test.exs`
   honours `PGUSER` / `PGPASSWORD` / `PGHOST` (defaults `postgres` /
-  `postgres` / `localhost`); on the Mac's brew Postgres use `PGUSER=maxdon`.
+  `postgres` / `localhost`).
 - `test_helper.exs`: checks the DB exists via `psql -lqt`, starts
   `PhoenixKitOG.Test.Repo`, installs `uuid-ossp` + a `uuid_generate_v7()`
   function, runs `PhoenixKit.Migration.ensure_current/2`, then checks
