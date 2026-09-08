@@ -18,6 +18,8 @@ defmodule PhoenixKitOG do
   alias PhoenixKit.Settings
   alias PhoenixKitOG.{Assignments, Render, SceneStore, Templates, Variables}
 
+  @version Mix.Project.config()[:version]
+
   # ===========================================================================
   # Required PhoenixKit.Module callbacks
   # ===========================================================================
@@ -60,7 +62,7 @@ defmodule PhoenixKitOG do
   # ===========================================================================
 
   @impl PhoenixKit.Module
-  def version, do: "0.3.5"
+  def version, do: @version
 
   @impl PhoenixKit.Module
   def permission_metadata do
