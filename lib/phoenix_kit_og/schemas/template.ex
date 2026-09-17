@@ -26,6 +26,12 @@ defmodule PhoenixKitOG.Schemas.Template do
   @foreign_key_type UUIDv7
   @timestamps_opts [type: :utc_datetime]
 
+  # `phoenix_kit_og_templates` `character varying` column widths,
+  # interpolated into `PhoenixKitOG.Migrations`' V1 DDL — the single source
+  # of truth so the migration chain and core's `ExpectedSchema` manifest can
+  # never independently disagree on a number.
+  @column_widths %{name: 255, description: 1024}
+
   schema "phoenix_kit_og_templates" do
     field :name, :string
     field :description, :string
@@ -45,6 +51,17 @@ defmodule PhoenixKitOG.Schemas.Template do
     |> validate_canvas()
     |> unique_constraint(:name, name: :phoenix_kit_og_templates_name_uniq)
   end
+
+  @doc """
+  `character varying` column widths for `phoenix_kit_og_templates`, keyed
+  by field name.
+
+  The single source of truth `PhoenixKitOG.Migrations`' V1 DDL
+  interpolates, so the migration chain and core's `ExpectedSchema` manifest
+  can never independently disagree on a number.
+  """
+  @spec column_widths() :: %{atom() => pos_integer()}
+  def column_widths, do: @column_widths
 
   # Canvas is freeform JSONB but we require *some* shape: a map at the
   # top level. Element validation lives in the editor / renderer rather

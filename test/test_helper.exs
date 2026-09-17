@@ -76,6 +76,16 @@ repo_available =
             "WHERE table_name = 'phoenix_kit_og_templates')"
         )
 
+      # Also run this module's OWN adoption chain (PhoenixKitOG.Migrations)
+      # against the real database, so the integration suite exercises V1's
+      # guarded DDL for real on every run — not just as parsed text in
+      # migrations_test.exs. A no-op against the shape core's V154 already
+      # created; it just stamps the pkog_schema:1 marker.
+      if og_tables? do
+        PhoenixKitOG.Migrations.up_statements("public", 1)
+        |> Enum.each(&TestRepo.query!(&1))
+      end
+
       Application.put_env(:phoenix_kit_og, :og_tables_present, og_tables?)
 
       Ecto.Adapters.SQL.Sandbox.mode(TestRepo, :manual)

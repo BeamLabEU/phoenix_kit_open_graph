@@ -64,7 +64,10 @@ measurement, anchors, gradients and rasterizing are `open_fresco`'s.
 - **No auth on `/og-image/:key`** — deliberate: crawlers carry no session.
   Consumers therefore only generate OG images for public resources
   (projects does so for public boards only, never capability portals).
-- **No migrations of its own** — both tables ship in core's chain.
+- **No migrations of its own beyond adoption** — core's `V154` still creates
+  both tables inline; this module owns their FUTURE shape via
+  `PhoenixKitOG.Migrations` (`migration_module/0`), whose V1 changes
+  nothing observable — see "Database & migrations" below.
 
 ## Commands
 
@@ -356,13 +359,38 @@ never crashes on a malformed row.
 
 ## Database & migrations
 
-None. Tables `phoenix_kit_og_templates` and `phoenix_kit_og_assignments` ship
-in core's chain (core V154, above the V135 baseline); `migration_module/0` is
-unset. A schema change is a core migration first (plus core's
-`ExpectedSchema`), then schema edits here. Assignment uniqueness is a partial
-index pair because Postgres treats NULL as distinct: one row per
-`(module_key, scope_type)` where `scope_uuid IS NULL`, one per full triple
-otherwise. UUIDv7 PKs; `use PhoenixKit.SchemaPrefix` on both schemas.
+Tables `phoenix_kit_og_templates` and `phoenix_kit_og_assignments` still ship
+in core's chain (core V154, shipped in core 1.7.206, above the V135
+baseline) — core keeps creating both on every install. This module owns
+their FUTURE shape via `PhoenixKitOG.Migrations` (`migration_module/0`),
+discovered the same way `mix phoenix_kit.update` finds any module-owned
+chain. `current_version/0` is `1`, and V1 is pure adoption: it recreates
+core's exact V154 shape under guarded, idempotent DDL (`CREATE TABLE IF NOT
+EXISTS`, semantic PK/UNIQUE/FK/index guards keyed by Postgres catalog
+shape rather than object name — see the module's own moduledoc for why a
+name-based guard is unsafe here) and stamps a `pkog_schema:1` marker
+comment on `phoenix_kit_og_templates`. Nothing about either table's
+observable shape changes on a fresh host or an already-V154+ one.
+
+Phase story (see `PhoenixKitOG.Migrations`'s moduledoc for the full
+version): **Phase 0** (this V1) adopts and changes nothing, so core's
+`ExpectedSchema` manifest stays accurate and no core release is required.
+**Phase 1** — the first version that actually changes either table's shape
+needs a matching core `ExpectedSchema` `@excluded_exact` entry plus a floor
+bump, or `mix phoenix_kit.repair` silently reverts it. **Phase 2** — once
+core cuts its next baseline squash without these two tables, a fresh
+install gets them from this chain's V1 instead.
+
+This chain never drops either table, for any rollback target including
+`0` — `down/1` only ever touches the marker comment. See README.md
+"Removing this module" for the manual, operator-run uninstall path.
+
+A schema change beyond what V1 already adopts is a new chain version here
+first (plus core's `ExpectedSchema` once the version graduates past
+adoption), not a core migration. Assignment uniqueness is a partial index
+pair because Postgres treats NULL as distinct: one row per `(module_key,
+scope_type)` where `scope_uuid IS NULL`, one per full triple otherwise.
+UUIDv7 PKs; `use PhoenixKit.SchemaPrefix` on both schemas.
 
 ## Testing
 
@@ -394,8 +422,11 @@ otherwise. UUIDv7 PKs; `use PhoenixKit.SchemaPrefix` on both schemas.
   row), Assignments upsert / `clear` / `update_slot_mapping`, the concurrent
   duplicate guard (`{:error, changeset}`, never a raised constraint), the
   most-specific-wins hierarchy (nil-scope skip, default fall-through, `:none`,
-  slot-mapping carry), and LV mounts for the three admin pages (assignment
-  modal, preview-platform tabs).
+  slot-mapping carry), LV mounts for the three admin pages (assignment
+  modal, preview-platform tabs), and `PhoenixKitOG.Migrations`
+  (`test/phoenix_kit_og/migrations_*.exs`: protocol/frozen-statements,
+  runtime reader, a renamed-host fixture, an unrelated-expression-index
+  fixture, an invalid-index self-heal fixture, and a data-safety round-trip).
 - Not yet asserted in LV tests: `phx-disable-with` presence, translated
   labels, actor-uuid threading.
 - Known noise without a DB: `Settings read for "project_title" failed …
