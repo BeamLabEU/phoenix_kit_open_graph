@@ -36,7 +36,12 @@ defmodule PhoenixKitOG.MigrationsInvalidIndexTest do
 
   `async: false` — shares the migrator's sandbox connection, like the other
   migration test files that run a real `up/1`.
+
+  Tagged `:requires_superuser`: writing to `pg_index` is superuser-only, so
+  `test_helper.exs` excludes this file when the test role is not one.
   """
+
+  @moduletag :requires_superuser
 
   @prefix "pkoginvalididx_host"
 

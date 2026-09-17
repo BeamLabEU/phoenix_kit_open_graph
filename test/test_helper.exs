@@ -88,6 +88,13 @@ repo_available =
 
       Application.put_env(:phoenix_kit_og, :og_tables_present, og_tables?)
 
+      # Tests that fake catalog states (`UPDATE pg_index ...`) need a
+      # superuser; CI and dev roles often are not one.
+      %{rows: [[superuser?]]} =
+        TestRepo.query!("SELECT rolsuper FROM pg_roles WHERE rolname = current_user")
+
+      Application.put_env(:phoenix_kit_og, :db_superuser, superuser?)
+
       Ecto.Adapters.SQL.Sandbox.mode(TestRepo, :manual)
       true
     rescue
@@ -153,5 +160,12 @@ end
 )
 
 exclude = if repo_available and og_tables_present, do: [], else: [:integration]
+
+exclude =
+  if Application.get_env(:phoenix_kit_og, :db_superuser, false) do
+    exclude
+  else
+    [:requires_superuser | exclude]
+  end
 
 ExUnit.start(exclude: exclude)

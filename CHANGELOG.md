@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.6 - 2026-09-17
+
+### Added
+
+- **Module-owned migrations** (#12). `migration_module/0` now returns
+  `PhoenixKitOG.Migrations`, so `mix phoenix_kit.update` picks the module
+  up. V1 is pure adoption of the two tables core's V154 still creates:
+  `CREATE TABLE IF NOT EXISTS` plus catalog-shape guards for the primary
+  keys, the name UNIQUE constraint, the FK and the 3 indexes (safe on a
+  host that renamed tables or objects), a DROP-first self-heal for an
+  invalid canonically named index, and a `pkog_schema:1` marker comment
+  on `phoenix_kit_og_templates`. Nothing observable changes; `down/1`
+  never drops a table. README gains a "Removing this module" section.
+- `Template.column_widths/0` and `Assignment.column_widths/0`, the single
+  source for the varchar widths the migration DDL uses.
+
+### Changed
+
+- Dependency lock: `phoenix_kit` 2.13.6 → 2.28.1, plus routine bumps.
+
+### Fixed
+
+- Post-merge: the invalid-index migration tests fake a crashed build with
+  `UPDATE pg_index`, which only a superuser may run, so they failed under
+  an ordinary test role. They are now tagged `:requires_superuser` and
+  excluded when the role lacks `rolsuper`.
+
 ## 0.3.5 - 2026-08-22
 
 ### Changed

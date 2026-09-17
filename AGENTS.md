@@ -427,6 +427,9 @@ UUIDv7 PKs; `use PhoenixKit.SchemaPrefix` on both schemas.
   (`test/phoenix_kit_og/migrations_*.exs`: protocol/frozen-statements,
   runtime reader, a renamed-host fixture, an unrelated-expression-index
   fixture, an invalid-index self-heal fixture, and a data-safety round-trip).
+  The invalid-index fixture fakes a crashed build with `UPDATE pg_index`,
+  which is superuser-only: it is tagged `:requires_superuser` and
+  `test_helper.exs` excludes it when the test role lacks `rolsuper`.
 - Not yet asserted in LV tests: `phx-disable-with` presence, translated
   labels, actor-uuid threading.
 - Known noise without a DB: `Settings read for "project_title" failed …

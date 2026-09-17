@@ -18,7 +18,7 @@ defmodule PhoenixKitOG.Migrations do
   ## Ownership situation — read before touching
 
   Both tables are core's baseline today, created inline by core migration
-  `V154` (shipped in core `1.7.206`, per `/app/CHANGELOG.md`). Core's
+  `V154` (shipped in core `1.7.206`, per core's `CHANGELOG.md`). Core's
   `ExpectedSchema` manifest carries every column of both tables, and no
   later core migration (checked through the newest entries, well past
   `V190`) ever touches either one again — `V154`'s shape is still exactly
