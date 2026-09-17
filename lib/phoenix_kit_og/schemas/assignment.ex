@@ -38,6 +38,12 @@ defmodule PhoenixKitOG.Schemas.Assignment do
   @foreign_key_type UUIDv7
   @timestamps_opts [type: :utc_datetime]
 
+  # `phoenix_kit_og_assignments` `character varying` column widths,
+  # interpolated into `PhoenixKitOG.Migrations`' V1 DDL — the single source
+  # of truth so the migration chain and core's `ExpectedSchema` manifest can
+  # never independently disagree on a number.
+  @column_widths %{module_key: 64, scope_type: 32}
+
   schema "phoenix_kit_og_assignments" do
     field :module_key, :string
     field :scope_type, :string
@@ -66,6 +72,17 @@ defmodule PhoenixKitOG.Schemas.Assignment do
     |> unique_constraint(:scope_uuid, name: :idx_og_assignments_unique_scoped)
     |> unique_constraint(:scope_type, name: :idx_og_assignments_unique_default)
   end
+
+  @doc """
+  `character varying` column widths for `phoenix_kit_og_assignments`, keyed
+  by field name.
+
+  The single source of truth `PhoenixKitOG.Migrations`' V1 DDL
+  interpolates, so the migration chain and core's `ExpectedSchema` manifest
+  can never independently disagree on a number.
+  """
+  @spec column_widths() :: %{atom() => pos_integer()}
+  def column_widths, do: @column_widths
 
   # slot_mapping must be a flat `%{slot_name => variable_name}` where
   # both are strings. Nested structures leak module-specific shapes

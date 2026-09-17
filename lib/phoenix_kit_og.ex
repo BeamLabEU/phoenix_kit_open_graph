@@ -155,6 +155,11 @@ defmodule PhoenixKitOG do
   @impl PhoenixKit.Module
   def route_module, do: PhoenixKitOG.Routes
 
+  # Core still creates both tables inline (V154); this chain owns their
+  # FUTURE shape. See `PhoenixKitOG.Migrations` for the adoption story.
+  @impl PhoenixKit.Module
+  def migration_module, do: PhoenixKitOG.Migrations
+
   # ===========================================================================
   # Public API — the publishing seam
   # ===========================================================================

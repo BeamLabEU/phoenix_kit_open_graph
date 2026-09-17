@@ -104,6 +104,23 @@ mix dialyzer                 # Type checking
 mix precommit                # compile (warnings-as-errors) + deps.unlock --check-unused + quality.ci
 ```
 
+## Removing this module
+
+`PhoenixKitOG.Migrations` never drops `phoenix_kit_og_templates` or
+`phoenix_kit_og_assignments` automatically, for any migration target
+(including rolling all the way back to `0`) — see the module's moduledoc.
+To fully remove `phoenix_kit_og` from a host, drop both tables by hand, in
+FK-safe order (assignments references templates):
+
+```sql
+DROP TABLE phoenix_kit_og_assignments;
+DROP TABLE phoenix_kit_og_templates;
+```
+
+The `pkog_schema:N` version marker lives as a `COMMENT ON TABLE` on
+`phoenix_kit_og_templates`, so it goes with that table automatically —
+there's no separate row to clean up.
+
 ## Dependencies
 
 | Package | Purpose |
