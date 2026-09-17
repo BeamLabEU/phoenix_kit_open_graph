@@ -88,7 +88,10 @@ defmodule PhoenixKitOG.Migrations do
   index (left behind by a crashed `CREATE INDEX CONCURRENTLY`, which never
   happens in this chain's own DDL but can exist on a host from unrelated
   tooling) never counts as "already satisfies the guard", even under a
-  different name. But a bare `CREATE INDEX IF NOT EXISTS <name>` is a no-op
+  different name. `indisready` is deliberately not consulted: Postgres
+  clears `indisvalid` on (or before) every crashed-`CONCURRENTLY` path that
+  clears `indisready`, so `indisvalid` alone covers the reachable states.
+  But a bare `CREATE INDEX IF NOT EXISTS <name>` is a no-op
   against ANY existing object of that name — including an INVALID one under
   the CANONICAL name — so without an extra step, an invalid canonically
   named index would stay broken forever: the semantic check (correctly)
