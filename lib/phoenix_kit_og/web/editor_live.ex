@@ -39,6 +39,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
   alias PhoenixKitOG.Render.Media
   alias PhoenixKitOG.Schemas.Template
   alias PhoenixKitOG.Web.StagePlaceholder
+  alias PhoenixKitWeb.Actor
 
   @stage_id "og-editor-stage"
 
@@ -259,7 +260,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
   def handle_event("update_template_name", %{"name" => name}, socket) do
     template = socket.assigns.template
 
-    case Templates.update(template, %{"name" => name}, actor_opts(socket)) do
+    case Templates.update(template, %{"name" => name}, Actor.opts(socket)) do
       {:ok, template} ->
         {:noreply,
          socket
@@ -419,7 +420,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
            # Autosaves happen on a timer, not a user click — mark them
            # `mode: "auto"` in the activity feed so manual saves stay
            # distinguishable.
-           Keyword.put(actor_opts(socket), :mode, "auto")
+           Keyword.put(Actor.opts(socket), :mode, "auto")
          ) do
       {:ok, template} ->
         {:noreply,
@@ -433,13 +434,6 @@ defmodule PhoenixKitOG.Web.EditorLive do
          socket
          |> put_flash(:error, gettext("Save failed — please retry."))
          |> assign(:save_state, :error)}
-    end
-  end
-
-  defp actor_opts(socket) do
-    case socket.assigns[:phoenix_kit_current_user] do
-      %{uuid: uuid} -> [actor_uuid: uuid]
-      _ -> []
     end
   end
 

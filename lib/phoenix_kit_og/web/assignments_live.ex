@@ -28,6 +28,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   alias PhoenixKit.Modules.Publishing.Posts
   alias PhoenixKit.Modules.Storage
   alias PhoenixKitOG.{Assignments, Errors, Paths, SceneStore, Templates, Variables}
+  alias PhoenixKitWeb.Actor
 
   # Publishing groups/posts helpers live in the phoenix_kit_publishing
   # plugin — guarded by `Code.ensure_loaded?/1` in each helper, but the
@@ -241,7 +242,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
         {:noreply, socket}
 
       a ->
-        case Assignments.clear(a.module_key, a.scope_type, a.scope_uuid, actor_opts(socket)) do
+        case Assignments.clear(a.module_key, a.scope_type, a.scope_uuid, Actor.opts(socket)) do
           {:ok, _} ->
             {:noreply, socket |> put_flash(:info, gettext("Assignment removed.")) |> load()}
 
@@ -292,7 +293,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
 
   defp do_save(socket, st) do
     scope_uuid = if st.scope == "default", do: nil, else: st.group_uuid
-    opts = actor_opts(socket)
+    opts = Actor.opts(socket)
 
     with {:ok, assignment} <-
            Assignments.set(@consumer, st.scope, scope_uuid, st.template_uuid, opts),
@@ -309,13 +310,6 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
 
       {:error, reason} ->
         {:noreply, put_flash(socket, :error, Errors.message(reason))}
-    end
-  end
-
-  defp actor_opts(socket) do
-    case socket.assigns[:phoenix_kit_current_user] do
-      %{uuid: uuid} -> [actor_uuid: uuid]
-      _ -> []
     end
   end
 

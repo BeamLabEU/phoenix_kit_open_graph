@@ -147,15 +147,15 @@ Repo-local aliases:
   `preview_og_image_url/3` rescue everything and return the input map /
   `:none`. An OG image is decoration and must never take down the page it
   decorates.
-- Activity logging: `PhoenixKitOG.ActivityLog` wraps `PhoenixKit.Activity.log/1`
+- Activity logging: `PhoenixKitOG.ActivityLog` wraps `PhoenixKit.Activity.log/3`
   with `module: "phoenix_kit_og"`. `log/4` is a pipe step: it logs the success
   row on `{:ok, struct}` AND a failure row on `{:error, _}` (metadata
   `failed: true` + a coarse reason; for an update/delete the changeset's
   `data` still names the targeted record), so an invalid write leaves a trail.
   `maybe_log/3` is the direct form. Actor threads through `opts[:actor_uuid]`
-  (`:mode` defaults to `"manual"`). Guards: `Code.ensure_loaded?`, silent on
-  `Postgrex :undefined_table` (fresh host), warning-and-swallow on anything
-  else. Actions: `template.{created,updated,deleted}`,
+  (LiveViews build it with core's `PhoenixKitWeb.Actor.opts/1`; `:mode`
+  defaults to `"manual"`). Core never raises, so a missing table or any other
+  failure is logged there and the mutation carries on. Actions: `template.{created,updated,deleted}`,
   `assignment.{created,updated,deleted,slot_mapping_updated}`. Metadata is
   PII-safe: names, counts, UUIDs only — never canvas blobs, image bytes, or
   `slot_mapping` content (users type into it).
