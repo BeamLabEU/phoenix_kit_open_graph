@@ -45,10 +45,6 @@ defmodule PhoenixKitOG.Web.TemplatesLive do
 
   defp load_templates(socket), do: assign(socket, :templates, Templates.list())
 
-  # Standard actor-opts shape — passes actor_uuid to the context so
-  # the activity feed can attribute the change. Anonymous users
-  # (nil actor) still write an audit row, just unattributed.
-
   @impl true
   def render(assigns) do
     ~H"""
