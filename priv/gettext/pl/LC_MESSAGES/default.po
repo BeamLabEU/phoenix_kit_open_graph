@@ -316,7 +316,7 @@ msgstr ""
 #: lib/phoenix_kit_og/web/templates_live.ex:63
 #, elixir-autogen, elixir-format
 msgid "New template"
-msgstr ""
+msgstr "Nowy szablon"
 
 #: lib/phoenix_kit_og/web/assignments_live.ex:770
 #, elixir-autogen, elixir-format

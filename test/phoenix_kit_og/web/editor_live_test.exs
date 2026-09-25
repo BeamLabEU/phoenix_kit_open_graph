@@ -11,6 +11,7 @@ defmodule PhoenixKitOG.Web.EditorLiveTest do
   use PhoenixKitOG.LiveCase
 
   alias PhoenixKitOG.{SceneStore, Templates}
+  alias PhoenixKitOG.Test.Repo
 
   defp create_template(name) do
     {:ok, template} =
@@ -39,5 +40,24 @@ defmodule PhoenixKitOG.Web.EditorLiveTest do
     html = render_click(view, "set_preview_platform", %{"platform" => "discord"})
     refute html =~ "bg-[#2b2d31]"
     assert html =~ "bg-[#f0f2f5]"
+  end
+
+  test "opening /new attributes the template.created row to the signed-in actor", %{conn: conn} do
+    import Ecto.Query
+
+    scope = fake_scope()
+    conn = put_test_scope(conn, scope)
+    {:ok, _view, _html} = live(conn, "/en/admin/open-graph/new")
+
+    actors =
+      from(a in "phoenix_kit_activities",
+        where: a.action == "template.created",
+        select: a.actor_uuid
+      )
+      |> Repo.all()
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(&Ecto.UUID.cast!/1)
+
+    assert scope.user.uuid in actors
   end
 end

@@ -149,8 +149,10 @@ Repo-local aliases:
   decorates.
 - Activity logging: `PhoenixKitOG.ActivityLog` wraps `PhoenixKit.Activity.log/3`
   with `module: "phoenix_kit_og"`. `log/4` is a pipe step: it logs the success
-  row on `{:ok, struct}` AND a failure row on `{:error, _}` (metadata
-  `failed: true` + a coarse reason; for an update/delete the changeset's
+  row on `{:ok, struct}` AND a failure row on `{:error, _}` (through core's
+  `Activity.log_failed/3`, so it carries core's `db_pending: true` marker and
+  notifies nobody, plus metadata `failed: true` + a coarse reason; for an
+  update/delete the changeset's
   `data` still names the targeted record), so an invalid write leaves a trail.
   `maybe_log/3` is the direct form. Actor threads through `opts[:actor_uuid]`
   (LiveViews build it with core's `PhoenixKitWeb.Actor.opts/1`; `:mode`

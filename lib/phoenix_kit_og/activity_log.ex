@@ -56,14 +56,14 @@ defmodule PhoenixKitOG.ActivityLog do
         Map.merge(m, %{"failed" => true, "reason" => failure_reason(cs)})
       end)
 
-    maybe_log(action, opts, fields)
+    log_failed(action, opts, fields)
     err
   end
 
   # Non-changeset error (e.g. an atom reason) — no struct to key off, so
   # just record the flagged attempt.
   def log({:error, reason} = err, action, opts, _fields_fn) when is_binary(action) do
-    maybe_log(action, opts, %{
+    log_failed(action, opts, %{
       metadata: %{"failed" => true, "reason" => failure_reason(reason)}
     })
 
@@ -80,14 +80,26 @@ defmodule PhoenixKitOG.ActivityLog do
   """
   @spec maybe_log(String.t(), keyword(), map()) :: :ok
   def maybe_log(action, opts, fields) when is_binary(action) and is_map(fields) do
-    PhoenixKit.Activity.log(@module_key, action,
+    PhoenixKit.Activity.log(@module_key, action, core_opts(opts, fields))
+    :ok
+  end
+
+  # A write that did not land goes through core's `log_failed/3`: it stamps
+  # `"db_pending" => true`, so the core feed can tell an attempt from an
+  # action, and it never fans out a notification. Our own `failed` /
+  # `reason` keys ride along for this module's readers.
+  defp log_failed(action, opts, fields) do
+    PhoenixKit.Activity.log_failed(@module_key, action, core_opts(opts, fields))
+    :ok
+  end
+
+  defp core_opts(opts, fields) do
+    [
       mode: Keyword.get(opts, :mode, "manual"),
       actor_uuid: Keyword.get(opts, :actor_uuid),
       resource_type: Map.get(fields, :resource_type),
       resource_uuid: Map.get(fields, :resource_uuid),
       metadata: Map.get(fields, :metadata)
-    )
-
-    :ok
+    ]
   end
 end

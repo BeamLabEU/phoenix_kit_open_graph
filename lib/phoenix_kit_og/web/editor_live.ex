@@ -456,9 +456,11 @@ defmodule PhoenixKitOG.Web.EditorLive do
   defp load_or_create_template(_params, :new, socket) do
     if connected?(socket) do
       name = "Untitled #{System.unique_integer([:positive])}"
-      # The actor is threaded later on the first save. Activity feed
-      # shows an anonymous `template.created` for the initial insert.
-      Templates.create(%{"name" => name, "canvas" => SceneStore.dump(SceneStore.blank())})
+
+      Templates.create(
+        %{"name" => name, "canvas" => SceneStore.dump(SceneStore.blank())},
+        Actor.opts(socket)
+      )
     else
       {:ok, %Template{canvas: SceneStore.dump(SceneStore.blank())}}
     end

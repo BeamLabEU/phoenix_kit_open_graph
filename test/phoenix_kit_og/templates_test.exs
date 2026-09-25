@@ -68,6 +68,13 @@ defmodule PhoenixKitOG.TemplatesTest do
       assert_activity(action: "template.created", actor_uuid: actor, failed: true)
     end
 
+    test "a failed write goes through core's log_failed/3 (db_pending marker)" do
+      actor = Ecto.UUID.generate()
+      {:error, _} = Templates.create(valid_attrs(%{"name" => ""}), actor_uuid: actor)
+
+      assert_activity(action: "template.created", actor_uuid: actor, db_pending: true)
+    end
+
     test "a failed UPDATE keeps the resource_uuid (not an orphaned audit row)" do
       actor = Ecto.UUID.generate()
       {:ok, t} = Templates.create(valid_attrs())
@@ -105,7 +112,8 @@ defmodule PhoenixKitOG.TemplatesTest do
         r.action == match[:action] and
           (is_nil(match[:actor_uuid]) or uuid_str(r.actor_uuid) == match[:actor_uuid]) and
           (is_nil(match[:resource_uuid]) or uuid_str(r.resource_uuid) == match[:resource_uuid]) and
-          (is_nil(match[:failed]) or r.metadata["failed"] == true)
+          (is_nil(match[:failed]) or r.metadata["failed"] == true) and
+          (is_nil(match[:db_pending]) or r.metadata["db_pending"] == true)
       end)
 
     assert found, "no activity row matching #{inspect(match)} in #{inspect(rows)}"
