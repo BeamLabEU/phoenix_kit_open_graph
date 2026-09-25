@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.7 - 2026-09-25
+
+### Changed
+
+- **Actor and activity logging through core** (#13). The three admin
+  LiveViews read the actor with core's `PhoenixKitWeb.Actor.opts/1` (scope
+  first, bare user as fallback) instead of a private helper each, and
+  `PhoenixKitOG.ActivityLog` calls `PhoenixKit.Activity.log/3`, which never
+  raises, in place of its own guards.
+- The core pin is now `>= 2.38.0 and < 3.0.0`, the first core carrying
+  `PhoenixKitWeb.Actor` and `Activity.log/3`; the conformance test enforces
+  the compound form.
+- `js_sources/0` carries `@impl PhoenixKit.Module`.
+- The admin header renders a section / crumb / title trail: "OpenGraph" as
+  the section on every page, "Assignments" and "Edit" (under the template's
+  name) or "New template" as titles.
+- Dependency lock: `phoenix_kit` 2.40.1, plus routine bumps.
+
+### Fixed
+
+- Post-merge: opening `/admin/open-graph/new` logged an unattributed
+  `template.created`; the insert now carries the signed-in actor.
+- Post-merge: a failed write logs through core's `Activity.log_failed/3`, so
+  the row carries core's `db_pending` marker and triggers no notification
+  fan-out. The `failed` / `reason` metadata stays.
+- Post-merge: "New template", now the editor's header title, is translated
+  in all 7 locales.
+
 ## 0.3.6 - 2026-09-17
 
 ### Added
