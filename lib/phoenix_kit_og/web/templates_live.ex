@@ -15,7 +15,7 @@ defmodule PhoenixKitOG.Web.TemplatesLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(:page_title, "OpenGraph — Templates")
+     |> assign(:page_title, gettext("OpenGraph"))
      |> load_templates()}
   end
 

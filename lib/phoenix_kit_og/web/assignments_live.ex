@@ -42,7 +42,9 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(:page_title, gettext("OpenGraph — Assignments"))
+     |> assign(:page_section, gettext("OpenGraph"))
+     |> assign(:page_section_path, Paths.templates())
+     |> assign(:page_title, gettext("Assignments"))
      |> assign(:consumer, @consumer)
      |> assign(:editing_id, nil)
      |> assign(:edit_state, blank_edit_state())

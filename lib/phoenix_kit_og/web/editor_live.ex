@@ -53,10 +53,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
 
         socket =
           socket
-          |> assign(
-            :page_title,
-            gettext("OpenGraph — %{name}", name: template.name || gettext("Editor"))
-          )
+          |> assign_trail(template)
           |> assign(:template, template)
           |> assign(:scene, scene)
           |> assign(:stage_id, @stage_id)
@@ -265,7 +262,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
         {:noreply,
          socket
          |> assign(:template, template)
-         |> assign(:page_title, gettext("OpenGraph — %{name}", name: template.name))}
+         |> assign_trail(template)}
 
       {:error, _cs} ->
         {:noreply, put_flash(socket, :error, gettext("Could not rename template."))}
@@ -472,6 +469,25 @@ defmodule PhoenixKitOG.Web.EditorLive do
       nil -> {:error, :not_found}
       %Template{} = t -> {:ok, t}
     end
+  end
+
+  # The admin header trail. The templates list is the module's landing page,
+  # so it is the section; an existing template is a text crumb (the list is
+  # its only page) under which this page is "Edit"; a fresh one is
+  # "New template" with no crumb — the URL stays /new while it is edited, so
+  # a rename there keeps that title.
+  defp assign_trail(socket, template) do
+    {crumbs, title} =
+      case socket.assigns.live_action do
+        :new -> {[], gettext("New template")}
+        _edit -> {[%{label: template.name}], gettext("Edit")}
+      end
+
+    socket
+    |> assign(:page_section, gettext("OpenGraph"))
+    |> assign(:page_section_path, Paths.templates())
+    |> assign(:page_crumbs, crumbs)
+    |> assign(:page_title, title)
   end
 
   defp nudge_delta("ArrowLeft", step), do: {-step, 0}
