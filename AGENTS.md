@@ -26,7 +26,7 @@ What stays this module's: slot wiring + assignment hierarchy, media-UUID →
 PNG caching + the `/og-image/:key` route, activity logging, i18n. Layout, text
 measurement, anchors, gradients and rasterizing are `open_fresco`'s.
 
-- **Depends on:** `phoenix_kit` `~> 2.0` (Hex); `open_fresco` `~> 0.2`;
+- **Depends on:** `phoenix_kit` `>= 2.38.0 and < 3.0.0` (Hex); `open_fresco` `~> 0.2`;
   `unicode_string` `~> 1.0` (UAX #14 line breaking for CJK/Thai — this module
   is multilingual, estimates are not enough); `resvg` `~> 0.5` **optional**
   (hosts opt in with `{:resvg, "~> 0.5"}`; never make it required, its
@@ -162,9 +162,10 @@ Repo-local aliases:
 - Soft delete: none. Deleting a template cascades its assignments (FK).
 - Every OG card is 1200×630; the editor snaps a stray-sized scene back on
   mount. Renders clamp at 4000px per side (`@max_dimension`).
-- The core pin stays a two-segment `~> 2.0` (`test/core_pin_conformance_test.exs`
-  enforces it): a three-segment pin excludes later core minors and breaks
-  `mix deps.get` for every host, and nothing in this repo would notice.
+- The core pin keeps the compound `>= 2.38.0 and < 3.0.0` form
+  (`test/core_pin_conformance_test.exs` enforces it): a three-segment pin
+  excludes later core minors and breaks `mix deps.get` for every host, and
+  nothing in this repo would notice.
 - Every table-backed schema uses `PhoenixKit.SchemaPrefix` and UUIDv7 PKs
   (`test/schema_prefix_conformance_test.exs` enforces the prefix).
 
@@ -479,7 +480,3 @@ publish has succeeded.
 - **i18n long-tail** — the common UI strings are translated in all 7
   locales; the deep editor property/hint strings ride as English fallback
   pending a translation pass.
-- **`js_sources/0` carries no `@impl`** — the annotation was left off while
-  the resolved core predated the callback; core `~> 2.0` ships it, so add
-  `@impl PhoenixKit.Module` the next time the file is touched and confirm
-  `--warnings-as-errors` stays clean.
