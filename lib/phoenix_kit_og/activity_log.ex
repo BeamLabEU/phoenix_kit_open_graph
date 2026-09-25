@@ -1,28 +1,18 @@
 defmodule PhoenixKitOG.ActivityLog do
   @moduledoc """
-  Thin wrapper around `PhoenixKit.Activity.log/1` for the OG plugin.
+  Thin wrapper around `PhoenixKit.Activity.log/3` for the OG plugin.
 
   Every entry is stamped with `module: "phoenix_kit_og"` so the admin
   activity feed can filter to just this plugin's events. Callers pass
   the pipe-friendly `{:ok, struct}` shape so the return value chains
-  cleanly through context functions.
-
-  The wrapper guards against three known drop-cases:
-
-    * `PhoenixKit.Activity` isn't loaded — module not compiled yet
-      (rare, but possible during recompile cascades).
-    * The `phoenix_kit_activity` table doesn't exist — a very fresh
-      host that hasn't run migrations past V72 (activity was
-      introduced there). Rescuing `Postgrex.Error :undefined_table`
-      keeps a fresh install usable before migrations catch up.
-    * Any other exception — logged as a warning, never re-raised.
+  cleanly through context functions. Core never raises — a missing
+  activities table on a fresh host, or any other failure, is logged
+  there and returned — so logging never breaks the mutation.
 
   Metadata is PII-safe by convention: names, statuses, counts, UUIDs
   are OK; email / phone / free-text / anything a user could paste in
   is not.
   """
-
-  require Logger
 
   @module_key "phoenix_kit_og"
 
@@ -90,40 +80,13 @@ defmodule PhoenixKitOG.ActivityLog do
   """
   @spec maybe_log(String.t(), keyword(), map()) :: :ok
   def maybe_log(action, opts, fields) when is_binary(action) and is_map(fields) do
-    do_log(action, opts, fields)
-  rescue
-    e in Postgrex.Error ->
-      case e do
-        %Postgrex.Error{postgres: %{code: :undefined_table}} ->
-          # Fresh host, migrations haven't caught up — silently no-op.
-          :ok
-
-        _ ->
-          Logger.warning("[PhoenixKitOG.ActivityLog] Postgrex error: #{inspect(e)}")
-          :ok
-      end
-
-    e ->
-      Logger.warning("[PhoenixKitOG.ActivityLog] log failed: #{inspect(e)}")
-      :ok
-  end
-
-  defp do_log(action, opts, fields) do
-    if Code.ensure_loaded?(PhoenixKit.Activity) do
-      attrs =
-        %{
-          action: action,
-          module: @module_key,
-          mode: Keyword.get(opts, :mode, "manual"),
-          actor_uuid: Keyword.get(opts, :actor_uuid),
-          resource_type: Map.get(fields, :resource_type),
-          resource_uuid: Map.get(fields, :resource_uuid),
-          metadata: Map.get(fields, :metadata, %{})
-        }
-        |> Map.reject(fn {_, v} -> is_nil(v) end)
-
-      _ = PhoenixKit.Activity.log(attrs)
-    end
+    PhoenixKit.Activity.log(@module_key, action,
+      mode: Keyword.get(opts, :mode, "manual"),
+      actor_uuid: Keyword.get(opts, :actor_uuid),
+      resource_type: Map.get(fields, :resource_type),
+      resource_uuid: Map.get(fields, :resource_uuid),
+      metadata: Map.get(fields, :metadata)
+    )
 
     :ok
   end

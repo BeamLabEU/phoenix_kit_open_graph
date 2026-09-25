@@ -39,6 +39,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
   alias PhoenixKitOG.Render.Media
   alias PhoenixKitOG.Schemas.Template
   alias PhoenixKitOG.Web.StagePlaceholder
+  alias PhoenixKitWeb.Actor
 
   @stage_id "og-editor-stage"
 
@@ -52,10 +53,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
 
         socket =
           socket
-          |> assign(
-            :page_title,
-            gettext("OpenGraph — %{name}", name: template.name || gettext("Editor"))
-          )
+          |> assign_trail(template)
           |> assign(:template, template)
           |> assign(:scene, scene)
           |> assign(:stage_id, @stage_id)
@@ -259,12 +257,12 @@ defmodule PhoenixKitOG.Web.EditorLive do
   def handle_event("update_template_name", %{"name" => name}, socket) do
     template = socket.assigns.template
 
-    case Templates.update(template, %{"name" => name}, actor_opts(socket)) do
+    case Templates.update(template, %{"name" => name}, Actor.opts(socket)) do
       {:ok, template} ->
         {:noreply,
          socket
          |> assign(:template, template)
-         |> assign(:page_title, gettext("OpenGraph — %{name}", name: template.name))}
+         |> assign_trail(template)}
 
       {:error, _cs} ->
         {:noreply, put_flash(socket, :error, gettext("Could not rename template."))}
@@ -419,7 +417,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
            # Autosaves happen on a timer, not a user click — mark them
            # `mode: "auto"` in the activity feed so manual saves stay
            # distinguishable.
-           Keyword.put(actor_opts(socket), :mode, "auto")
+           Keyword.put(Actor.opts(socket), :mode, "auto")
          ) do
       {:ok, template} ->
         {:noreply,
@@ -433,13 +431,6 @@ defmodule PhoenixKitOG.Web.EditorLive do
          socket
          |> put_flash(:error, gettext("Save failed — please retry."))
          |> assign(:save_state, :error)}
-    end
-  end
-
-  defp actor_opts(socket) do
-    case socket.assigns[:phoenix_kit_current_user] do
-      %{uuid: uuid} -> [actor_uuid: uuid]
-      _ -> []
     end
   end
 
@@ -478,6 +469,25 @@ defmodule PhoenixKitOG.Web.EditorLive do
       nil -> {:error, :not_found}
       %Template{} = t -> {:ok, t}
     end
+  end
+
+  # The admin header trail. The templates list is the module's landing page,
+  # so it is the section; an existing template is a text crumb (the list is
+  # its only page) under which this page is "Edit"; a fresh one is
+  # "New template" with no crumb — the URL stays /new while it is edited, so
+  # a rename there keeps that title.
+  defp assign_trail(socket, template) do
+    {crumbs, title} =
+      case socket.assigns.live_action do
+        :new -> {[], gettext("New template")}
+        _edit -> {[%{label: template.name}], gettext("Edit")}
+      end
+
+    socket
+    |> assign(:page_section, gettext("OpenGraph"))
+    |> assign(:page_section_path, Paths.templates())
+    |> assign(:page_crumbs, crumbs)
+    |> assign(:page_title, title)
   end
 
   defp nudge_delta("ArrowLeft", step), do: {-step, 0}

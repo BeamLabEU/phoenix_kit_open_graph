@@ -131,9 +131,7 @@ defmodule PhoenixKitOG do
   # the bundle here lets core's :phoenix_kit_js_sources compiler fold it into
   # the host's single LiveSocket at construction — the registration that
   # survives LiveView navigation (an inline <script> only runs on a hard load).
-  # No `@impl` — the released core's `PhoenixKit.Module` behaviour predates the
-  # `js_sources/0` callback (annotating it warns + fails --warnings-as-errors);
-  # core calls it via the compiler regardless. Re-add @impl once core ships it.
+  @impl PhoenixKit.Module
   def js_sources do
     [
       %{

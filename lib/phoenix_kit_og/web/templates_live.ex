@@ -9,12 +9,13 @@ defmodule PhoenixKitOG.Web.TemplatesLive do
   use Gettext, backend: PhoenixKitOG.Gettext
 
   alias PhoenixKitOG.{Errors, Paths, Templates}
+  alias PhoenixKitWeb.Actor
 
   @impl true
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(:page_title, "OpenGraph — Templates")
+     |> assign(:page_title, gettext("OpenGraph"))
      |> load_templates()}
   end
 
@@ -29,7 +30,7 @@ defmodule PhoenixKitOG.Web.TemplatesLive do
         {:noreply, put_flash(socket, :error, Errors.message(:not_found))}
 
       template ->
-        case Templates.delete(template, actor_opts(socket)) do
+        case Templates.delete(template, Actor.opts(socket)) do
           {:ok, _} ->
             {:noreply,
              socket
@@ -43,16 +44,6 @@ defmodule PhoenixKitOG.Web.TemplatesLive do
   end
 
   defp load_templates(socket), do: assign(socket, :templates, Templates.list())
-
-  # Standard actor-opts shape — passes actor_uuid to the context so
-  # the activity feed can attribute the change. Anonymous users
-  # (nil actor) still write an audit row, just unattributed.
-  defp actor_opts(socket) do
-    case socket.assigns[:phoenix_kit_current_user] do
-      %{uuid: uuid} -> [actor_uuid: uuid]
-      _ -> []
-    end
-  end
 
   @impl true
   def render(assigns) do
