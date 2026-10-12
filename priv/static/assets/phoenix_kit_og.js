@@ -443,9 +443,17 @@
   Hooks.PhoenixKitOGEditor = {
     mounted() {
       const onKeyDown = (evt) => {
-        // Don't hijack inputs.
+        // Don't hijack form controls. A focused <select> counts: Backspace
+        // there is a habit from text fields, not a request to delete the
+        // selected element.
         const t = evt.target;
-        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) {
+        if (
+          t &&
+          (t.tagName === "INPUT" ||
+            t.tagName === "TEXTAREA" ||
+            t.tagName === "SELECT" ||
+            t.isContentEditable)
+        ) {
           return;
         }
 
