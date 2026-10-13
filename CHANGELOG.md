@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.9 - 2026-10-13
+
+### Fixed
+
+- Deleting a template audits exactly the assignments it removed: they are
+  deleted in the same transaction with `DELETE … RETURNING`, so an assignment
+  a concurrent transaction moved to another template is no longer logged as
+  deleted.
+- `Assignments.update/4` returns an error (and the assignments page shows its
+  not-found flash) when the row was removed since it was loaded, instead of
+  raising `Ecto.StaleEntryError`.
+- A shape with an image fill no longer shows OpenFresco's stand-in on a public
+  card: an unresolved or remote fill drops the shape, and a static media UUID
+  in the fill is inlined like any other image.
+
 ## 0.3.8 - 2026-10-13
 
 ### Added
