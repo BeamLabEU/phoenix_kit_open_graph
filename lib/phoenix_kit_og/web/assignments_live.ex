@@ -12,6 +12,10 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
     scope, group (when scope=group), template, and the per-slot
     wiring dropdowns — all in one place. Local `@edit_state` holds
     the in-progress config until the user hits Save.
+
+  "Edit" saves the row it opened: scope and group are locked there, so an
+  edit can never land on another scope's assignment. "New" refuses a scope
+  that already has one and points at its Edit instead of replacing it.
   """
 
   use PhoenixKitWeb, :live_view
@@ -26,8 +30,8 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
 
   alias PhoenixKit.Modules.Publishing.Groups
   alias PhoenixKit.Modules.Publishing.Posts
-  alias PhoenixKit.Modules.Storage
   alias PhoenixKitOG.{Assignments, Errors, Paths, SceneStore, Templates, Variables}
+  alias PhoenixKitOG.Render.Media
   alias PhoenixKitWeb.Actor
 
   # Publishing groups/posts helpers live in the phoenix_kit_publishing
@@ -48,6 +52,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
      |> assign(:consumer, @consumer)
      |> assign(:editing_id, nil)
      |> assign(:edit_state, blank_edit_state())
+     |> assign(:slot_errors, MapSet.new())
      |> assign(:show_media_selector, false)
      |> assign(:media_selection_mode, :single)
      |> assign(:media_selected_uuids, [])
@@ -91,6 +96,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
      socket
      |> assign(:editing_id, "new")
      |> assign(:edit_state, edit_state)
+     |> assign(:slot_errors, MapSet.new())
      |> auto_pick_preview_source(nil)
      |> refresh_preview()}
   end
@@ -112,6 +118,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
          socket
          |> assign(:editing_id, id)
          |> assign(:edit_state, edit_state)
+         |> assign(:slot_errors, MapSet.new())
          |> auto_pick_preview_source(a.scope_uuid)
          |> refresh_preview()}
     end
@@ -131,18 +138,32 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   # only hit the DB when the user clicks Save.
   # =========================================================================
 
-  def handle_event("edit_change_scope", %{"scope" => scope}, socket) do
-    edit_state =
-      socket.assigns.edit_state
-      |> Map.put(:scope, scope)
-      |> Map.put(:group_uuid, if(scope == "default", do: nil, else: nil))
+  # Scope and group are choices of the NEW flow only. An existing
+  # assignment keeps its scope (the selects are disabled there, and a
+  # crafted event changes nothing): the row being edited is the row saved.
+  def handle_event("edit_change_scope", %{"scope" => scope}, socket)
+      when scope in ["default", "group"] do
+    if socket.assigns.editing_id == "new" and scope != socket.assigns.edit_state.scope do
+      edit_state =
+        socket.assigns.edit_state
+        |> Map.put(:scope, scope)
+        |> Map.put(:group_uuid, nil)
 
-    {:noreply, socket |> assign(:edit_state, edit_state) |> refresh_preview()}
+      {:noreply, socket |> assign(:edit_state, edit_state) |> refresh_preview()}
+    else
+      {:noreply, socket}
+    end
   end
 
+  def handle_event("edit_change_scope", _params, socket), do: {:noreply, socket}
+
   def handle_event("edit_change_group", %{"group_uuid" => uuid}, socket) do
-    edit_state = Map.put(socket.assigns.edit_state, :group_uuid, normalize(uuid))
-    {:noreply, socket |> assign(:edit_state, edit_state) |> refresh_preview()}
+    if socket.assigns.editing_id == "new" do
+      edit_state = Map.put(socket.assigns.edit_state, :group_uuid, normalize(uuid))
+      {:noreply, socket |> assign(:edit_state, edit_state) |> refresh_preview()}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("edit_change_template", %{"template_uuid" => uuid}, socket) do
@@ -169,15 +190,26 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   end
 
   # Custom text entry — updates the `custom:...` payload as the user
-  # types.
+  # types. An image slot takes a media UUID only: a remote URL is never
+  # fetched, so it is refused here, where the author can still see why,
+  # rather than accepted and dropped from the public card.
   def handle_event(
         "edit_wire_slot_custom",
         %{"slot" => slot, "value" => value},
         socket
       ) do
-    mapping = Map.put(socket.assigns.edit_state.slot_mapping || %{}, slot, "custom:" <> value)
-    edit_state = Map.put(socket.assigns.edit_state, :slot_mapping, mapping)
-    {:noreply, socket |> assign(:edit_state, edit_state) |> refresh_preview()}
+    if Media.remote_url?(String.trim(value)) and image_slot?(socket, slot) do
+      {:noreply, assign(socket, :slot_errors, MapSet.put(socket.assigns.slot_errors, slot))}
+    else
+      mapping = Map.put(socket.assigns.edit_state.slot_mapping || %{}, slot, "custom:" <> value)
+      edit_state = Map.put(socket.assigns.edit_state, :slot_mapping, mapping)
+
+      {:noreply,
+       socket
+       |> assign(:edit_state, edit_state)
+       |> assign(:slot_errors, MapSet.delete(socket.assigns.slot_errors, slot))
+       |> refresh_preview()}
+    end
   end
 
   # Image slot media pick — opens the shared MediaSelectorModal.
@@ -212,7 +244,12 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   def handle_event("clear_slot_custom", %{"slot" => slot}, socket) do
     mapping = Map.put(socket.assigns.edit_state.slot_mapping || %{}, slot, "custom:")
     edit_state = Map.put(socket.assigns.edit_state, :slot_mapping, mapping)
-    {:noreply, socket |> assign(:edit_state, edit_state) |> refresh_preview()}
+
+    {:noreply,
+     socket
+     |> assign(:edit_state, edit_state)
+     |> assign(:slot_errors, MapSet.delete(socket.assigns.slot_errors, slot))
+     |> refresh_preview()}
   end
 
   # =========================================================================
@@ -293,25 +330,89 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   # Save internals
   # =========================================================================
 
-  defp do_save(socket, st) do
+  # New: the scope must be free — an existing assignment is edited through
+  # its own row, never replaced from here.
+  defp do_save(%{assigns: %{editing_id: "new"}} = socket, st) do
     scope_uuid = if st.scope == "default", do: nil, else: st.group_uuid
-    opts = Actor.opts(socket)
 
-    with {:ok, assignment} <-
-           Assignments.set(@consumer, st.scope, scope_uuid, st.template_uuid, opts),
-         {:ok, _} <-
-           Assignments.update_slot_mapping(assignment, st.slot_mapping || %{}, opts) do
-      {:noreply,
-       socket
-       |> put_flash(:info, gettext("Assignment saved."))
-       |> assign(:editing_id, nil)
-       |> load()}
-    else
-      {:error, %Ecto.Changeset{} = cs} ->
-        {:noreply, put_flash(socket, :error, Errors.message(cs))}
+    case Assignments.get(@consumer, st.scope, scope_uuid) do
+      nil ->
+        @consumer
+        |> Assignments.create(
+          st.scope,
+          scope_uuid,
+          st.template_uuid,
+          st.slot_mapping || %{},
+          Actor.opts(socket)
+        )
+        |> saved(socket)
 
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, Errors.message(reason))}
+      _existing ->
+        {:noreply, socket |> put_flash(:error, scope_taken_message()) |> load()}
+    end
+  end
+
+  # Edit: the row the modal opened, whatever the form says about scope.
+  defp do_save(socket, st) do
+    case Assignments.get_by_uuid(socket.assigns.editing_id) do
+      nil ->
+        {:noreply,
+         socket
+         |> put_flash(:error, Errors.message(:not_found))
+         |> assign(:editing_id, nil)
+         |> load()}
+
+      assignment ->
+        assignment
+        |> Assignments.update(st.template_uuid, st.slot_mapping || %{}, Actor.opts(socket))
+        |> saved(socket)
+    end
+  end
+
+  defp saved({:ok, _assignment}, socket) do
+    {:noreply,
+     socket
+     |> put_flash(:info, gettext("Assignment saved."))
+     |> assign(:editing_id, nil)
+     |> load()}
+  end
+
+  # A concurrent create for the same scope loses on the unique index.
+  defp saved({:error, %Ecto.Changeset{errors: errors}}, socket) do
+    message =
+      if Keyword.has_key?(errors, :scope_uuid) or Keyword.has_key?(errors, :scope_type),
+        do: scope_taken_message(),
+        else: gettext("Could not save the assignment.")
+
+    {:noreply, socket |> put_flash(:error, message) |> load()}
+  end
+
+  defp scope_taken_message,
+    do: gettext("This scope already has an assignment. Edit that one instead.")
+
+  # The assignment already bound to the scope a NEW assignment is aimed at.
+  defp scope_conflict("new", st, assignments) do
+    scope_uuid = if st.scope == "default", do: nil, else: st.group_uuid
+
+    if st.scope == "default" or is_binary(scope_uuid) do
+      Enum.find(assignments, &(&1.scope_type == st.scope and &1.scope_uuid == scope_uuid))
+    end
+  end
+
+  defp scope_conflict(_editing_id, _st, _assignments), do: nil
+
+  defp image_slot?(socket, slot) do
+    st = socket.assigns.edit_state
+
+    case Enum.find(socket.assigns.templates, &(&1.uuid == st.template_uuid)) do
+      %{canvas: canvas} ->
+        canvas
+        |> SceneStore.load()
+        |> SceneStore.slots()
+        |> Enum.any?(&(&1.name == slot and &1.type == :image))
+
+      _ ->
+        false
     end
   end
 
@@ -572,6 +673,8 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
         show={@editing_id != nil}
         is_new={@editing_id == "new"}
         state={@edit_state}
+        conflict={scope_conflict(@editing_id, @edit_state, @assignments)}
+        slot_errors={@slot_errors}
         templates={@templates}
         groups={@groups}
         module_variables={@module_variables}
@@ -690,6 +793,8 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   attr(:show, :boolean, required: true)
   attr(:is_new, :boolean, required: true)
   attr(:state, :map, required: true)
+  attr(:conflict, :map, default: nil)
+  attr(:slot_errors, :any, default: nil)
   attr(:templates, :list, required: true)
   attr(:groups, :list, required: true)
   attr(:module_variables, :list, required: true)
@@ -738,8 +843,12 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
             <label class="label py-0.5">
               <span class="fieldset-legend text-xs font-medium">{gettext("Applies to")}</span>
             </label>
-            <form id="og-assign-scope-form" phx-change="edit_change_scope">
-              <select name="scope" class="select select-sm w-full">
+            <form
+              id="og-assign-scope-form"
+              phx-change="edit_change_scope"
+              phx-submit="edit_change_scope"
+            >
+              <select name="scope" class="select select-sm w-full" disabled={not @is_new}>
                 <option value="default" selected={@state.scope == "default"}>
                   {gettext("Whole Publishing module (default)")}
                 </option>
@@ -748,14 +857,23 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
                 </option>
               </select>
             </form>
+            <p :if={not @is_new} class="text-xs text-base-content/50 mt-1">
+              {gettext(
+                "An assignment keeps the scope it was created for. To move it, remove it and assign the template again."
+              )}
+            </p>
           </div>
 
           <div :if={@state.scope == "group"}>
             <label class="label py-0.5">
               <span class="fieldset-legend text-xs font-medium">{gettext("Group")}</span>
             </label>
-            <form id="og-assign-group-form" phx-change="edit_change_group">
-              <select name="group_uuid" class="select select-sm w-full">
+            <form
+              id="og-assign-group-form"
+              phx-change="edit_change_group"
+              phx-submit="edit_change_group"
+            >
+              <select name="group_uuid" class="select select-sm w-full" disabled={not @is_new}>
                 <option value="">{gettext("— pick a group —")}</option>
                 <option
                   :for={g <- @groups}
@@ -771,11 +889,37 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
             </p>
           </div>
 
+          <div
+            :if={@conflict}
+            id="og-assign-scope-conflict"
+            class="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs space-y-2"
+          >
+            <p>
+              {gettext(
+                "This scope already has an assignment (template “%{name}”). Saving here would replace it, so it is not allowed — edit the existing assignment instead.",
+                name: (@conflict.template && @conflict.template.name) || gettext("(none)")
+              )}
+            </p>
+            <button
+              type="button"
+              phx-click="open_edit"
+              phx-value-id={@conflict.uuid}
+              class="btn btn-outline btn-xs"
+            >
+              <.icon name="hero-pencil-square" class="w-3 h-3 mr-1" />
+              {gettext("Edit the existing assignment")}
+            </button>
+          </div>
+
           <div>
             <label class="label py-0.5">
               <span class="fieldset-legend text-xs font-medium">{gettext("Template")}</span>
             </label>
-            <form id="og-assign-template-form" phx-change="edit_change_template">
+            <form
+              id="og-assign-template-form"
+              phx-change="edit_change_template"
+              phx-submit="edit_change_template"
+            >
               <select name="template_uuid" class="select select-sm w-full">
                 <option value="">{gettext("— pick a template —")}</option>
                 <option
@@ -793,6 +937,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
             :if={@selected_template}
             slots={@slots}
             slot_mapping={@state.slot_mapping || %{}}
+            slot_errors={@slot_errors}
             variables={@module_variables}
           />
 
@@ -817,6 +962,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
             phx-click="save_edit"
             phx-disable-with={gettext("Saving…")}
             class="btn btn-primary btn-sm"
+            disabled={@conflict != nil}
           >
             {if @is_new, do: gettext("Create assignment"), else: gettext("Save")}
           </button>
@@ -850,7 +996,11 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
       </div>
 
       <div class="grid grid-cols-2 gap-2 mb-2">
-        <form id="og-preview-group-form" phx-change="change_preview_group">
+        <form
+          id="og-preview-group-form"
+          phx-change="change_preview_group"
+          phx-submit="change_preview_group"
+        >
           <label class="label py-0.5">
             <span class="fieldset-legend text-[10px] uppercase tracking-wide text-base-content/50">
               {gettext("Group")}
@@ -868,7 +1018,11 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
           </select>
         </form>
 
-        <form id="og-preview-post-form" phx-change="change_preview_post">
+        <form
+          id="og-preview-post-form"
+          phx-change="change_preview_post"
+          phx-submit="change_preview_post"
+        >
           <label class="label py-0.5">
             <span class="fieldset-legend text-[10px] uppercase tracking-wide text-base-content/50">
               {gettext("Post")}
@@ -943,6 +1097,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
 
   attr(:slots, :list, required: true)
   attr(:slot_mapping, :map, required: true)
+  attr(:slot_errors, :any, default: nil)
   attr(:variables, :list, required: true)
 
   defp modal_slot_wiring(assigns) do
@@ -961,6 +1116,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
             <.slot_row
               slot={slot}
               value={Map.get(@slot_mapping, slot.name)}
+              rejected={@slot_errors != nil and MapSet.member?(@slot_errors, slot.name)}
               variables={compatible_variables(@variables, slot.type)}
             />
           </li>
@@ -974,6 +1130,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
   # label width so the arrows line up regardless of slot-name length.
   attr(:slot, :map, required: true)
   attr(:value, :string, default: nil)
+  attr(:rejected, :boolean, default: false)
   attr(:variables, :list, required: true)
 
   defp slot_row(assigns) do
@@ -1001,7 +1158,11 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
       </span>
       <span class="text-base-content/40 mt-1.5">→</span>
       <div class="space-y-1">
-        <form id={"og-wire-slot-form-#{@slot.name}"} phx-change="edit_wire_slot">
+        <form
+          id={"og-wire-slot-form-#{@slot.name}"}
+          phx-change="edit_wire_slot"
+          phx-submit="edit_wire_slot"
+        >
           <input type="hidden" name="slot" value={@slot.name} />
           <select name="variable" class="select select-sm w-full">
             <option value="">{gettext("— Not wired —")}</option>
@@ -1016,7 +1177,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
             </optgroup>
             <option value="__custom__" selected={@is_custom}>
               {if @slot.type == :image,
-                do: gettext("Custom (paste a URL or pick a media file)"),
+                do: gettext("Custom (pick a media file)"),
                 else: gettext("Custom text…")}
             </option>
           </select>
@@ -1024,9 +1185,13 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
 
         <%= if @is_custom do %>
           <%= if @slot.type == :image do %>
-            <.slot_custom_media slot={@slot.name} value={@custom_value} />
+            <.slot_custom_media slot={@slot.name} value={@custom_value} rejected={@rejected} />
           <% else %>
-            <form id={"og-wire-slot-custom-form-#{@slot.name}"} phx-change="edit_wire_slot_custom">
+            <form
+              id={"og-wire-slot-custom-form-#{@slot.name}"}
+              phx-change="edit_wire_slot_custom"
+              phx-submit="edit_wire_slot_custom"
+            >
               <input type="hidden" name="slot" value={@slot.name} />
               <input
                 type="text"
@@ -1046,16 +1211,15 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
 
   attr(:slot, :string, required: true)
   attr(:value, :string, default: "")
+  attr(:rejected, :boolean, default: false)
 
   defp slot_custom_media(assigns) do
-    preview =
-      case assigns.value do
-        "" -> nil
-        nil -> nil
-        v -> media_preview_url(v)
-      end
-
-    assigns = assign(assigns, :preview, preview)
+    assigns =
+      assigns
+      |> assign(:preview, Media.preview_url(assigns.value))
+      # A URL saved before remote URLs were refused still sits in the
+      # mapping: say what happens to it instead of rendering it silently.
+      |> assign(:remote, assigns.rejected or Media.remote_url?(assigns.value))
 
     ~H"""
     <div class="space-y-1">
@@ -1068,15 +1232,20 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
         />
       <% end %>
       <div class="flex items-center gap-1">
-        <form id={"og-wire-slot-media-form-#{@slot}"} phx-change="edit_wire_slot_custom" class="flex-1">
+        <form
+          id={"og-wire-slot-media-form-#{@slot}"}
+          phx-change="edit_wire_slot_custom"
+          phx-submit="edit_wire_slot_custom"
+          class="flex-1"
+        >
           <input type="hidden" name="slot" value={@slot} />
           <input
             type="text"
             name="value"
             value={@value}
             phx-debounce="200"
-            placeholder={gettext("Media UUID or URL")}
-            class="input input-sm w-full font-mono text-xs"
+            placeholder={gettext("Media file UUID")}
+            class={["input input-sm w-full font-mono text-xs", @remote && "input-error"]}
           />
         </form>
         <button
@@ -1098,27 +1267,14 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
           <.icon name="hero-x-mark" class="w-3 h-3" />
         </button>
       </div>
+      <p :if={@remote} id={"og-wire-slot-media-error-#{@slot}"} class="text-xs text-error">
+        {gettext(
+          "Remote image URLs are not loaded, so this image would be left off the public card. Pick a media file instead."
+        )}
+      </p>
     </div>
     """
   end
-
-  # Reuses the storage helper publishing's editor uses so the assignments
-  # UI shows the same thumbnails as the rest of the admin.
-  defp media_preview_url(nil), do: nil
-  defp media_preview_url(""), do: nil
-  defp media_preview_url("http://" <> _ = url), do: url
-  defp media_preview_url("https://" <> _ = url), do: url
-  defp media_preview_url("/" <> _ = url), do: url
-  defp media_preview_url("data:" <> _ = url), do: url
-
-  defp media_preview_url(uuid) when is_binary(uuid) do
-    Storage.get_public_url_by_uuid(uuid, "medium") ||
-      Storage.get_public_url_by_uuid(uuid)
-  rescue
-    _ -> nil
-  end
-
-  defp media_preview_url(_), do: nil
 
   # =========================================================================
   # Helpers

@@ -92,6 +92,20 @@ defmodule PhoenixKitOG.SceneEdit do
   defp build_element(_kind, _scene, id, x, y),
     do: Scene.text(id, box: %{x: x, y: y, w: 500, h: 90}, value: "Edit this text")
 
+  @doc """
+  The slot name a typed variable name stands for. The renderer matches
+  slot names as ASCII `\\w+`, so anything else — a space, a hyphen — would
+  stop the value being a slot at all and turn it into literal text; each
+  such run becomes one underscore instead. An empty name stays empty.
+  """
+  @spec slot_name(term()) :: String.t()
+  def slot_name(value) do
+    value
+    |> to_string()
+    |> String.trim()
+    |> String.replace(~r/[^A-Za-z0-9_]+/, "_")
+  end
+
   @doc "Next free `PrefixN` slot name (`Text`, `Text2`, `Text3`, …)."
   @spec next_slot_name(Scene.t(), String.t()) :: String.t()
   def next_slot_name(%Scene{} = scene, prefix) do
@@ -247,7 +261,7 @@ defmodule PhoenixKitOG.SceneEdit do
   defp put_canvas_field(scene, _field, _value), do: scene
 
   defp bg_variable_value(value) do
-    case String.trim(to_string(value)) do
+    case slot_name(value) do
       "" -> ""
       name -> Scene.placeholder(name)
     end
@@ -304,8 +318,9 @@ defmodule PhoenixKitOG.SceneEdit do
 
   # Clearing the target removes the anchor outright; every other key needs an
   # anchor already present, so those funnel through put_existing_anchor/5.
-  defp put_anchor(scene, id, _el, :to, value) when value in [nil, ""],
-    do: put_field(scene, id, :anchor, nil)
+  defp put_anchor(scene, id, el, :to, value) when value in [nil, ""] do
+    if el[:anchor], do: put_field(scene, id, :anchor, nil), else: scene
+  end
 
   defp put_anchor(scene, id, el, :to, value) do
     # No self-anchoring, and the target must exist. (Cycle chains are

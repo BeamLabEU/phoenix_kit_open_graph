@@ -46,46 +46,59 @@ defmodule PhoenixKitOG.Web.EditorLive do
   @impl true
   def mount(params, _session, socket) do
     case load_or_create_template(params, socket.assigns.live_action, socket) do
+      # `/new` created its row: move to that row's own URL. The page lives
+      # at `/:uuid/edit` from here, so a socket reconnect (a deploy, a
+      # sleeping laptop) re-opens this template instead of creating another.
+      {:created, template} ->
+        {:ok, push_navigate(socket, to: Paths.edit_template(template.uuid), replace: true)}
+
       {:ok, template} ->
-        # Every OG card is 1200×630 (the universal 1.91:1 social-card
-        # size) — a stray custom-sized scene snaps back on edit.
-        scene = template.canvas |> SceneStore.load() |> OpenFresco.Scene.put_size(1200, 630)
-
-        socket =
-          socket
-          |> assign_trail(template)
-          |> assign(:template, template)
-          |> assign(:scene, scene)
-          |> assign(:stage_id, @stage_id)
-          |> assign(:selected_id, nil)
-          |> assign(:selected_ids, [])
-          |> assign(:slots, SceneStore.slots(scene))
-          |> assign(:stage_preview, true)
-          |> assign(:stage_values, stage_values(SceneStore.slots(scene), true))
-          |> assign(:media_resolver, Media.resolver())
-          |> assign(:preview_platform, "card")
-          |> assign(:save_state, :saved)
-          |> assign(:autosave_timer, nil)
-          |> assign(:show_media_selector, false)
-          |> assign(:media_selection_mode, :single)
-          |> assign(:media_selected_uuids, [])
-          |> assign(:media_selector_target, nil)
-          |> assign(
-            :global_values,
-            Variables.global_values(%{
-              endpoint: socket.endpoint,
-              language: socket.assigns[:current_locale] || ""
-            })
-          )
-
-        {:ok, socket}
+        {:ok, assign_editor(socket, template)}
 
       {:error, :not_found} ->
         {:ok,
          socket
          |> put_flash(:error, Errors.message(:not_found))
          |> push_navigate(to: Paths.templates())}
+
+      {:error, %Ecto.Changeset{}} ->
+        {:ok,
+         socket
+         |> put_flash(:error, gettext("Could not create a template."))
+         |> push_navigate(to: Paths.templates())}
     end
+  end
+
+  defp assign_editor(socket, template) do
+    # Every OG card is 1200×630 (the universal 1.91:1 social-card
+    # size) — a stray custom-sized scene snaps back on edit.
+    scene = template.canvas |> SceneStore.load() |> OpenFresco.Scene.put_size(1200, 630)
+
+    socket
+    |> assign_trail(template)
+    |> assign(:template, template)
+    |> assign(:scene, scene)
+    |> assign(:stage_id, @stage_id)
+    |> assign(:selected_id, nil)
+    |> assign(:selected_ids, [])
+    |> assign(:slots, SceneStore.slots(scene))
+    |> assign(:stage_preview, true)
+    |> assign(:stage_values, stage_values(SceneStore.slots(scene), true))
+    |> assign(:media_resolver, Media.resolver())
+    |> assign(:preview_platform, "card")
+    |> assign(:save_state, :saved)
+    |> assign(:autosave_timer, nil)
+    |> assign(:show_media_selector, false)
+    |> assign(:media_selection_mode, :single)
+    |> assign(:media_selected_uuids, [])
+    |> assign(:media_selector_target, nil)
+    |> assign(
+      :global_values,
+      Variables.global_values(%{
+        endpoint: socket.endpoint,
+        language: socket.assigns[:current_locale] || ""
+      })
+    )
   end
 
   # =========================================================================
@@ -234,7 +247,11 @@ defmodule PhoenixKitOG.Web.EditorLive do
         %{"el_id" => id, "field" => field, "value" => value},
         socket
       ) do
-    wrapped = if value == "", do: "", else: "{{#{String.trim(value)}}}"
+    wrapped =
+      case SceneEdit.slot_name(value) do
+        "" -> ""
+        name -> "{{#{name}}}"
+      end
 
     {:noreply,
      put_scene(socket, SceneEdit.update_element(socket.assigns.scene, id, field, wrapped))}
@@ -254,18 +271,24 @@ defmodule PhoenixKitOG.Web.EditorLive do
      put_scene(socket, SceneEdit.update_element(socket.assigns.scene, id, "value", "{{#{name}}}"))}
   end
 
+  # The name commits when the field loses focus or Enter is pressed, not per
+  # keystroke — and a commit that changes nothing writes nothing.
   def handle_event("update_template_name", %{"name" => name}, socket) do
     template = socket.assigns.template
 
-    case Templates.update(template, %{"name" => name}, Actor.opts(socket)) do
-      {:ok, template} ->
-        {:noreply,
-         socket
-         |> assign(:template, template)
-         |> assign_trail(template)}
+    if String.trim(name) == template.name do
+      {:noreply, socket}
+    else
+      case Templates.update(template, %{"name" => String.trim(name)}, Actor.opts(socket)) do
+        {:ok, template} ->
+          {:noreply,
+           socket
+           |> assign(:template, template)
+           |> assign_trail(template)}
 
-      {:error, _cs} ->
-        {:noreply, put_flash(socket, :error, gettext("Could not rename template."))}
+        {:error, _cs} ->
+          {:noreply, put_flash(socket, :error, gettext("Could not rename template."))}
+      end
     end
   end
 
@@ -391,15 +414,22 @@ defmodule PhoenixKitOG.Web.EditorLive do
   end
 
   # Every panel-side scene mutation flows through here: adopt the new
-  # scene, refresh the slots panel, arm autosave + preview refresh.
+  # scene, refresh the slots panel, arm autosave + preview refresh. An
+  # event that leaves the scene as it was (Enter in a field that already
+  # holds its value) is not an edit and arms nothing.
   defp put_scene(socket, scene) do
-    slots = SceneStore.slots(scene)
+    # `==`, not a pattern match: a number field round-trips 40 as 40.0.
+    if scene == socket.assigns.scene do
+      socket
+    else
+      slots = SceneStore.slots(scene)
 
-    socket
-    |> assign(:scene, scene)
-    |> assign(:slots, slots)
-    |> assign(:stage_values, stage_values(slots, socket.assigns.stage_preview))
-    |> mark_dirty()
+      socket
+      |> assign(:scene, scene)
+      |> assign(:slots, slots)
+      |> assign(:stage_values, stage_values(slots, socket.assigns.stage_preview))
+      |> mark_dirty()
+    end
   end
 
   defp close_media_selector(socket) do
@@ -455,12 +485,7 @@ defmodule PhoenixKitOG.Web.EditorLive do
   # render nobody ever sees.
   defp load_or_create_template(_params, :new, socket) do
     if connected?(socket) do
-      name = "Untitled #{System.unique_integer([:positive])}"
-
-      Templates.create(
-        %{"name" => name, "canvas" => SceneStore.dump(SceneStore.blank())},
-        Actor.opts(socket)
-      )
+      create_untitled(socket, untitled_number(), 5)
     else
       {:ok, %Template{canvas: SceneStore.dump(SceneStore.blank())}}
     end
@@ -473,11 +498,41 @@ defmodule PhoenixKitOG.Web.EditorLive do
     end
   end
 
+  # Template names are unique, so a taken "Untitled N" moves on to the next
+  # number; two admins opening `/new` at once is the realistic collision.
+  defp create_untitled(socket, number, attempts_left) do
+    attrs = %{"name" => "Untitled #{number}", "canvas" => SceneStore.dump(SceneStore.blank())}
+
+    case Templates.create(attrs, Actor.opts(socket)) do
+      {:ok, template} ->
+        {:created, template}
+
+      {:error, %Ecto.Changeset{}} when attempts_left > 1 ->
+        create_untitled(socket, number + 1, attempts_left - 1)
+
+      {:error, %Ecto.Changeset{}} = error ->
+        error
+    end
+  end
+
+  # One past the highest "Untitled N" in use.
+  defp untitled_number do
+    Templates.list()
+    |> Enum.map(fn %Template{name: name} ->
+      case Regex.run(~r/\AUntitled (\d+)\z/, name || "") do
+        [_, digits] -> String.to_integer(digits)
+        _ -> 0
+      end
+    end)
+    |> Enum.max(fn -> 0 end)
+    |> Kernel.+(1)
+  end
+
   # The admin header trail. The templates list is the module's landing page,
   # so it is the section; an existing template is a text crumb (the list is
-  # its only page) under which this page is "Edit"; a fresh one is
-  # "New template" with no crumb — the URL stays /new while it is edited, so
-  # a rename there keeps that title.
+  # its only page) under which this page is "Edit". "New template" titles
+  # only the static render of `/new`, which navigates to the edit URL as
+  # soon as it connects.
   defp assign_trail(socket, template) do
     {crumbs, title} =
       case socket.assigns.live_action do

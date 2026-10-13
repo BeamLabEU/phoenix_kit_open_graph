@@ -14,11 +14,15 @@ defmodule PhoenixKitOG do
 
   use PhoenixKit.Module
 
+  require Logger
+
   alias PhoenixKit.Dashboard.Tab
   alias PhoenixKit.Settings
   alias PhoenixKitOG.{Assignments, Render, SceneStore, Templates, Variables}
 
   @version Mix.Project.config()[:version]
+
+  @publishing_groups PhoenixKit.Modules.Publishing.Groups
 
   # ===========================================================================
   # Required PhoenixKit.Module callbacks
@@ -127,7 +131,7 @@ defmodule PhoenixKitOG do
   @impl PhoenixKit.Module
   def css_sources, do: [:phoenix_kit_og]
 
-  # The editor ships two LiveView JS hooks (drag/resize + keyboard). Declaring
+  # The editor ships its keyboard hook as a prebuilt bundle. Declaring
   # the bundle here lets core's :phoenix_kit_js_sources compiler fold it into
   # the host's single LiveSocket at construction — the registration that
   # survives LiveView navigation (an inline <script> only runs on a hard load).
@@ -196,9 +200,20 @@ defmodule PhoenixKitOG do
       og
     end
   rescue
-    # Resolution failures must never crash a public post page render.
-    _ -> og
+    # Resolution failures must never crash a public post page render — but
+    # a silently missing image has to be traceable. Identifiers only: the
+    # post's content never reaches the log.
+    error ->
+      Logger.warning(
+        "[PhoenixKitOG] refine_og raised #{inspect(error.__struct__)} for post " <>
+          inspect(post_identifier(post))
+      )
+
+      og
   end
+
+  defp post_identifier(%{uuid: uuid}) when is_binary(uuid), do: uuid
+  defp post_identifier(_), do: nil
 
   @doc """
   Renders the OG image for ANY module's resource, or `:none`.
@@ -232,7 +247,7 @@ defmodule PhoenixKitOG do
          {:ok, template, slot_mapping} <-
            Assignments.resolve_template_with_mapping(module_key, hierarchy),
          {values, globals} <-
-           resolve_values(module_key, template, slot_mapping, conn, resource, language),
+           resolve_values(module_key, template, slot_mapping, conn, resource, language, nil),
          {:ok, path} <-
            Render.render_url(template, %{values: values, globals: globals, mode: :public}) do
       {:ok, absolutize(conn, path)}
@@ -258,7 +273,8 @@ defmodule PhoenixKitOG do
          hierarchy = publishing_hierarchy_for(post),
          {:ok, template, slot_mapping} <-
            Assignments.resolve_template_with_mapping("publishing", hierarchy),
-         {values, globals} = resolve_values(template, slot_mapping, conn, post, language),
+         {values, globals} =
+           resolve_values("publishing", template, slot_mapping, conn, post, language, nil),
          {:ok, path} <-
            Render.render_url(template, %{values: values, globals: globals, mode: :public}) do
       {:ok, absolutize(conn, path)}
@@ -272,31 +288,61 @@ defmodule PhoenixKitOG do
   defp render_and_swap(og, conn, post, language) do
     hierarchy = publishing_hierarchy_for(post)
 
-    with {:ok, template, slot_mapping} <-
-           Assignments.resolve_template_with_mapping("publishing", hierarchy),
-         {values, globals} = resolve_values(template, slot_mapping, conn, post, language),
-         {:ok, path} <-
-           Render.render_url(template, %{values: values, globals: globals, mode: :public}) do
-      scene = SceneStore.load(template.canvas)
+    case Assignments.resolve_template_with_mapping("publishing", hierarchy) do
+      {:ok, template, slot_mapping} ->
+        # `og[:url]` is the canonical URL the consumer already computed for
+        # this page — the one `[[page_url]]` must print.
+        {values, globals} =
+          resolve_values(
+            "publishing",
+            template,
+            slot_mapping,
+            conn,
+            post,
+            language,
+            Map.get(og, :url)
+          )
 
-      og
-      |> Map.put(:image, absolutize(conn, path))
-      |> Map.put(:image_width, Map.get(scene.canvas, :width, 1200))
-      |> Map.put(:image_height, Map.get(scene.canvas, :height, 630))
-      |> Map.put(:image_type, "image/png")
-    else
-      :none -> og
-      {:error, _reason} -> og
+        swap_rendered(og, conn, post, template, values, globals)
+
+      :none ->
+        og
     end
   end
 
+  defp swap_rendered(og, conn, post, template, values, globals) do
+    case Render.render_url(template, %{values: values, globals: globals, mode: :public}) do
+      {:ok, path} ->
+        scene = SceneStore.load(template.canvas)
+
+        og
+        |> Map.put(:image, absolutize(conn, path))
+        |> Map.put(:image_width, Map.get(scene.canvas, :width, 1200))
+        |> Map.put(:image_height, Map.get(scene.canvas, :height, 630))
+        |> Map.put(:image_type, "image/png")
+
+      {:error, reason} ->
+        Logger.warning(
+          "[PhoenixKitOG] refine_og kept the consumer image: post=" <>
+            "#{inspect(post_identifier(post))} template=#{inspect(template.uuid)} " <>
+            "reason=#{reason_tag(reason)}"
+        )
+
+        og
+    end
+  end
+
+  # Identifiers only in the log: a render reason can carry substituted text.
+  defp reason_tag(reason) when is_atom(reason), do: inspect(reason)
+  defp reason_tag({tag, _}) when is_atom(tag), do: inspect(tag)
+  defp reason_tag(_), do: "error"
+
   # Resolves the slot mapping against the consumer's `og_resolve/2`,
   # returning `{values, globals}` — OpenFresco takes `{{slot}}` values
-  # and `[[global]]` values as separate maps.
-  defp resolve_values(template, slot_mapping, conn, post, language),
-    do: resolve_values("publishing", template, slot_mapping, conn, post, language)
-
-  defp resolve_values(module_key, template, slot_mapping, conn, resource, language) do
+  # and `[[global]]` values as separate maps. Every caller here renders
+  # the crawler-facing image, so a wired slot with no value resolves to
+  # "" rather than leaving its `{{placeholder}}` on the card.
+  defp resolve_values(module_key, template, slot_mapping, conn, resource, language, page_url) do
     slots = template.canvas |> SceneStore.load() |> SceneStore.slots()
 
     context = %{
@@ -304,11 +350,15 @@ defmodule PhoenixKitOG do
       resource: resource,
       conn: conn,
       language: language,
-      page_url: Map.get(resource || %{}, :url) || Map.get(resource || %{}, "url")
+      page_url: page_url || resource_url(resource)
     }
 
-    {Variables.resolve(slots, slot_mapping, context), Variables.global_values(context)}
+    {Variables.resolve(slots, slot_mapping, context, unresolved: :empty),
+     Variables.global_values(context)}
   end
+
+  defp resource_url(%{} = resource), do: Map.get(resource, :url) || Map.get(resource, "url")
+  defp resource_url(_), do: nil
 
   defp absolutize(_conn, "http" <> _ = url), do: url
 
@@ -326,10 +376,40 @@ defmodule PhoenixKitOG do
   defp publishing_hierarchy_for(post) when is_map(post) do
     [
       {"post", Map.get(post, :uuid)},
-      {"group", get_in(post, [:metadata, :group_uuid])},
+      {"group", publishing_group_uuid(post)},
       {"default", nil}
     ]
   end
+
+  # Publishing's post map names its group by SLUG (`post.group`) and carries
+  # no group uuid, while a group assignment is keyed by the group's uuid —
+  # so the slug is resolved through publishing here. A `metadata.group_uuid`
+  # is honoured first for a consumer that does supply one.
+  defp publishing_group_uuid(post) do
+    case get_in(post, [:metadata, :group_uuid]) do
+      uuid when is_binary(uuid) -> uuid
+      _ -> group_uuid_for_slug(Map.get(post, :group))
+    end
+  end
+
+  defp group_uuid_for_slug(slug) when is_binary(slug) and slug != "" do
+    if Code.ensure_loaded?(@publishing_groups) and
+         function_exported?(@publishing_groups, :fetch_group, 1) do
+      # apply/3: phoenix_kit_publishing is an optional peer, not a dependency
+      # of this package, so a static call is an unknown function to dialyzer.
+      # credo:disable-for-next-line Credo.Check.Refactor.Apply
+      case apply(@publishing_groups, :fetch_group, [slug]) do
+        {:ok, %{"uuid" => uuid}} when is_binary(uuid) -> uuid
+        _ -> nil
+      end
+    end
+  rescue
+    _ -> nil
+  catch
+    :exit, _ -> nil
+  end
+
+  defp group_uuid_for_slug(_), do: nil
 
   # ===========================================================================
   # Re-exports — thin delegators so consumers import a single module

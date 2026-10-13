@@ -12,8 +12,9 @@ defmodule PhoenixKitOG.Render.Media do
     via core `Storage` and inlined as `data:` URLs.
   - **`file://`** is rejected outright — a local-file-read primitive
     with no legitimate use here.
-  - **Remote http(s)** passes through; the renderer skips it, matching
-    the legacy pipeline's behavior.
+  - **Remote http(s)** is never fetched. The value passes through
+    resolution so a `:preview` render shows the stand-in where the image
+    would be, and counts as unresolved in `:public` mode.
 
   Render modes:
 
@@ -21,8 +22,9 @@ defmodule PhoenixKitOG.Render.Media do
     draws its labeled stand-in (the editor/assignments affordance).
   - `:public` — a crawler-facing card must never ship a stand-in: an
     image *element* whose slot has no value is dropped, and an image
-    *background* falls back to the house dark solid — the legacy
-    pipeline's exact semantics.
+    *background* falls back to the house dark solid. A remote http(s)
+    value is unresolved here too — the renderer refuses remote hrefs, so
+    keeping the element would ship exactly that stand-in.
   """
 
   alias OpenFresco.Scene
@@ -48,8 +50,9 @@ defmodule PhoenixKitOG.Render.Media do
 
   @doc """
   Resolves image-typed slot values: a value that looks like a media UUID
-  becomes a `data:` URL; `data:`/http(s) pass through; `file://` and
-  host-relative paths are dropped to `nil` (unresolved).
+  becomes a `data:` URL; `data:`/http(s) pass through (http(s) is then
+  unresolved in `:public` mode); `file://` and host-relative paths are
+  dropped to `nil` (unresolved).
   """
   @spec resolve_values(map(), [%{name: String.t(), type: atom()}]) :: map()
   def resolve_values(values, slots) do
@@ -172,14 +175,46 @@ defmodule PhoenixKitOG.Render.Media do
 
   defp unresolved_image?(%{placeholder: name}, values) do
     case Map.get(values, name) do
-      v when is_binary(v) and v != "" -> false
+      v when is_binary(v) and v != "" -> remote_url?(v)
       _ -> true
     end
   end
 
   defp unresolved_image?(nil, _values), do: true
   defp unresolved_image?("", _values), do: true
-  defp unresolved_image?(_, _values), do: false
+  defp unresolved_image?(value, _values), do: remote_url?(value)
+
+  @doc """
+  Whether `value` is a remote http(s) URL — an image reference this
+  module never fetches and the renderer never draws.
+  """
+  @spec remote_url?(term()) :: boolean()
+  def remote_url?("http://" <> _), do: true
+  def remote_url?("https://" <> _), do: true
+  def remote_url?(_), do: false
+
+  @doc """
+  A browser-loadable thumbnail URL for an image reference shown in the
+  admin UI (the editor's media field, the assignments modal): a media
+  UUID resolves through core `Storage`; a URL the browser can already
+  load is returned as it is. `nil` when there is nothing to show.
+  """
+  @spec preview_url(term()) :: String.t() | nil
+  def preview_url(nil), do: nil
+  def preview_url(""), do: nil
+  def preview_url("http://" <> _ = url), do: url
+  def preview_url("https://" <> _ = url), do: url
+  def preview_url("/" <> _ = url), do: url
+  def preview_url("data:" <> _ = url), do: url
+
+  def preview_url(uuid) when is_binary(uuid) do
+    Storage.get_public_url_by_uuid(uuid, "medium") ||
+      Storage.get_public_url_by_uuid(uuid)
+  rescue
+    _ -> nil
+  end
+
+  def preview_url(_), do: nil
 
   # =========================================================================
   # Storage access (same strategy as the legacy SVG pipeline)

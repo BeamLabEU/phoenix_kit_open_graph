@@ -38,6 +38,66 @@ defmodule PhoenixKitOG.Assignments do
     )
   end
 
+  @doc "Returns `nil` when no assignment has that uuid."
+  @spec get_by_uuid(binary()) :: Assignment.t() | nil
+  def get_by_uuid(uuid) when is_binary(uuid) do
+    case Ecto.UUID.cast(uuid) do
+      {:ok, uuid} -> Assignment |> Repo.get(uuid) |> Repo.preload(:template)
+      :error -> nil
+    end
+  end
+
+  @doc "The assignments bound to one template, any consumer module."
+  @spec list_for_template(binary()) :: [Assignment.t()]
+  def list_for_template(template_uuid) when is_binary(template_uuid) do
+    Repo.all(from a in Assignment, where: a.template_uuid == ^template_uuid)
+  end
+
+  @doc "`%{template_uuid => assignment count}` for the templates that have any."
+  @spec count_by_template() :: %{binary() => pos_integer()}
+  def count_by_template do
+    from(a in Assignment, group_by: a.template_uuid, select: {a.template_uuid, count(a.uuid)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
+  Creates the assignment for a scope, slot mapping included, as one write
+  and one activity row. A scope that already has an assignment is an
+  `{:error, changeset}` (the unique indexes), never a silent overwrite —
+  `set/5` is the upsert.
+  """
+  @spec create(String.t(), String.t(), binary() | nil, binary(), map(), keyword()) ::
+          {:ok, Assignment.t()} | {:error, Ecto.Changeset.t()}
+  def create(module_key, scope_type, scope_uuid, template_uuid, slot_mapping, opts \\ [])
+      when is_map(slot_mapping) do
+    %Assignment{}
+    |> Assignment.changeset(%{
+      module_key: module_key,
+      scope_type: scope_type,
+      scope_uuid: scope_uuid,
+      template_uuid: template_uuid,
+      slot_mapping: slot_mapping
+    })
+    |> Repo.insert()
+    |> ActivityLog.log("assignment.created", opts, &assignment_activity/1)
+  end
+
+  @doc """
+  Changes the template and slot mapping of THIS assignment row — its scope
+  is not an input, so an edit can never land on another scope's row. One
+  write, one activity row.
+  """
+  @spec update(Assignment.t(), binary(), map(), keyword()) ::
+          {:ok, Assignment.t()} | {:error, Ecto.Changeset.t()}
+  def update(%Assignment{} = assignment, template_uuid, slot_mapping, opts \\ [])
+      when is_map(slot_mapping) do
+    assignment
+    |> Assignment.changeset(%{template_uuid: template_uuid, slot_mapping: slot_mapping})
+    |> Repo.update()
+    |> ActivityLog.log("assignment.updated", opts, &assignment_activity/1)
+  end
+
   @doc """
   Upserts an assignment. Pass `scope_uuid: nil` for the module-wide
   default tier.
@@ -166,7 +226,9 @@ defmodule PhoenixKitOG.Assignments do
 
   # PII-safe activity payload: module + scope shape + template pointer.
   # No slot_mapping content (users type into it — treat as free text).
-  defp assignment_activity(%Assignment{} = a) do
+  @doc false
+  @spec assignment_activity(Assignment.t()) :: map()
+  def assignment_activity(%Assignment{} = a) do
     %{
       resource_type: "phoenix_kit_og_assignment",
       resource_uuid: a.uuid,

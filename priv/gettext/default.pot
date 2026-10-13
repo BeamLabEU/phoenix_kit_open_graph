@@ -11,135 +11,136 @@
 msgid ""
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:936
+#: lib/phoenix_kit_og/web/assignments_live.ex:1090
 #, elixir-autogen, elixir-format
 msgid "(draft)"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:652
+#: lib/phoenix_kit_og/web/assignments_live.ex:755
+#: lib/phoenix_kit_og/web/assignments_live.ex:900
 #, elixir-autogen, elixir-format
 msgid "(none)"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:505
+#: lib/phoenix_kit_og/web/assignments_live.ex:606
 #, elixir-autogen, elixir-format
 msgid "(untitled)"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:747
+#: lib/phoenix_kit_og/web/assignments_live.ex:856
 #, elixir-autogen, elixir-format
 msgid "A specific Publishing group"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:326
+#: lib/phoenix_kit_og/web/editor_live/template.ex:328
 #, elixir-autogen, elixir-format
 msgid "A {{TextN}} slot to wire later."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:894
+#: lib/phoenix_kit_og/web/editor_live/template.ex:906
 #, elixir-autogen, elixir-format
 msgid "Align"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:348
+#: lib/phoenix_kit_og/web/editor_live/template.ex:350
 #, elixir-autogen, elixir-format
 msgid "An {{ImageN}} slot to wire later."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:739
+#: lib/phoenix_kit_og/web/assignments_live.ex:844
 #, elixir-autogen, elixir-format
 msgid "Applies to"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:555
+#: lib/phoenix_kit_og/web/assignments_live.ex:656
 #, elixir-autogen, elixir-format
 msgid "Assign template"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:723
+#: lib/phoenix_kit_og/web/assignments_live.ex:828
 #, elixir-autogen, elixir-format
 msgid "Assign template for…"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:249
+#: lib/phoenix_kit_og/web/assignments_live.ex:286
 #, elixir-autogen, elixir-format
 msgid "Assignment removed."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:306
+#: lib/phoenix_kit_og/web/assignments_live.ex:375
 #, elixir-autogen, elixir-format
 msgid "Assignment saved."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:499
+#: lib/phoenix_kit_og/web/editor_live/template.ex:507
 #, elixir-autogen, elixir-format
 msgid "Background"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:258
+#: lib/phoenix_kit_og/web/editor_live/template.ex:260
 #, elixir-autogen, elixir-format
 msgid "Bring to front"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:813
+#: lib/phoenix_kit_og/web/assignments_live.ex:958
 #, elixir-autogen, elixir-format
 msgid "Cancel"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:900
+#: lib/phoenix_kit_og/web/editor_live/template.ex:912
 #, elixir-autogen, elixir-format
 msgid "Center"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1302
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1313
 #, elixir-autogen, elixir-format
 msgid "Change"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:561
+#: lib/phoenix_kit_og/web/editor_live/template.ex:569
 #, elixir-autogen, elixir-format
 msgid "Changes autosave 800ms after each edit. Ctrl+S saves immediately."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:1088
+#: lib/phoenix_kit_og/web/assignments_live.ex:1257
 #, elixir-autogen, elixir-format
 msgid "Choose"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1322
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1333
 #, elixir-autogen, elixir-format
 msgid "Choose image"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:1096
+#: lib/phoenix_kit_og/web/assignments_live.ex:1265
 #, elixir-autogen, elixir-format
 msgid "Clear"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:616
+#: lib/phoenix_kit_og/web/assignments_live.ex:719
 #, elixir-autogen, elixir-format
 msgid "Click \"Assign template\" above to link a template to the module or a group."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:507
-#: lib/phoenix_kit_og/web/editor_live/template.ex:529
-#: lib/phoenix_kit_og/web/editor_live/template.ex:890
+#: lib/phoenix_kit_og/web/editor_live/template.ex:515
+#: lib/phoenix_kit_og/web/editor_live/template.ex:537
+#: lib/phoenix_kit_og/web/editor_live/template.ex:902
 #, elixir-autogen, elixir-format
 msgid "Color"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:642
+#: lib/phoenix_kit_og/web/editor_live/template.ex:650
 #, elixir-autogen, elixir-format
 msgid "Constant"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:850
+#: lib/phoenix_kit_og/web/editor_live/template.ex:859
 #, elixir-autogen, elixir-format
 msgid "Content"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:951
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1019
+#: lib/phoenix_kit_og/web/editor_live/template.ex:963
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1031
 #, elixir-autogen, elixir-format
 msgid "Corner radius"
 msgstr ""
@@ -149,22 +150,22 @@ msgstr ""
 msgid "Could not delete template."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:254
+#: lib/phoenix_kit_og/web/assignments_live.ex:291
 #, elixir-autogen, elixir-format
 msgid "Could not remove the assignment."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live.ex:268
+#: lib/phoenix_kit_og/web/editor_live.ex:290
 #, elixir-autogen, elixir-format
 msgid "Could not rename template."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:561
+#: lib/phoenix_kit_og/web/assignments_live.ex:662
 #, elixir-autogen, elixir-format
 msgid "Create a template first on the"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:821
+#: lib/phoenix_kit_og/web/assignments_live.ex:967
 #, elixir-autogen, elixir-format
 msgid "Create assignment"
 msgstr ""
@@ -179,17 +180,12 @@ msgstr ""
 msgid "Current page URL"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:1019
-#, elixir-autogen, elixir-format
-msgid "Custom (paste a URL or pick a media file)"
-msgstr ""
-
-#: lib/phoenix_kit_og/web/assignments_live.ex:1020
+#: lib/phoenix_kit_og/web/assignments_live.ex:1181
 #, elixir-autogen, elixir-format
 msgid "Custom text…"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/templates_live.ex:95
+#: lib/phoenix_kit_og/web/templates_live.ex:55
 #, elixir-autogen, elixir-format
 msgid "Delete %{name}?"
 msgstr ""
@@ -199,42 +195,42 @@ msgstr ""
 msgid "Deleted “%{name}”."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/templates_live.ex:94
+#: lib/phoenix_kit_og/web/templates_live.ex:112
 #, elixir-autogen, elixir-format
 msgid "Deleting…"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/templates_live.ex:56
+#: lib/phoenix_kit_og/web/templates_live.ex:74
 #, elixir-autogen, elixir-format
 msgid "Designs used to compose OG share images. Assignments page binds each template to a module, group, or post."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:668
-#: lib/phoenix_kit_og/web/editor_live.ex:483
+#: lib/phoenix_kit_og/web/assignments_live.ex:771
+#: lib/phoenix_kit_og/web/editor_live.ex:540
 #, elixir-autogen, elixir-format
 msgid "Edit"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:723
+#: lib/phoenix_kit_og/web/assignments_live.ex:828
 #, elixir-autogen, elixir-format
 msgid "Edit assignment"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:543
+#: lib/phoenix_kit_og/web/assignments_live.ex:644
 #, elixir-autogen, elixir-format
 msgid "Every template binding is listed below. Most-specific wins — a per-group assignment overrides the module default."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:547
-#: lib/phoenix_kit_og/web/editor_live/template.ex:942
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1018
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1112
+#: lib/phoenix_kit_og/web/editor_live/template.ex:555
+#: lib/phoenix_kit_og/web/editor_live/template.ex:954
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1030
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1124
 #, elixir-autogen, elixir-format
 msgid "Fill"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:541
-#: lib/phoenix_kit_og/web/editor_live/template.ex:936
+#: lib/phoenix_kit_og/web/editor_live/template.ex:549
+#: lib/phoenix_kit_og/web/editor_live/template.ex:948
 #, elixir-autogen, elixir-format
 msgid "Fit"
 msgstr ""
@@ -249,86 +245,82 @@ msgstr ""
 msgid "Full URL of the page carrying this OG image"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/templates_live.ex:110
+#: lib/phoenix_kit_og/web/templates_live.ex:128
 #, elixir-autogen, elixir-format
 msgid "Go to assignments →"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:755
-#: lib/phoenix_kit_og/web/assignments_live.ex:856
+#: lib/phoenix_kit_og/web/assignments_live.ex:869
+#: lib/phoenix_kit_og/web/assignments_live.ex:1006
 #, elixir-autogen, elixir-format
 msgid "Group"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:1133
-#: lib/phoenix_kit_og/web/assignments_live.ex:1136
-#: lib/phoenix_kit_og/web/assignments_live.ex:1139
+#: lib/phoenix_kit_og/web/assignments_live.ex:1289
+#: lib/phoenix_kit_og/web/assignments_live.ex:1292
+#: lib/phoenix_kit_og/web/assignments_live.ex:1295
 #, elixir-autogen, elixir-format
 msgid "Group: %{name}"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:732
+#: lib/phoenix_kit_og/web/editor_live/template.ex:741
 #, elixir-autogen, elixir-format
 msgid "Height"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:332
-#: lib/phoenix_kit_og/web/editor_live/template.ex:511
-#: lib/phoenix_kit_og/web/editor_live/template.ex:655
-#: lib/phoenix_kit_og/web/editor_live/template.ex:755
-#: lib/phoenix_kit_og/web/editor_live/template.ex:922
+#: lib/phoenix_kit_og/web/editor_live/template.ex:334
+#: lib/phoenix_kit_og/web/editor_live/template.ex:519
+#: lib/phoenix_kit_og/web/editor_live/template.ex:663
+#: lib/phoenix_kit_og/web/editor_live/template.ex:677
+#: lib/phoenix_kit_og/web/editor_live/template.ex:764
+#: lib/phoenix_kit_og/web/editor_live/template.ex:934
 #, elixir-autogen, elixir-format
 msgid "Image"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:346
+#: lib/phoenix_kit_og/web/editor_live/template.ex:348
 #, elixir-autogen, elixir-format
 msgid "Image variable"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:307
+#: lib/phoenix_kit_og/web/editor_live/template.ex:309
 #, elixir-autogen, elixir-format
 msgid "Insert…"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:48
+#: lib/phoenix_kit_og/web/editor_live/template.ex:49
 #, elixir-autogen, elixir-format
 msgid "JavaScript is disabled — the template editor needs it for dragging, resizing, and saving. Enable JS and reload."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:900
-#: lib/phoenix_kit_og/web/editor_live/template.ex:989
+#: lib/phoenix_kit_og/web/editor_live/template.ex:912
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1001
 #, elixir-autogen, elixir-format
 msgid "Left"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:1036
+#: lib/phoenix_kit_og/web/assignments_live.ex:1201
 #, elixir-autogen, elixir-format
 msgid "Literal text (or {{name}} / [[name]])"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:1078
-#, elixir-autogen, elixir-format
-msgid "Media UUID or URL"
-msgstr ""
-
-#: lib/phoenix_kit_og/web/editor_live.ex:482
-#: lib/phoenix_kit_og/web/templates_live.ex:63
+#: lib/phoenix_kit_og/web/editor_live.ex:539
+#: lib/phoenix_kit_og/web/templates_live.ex:81
 #, elixir-autogen, elixir-format
 msgid "New template"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:770
+#: lib/phoenix_kit_og/web/assignments_live.ex:888
 #, elixir-autogen, elixir-format
 msgid "No active publishing groups found."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:613
+#: lib/phoenix_kit_og/web/assignments_live.ex:716
 #, elixir-autogen, elixir-format
 msgid "No assignments yet."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/templates_live.ex:72
+#: lib/phoenix_kit_og/web/templates_live.ex:90
 #, elixir-autogen, elixir-format
 msgid "No templates yet. The visual editor is coming next — for now you can create a default starter to verify the integration."
 msgstr ""
@@ -338,17 +330,17 @@ msgstr ""
 msgid "Not found."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:911
+#: lib/phoenix_kit_og/web/assignments_live.ex:1065
 #, elixir-autogen, elixir-format
 msgid "OG preview"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:541
+#: lib/phoenix_kit_og/web/assignments_live.ex:642
 #, elixir-autogen, elixir-format
 msgid "OpenGraph assignments"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/templates_live.ex:54
+#: lib/phoenix_kit_og/web/templates_live.ex:72
 #, elixir-autogen, elixir-format
 msgid "OpenGraph templates"
 msgstr ""
@@ -358,7 +350,7 @@ msgstr ""
 msgid "Pick a publishing group."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:848
+#: lib/phoenix_kit_og/web/assignments_live.ex:994
 #, elixir-autogen, elixir-format
 msgid "Pick a real post to preview against its data."
 msgstr ""
@@ -368,22 +360,22 @@ msgstr ""
 msgid "Pick a template first."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:726
+#: lib/phoenix_kit_og/web/assignments_live.ex:831
 #, elixir-autogen, elixir-format
 msgid "Pick what this assignment applies to, choose a template, and wire its slots — save when you're done."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:874
+#: lib/phoenix_kit_og/web/assignments_live.ex:1028
 #, elixir-autogen, elixir-format
 msgid "Post"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:845
+#: lib/phoenix_kit_og/web/assignments_live.ex:991
 #, elixir-autogen, elixir-format
 msgid "Preview"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:922
+#: lib/phoenix_kit_og/web/assignments_live.ex:1076
 #, elixir-autogen, elixir-format
 msgid "Preview appears once a template is selected."
 msgstr ""
@@ -398,79 +390,79 @@ msgstr ""
 msgid "Preview render needs the resvg NIF — check that the dep resolved on this build."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:359
-#: lib/phoenix_kit_og/web/editor_live/template.ex:756
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1015
+#: lib/phoenix_kit_og/web/editor_live/template.ex:361
+#: lib/phoenix_kit_og/web/editor_live/template.ex:765
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1027
 #, elixir-autogen, elixir-format
 msgid "Rectangle"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:677
-#: lib/phoenix_kit_og/web/editor_live/template.ex:977
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1311
+#: lib/phoenix_kit_og/web/assignments_live.ex:780
+#: lib/phoenix_kit_og/web/editor_live/template.ex:989
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1322
 #, elixir-autogen, elixir-format
 msgid "Remove"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:675
+#: lib/phoenix_kit_og/web/assignments_live.ex:778
 #, elixir-autogen, elixir-format
 msgid "Remove this assignment?"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:674
+#: lib/phoenix_kit_og/web/assignments_live.ex:777
 #, elixir-autogen, elixir-format
 msgid "Removing…"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:902
+#: lib/phoenix_kit_og/web/assignments_live.ex:1056
 #, elixir-autogen, elixir-format
 msgid "Rendering…"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:900
-#: lib/phoenix_kit_og/web/editor_live/template.ex:990
+#: lib/phoenix_kit_og/web/editor_live/template.ex:912
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1002
 #, elixir-autogen, elixir-format
 msgid "Right"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:170
+#: lib/phoenix_kit_og/web/editor_live/template.ex:171
 #, elixir-autogen, elixir-format
 msgid "Sample Post Title"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:821
-#: lib/phoenix_kit_og/web/editor_live/template.ex:287
+#: lib/phoenix_kit_og/web/assignments_live.ex:967
+#: lib/phoenix_kit_og/web/editor_live/template.ex:289
 #, elixir-autogen, elixir-format
 msgid "Save"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:420
+#: lib/phoenix_kit_og/web/editor_live/template.ex:428
 #, elixir-autogen, elixir-format
 msgid "Save failed"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live.ex:432
+#: lib/phoenix_kit_og/web/editor_live.ex:462
 #, elixir-autogen, elixir-format
 msgid "Save failed — please retry."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:416
+#: lib/phoenix_kit_og/web/editor_live/template.ex:424
 #, elixir-autogen, elixir-format
 msgid "Saved"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:818
-#: lib/phoenix_kit_og/web/editor_live/template.ex:284
+#: lib/phoenix_kit_og/web/assignments_live.ex:963
+#: lib/phoenix_kit_og/web/editor_live/template.ex:286
 #, elixir-autogen, elixir-format
 msgid "Saving…"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:266
+#: lib/phoenix_kit_og/web/editor_live/template.ex:268
 #, elixir-autogen, elixir-format
 msgid "Send to back"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:675
+#: lib/phoenix_kit_og/web/editor_live/template.ex:683
 #, elixir-autogen, elixir-format
 msgid "Shows up on the Assignments page — pick which module variable it maps to."
 msgstr ""
@@ -490,71 +482,71 @@ msgstr ""
 msgid "Site name"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:450
+#: lib/phoenix_kit_og/web/editor_live/template.ex:458
 #, elixir-autogen, elixir-format
 msgid "Slots used"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:634
+#: lib/phoenix_kit_og/web/editor_live/template.ex:642
 #, elixir-autogen, elixir-format
 msgid "Source"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:381
-#: lib/phoenix_kit_og/web/editor_live/template.ex:754
+#: lib/phoenix_kit_og/web/editor_live/template.ex:383
+#: lib/phoenix_kit_og/web/editor_live/template.ex:763
 #, elixir-autogen, elixir-format
 msgid "Stamp"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:337
+#: lib/phoenix_kit_og/web/editor_live/template.ex:339
 #, elixir-autogen, elixir-format
 msgid "Static image"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:315
+#: lib/phoenix_kit_og/web/editor_live/template.ex:317
 #, elixir-autogen, elixir-format
 msgid "Static text"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:776
-#: lib/phoenix_kit_og/web/editor_live/template.ex:493
+#: lib/phoenix_kit_og/web/assignments_live.ex:916
+#: lib/phoenix_kit_og/web/editor_live/template.ex:501
 #, elixir-autogen, elixir-format
 msgid "Template"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:651
+#: lib/phoenix_kit_og/web/assignments_live.ex:754
 #, elixir-autogen, elixir-format
 msgid "Template:"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:563
+#: lib/phoenix_kit_og/web/assignments_live.ex:664
 #, elixir-autogen, elixir-format
 msgid "Templates"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/templates_live.ex:106
+#: lib/phoenix_kit_og/web/templates_live.ex:124
 #, elixir-autogen, elixir-format
 msgid "Templates listed here can be bound to modules, groups, or posts from the Assignments tab."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:310
-#: lib/phoenix_kit_og/web/editor_live/template.ex:753
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1116
+#: lib/phoenix_kit_og/web/editor_live/template.ex:312
+#: lib/phoenix_kit_og/web/editor_live/template.ex:762
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1128
 #, elixir-autogen, elixir-format
 msgid "Text"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:324
+#: lib/phoenix_kit_og/web/editor_live/template.ex:326
 #, elixir-autogen, elixir-format
 msgid "Text variable"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:172
+#: lib/phoenix_kit_og/web/editor_live/template.ex:173
 #, elixir-autogen, elixir-format
 msgid "This is a sample post description — the way readers will see the intro before they click through."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:956
+#: lib/phoenix_kit_og/web/assignments_live.ex:1111
 #, elixir-autogen, elixir-format
 msgid "This template has no {{slots}} — nothing to wire."
 msgstr ""
@@ -564,54 +556,54 @@ msgstr ""
 msgid "Unexpected error: %{reason}"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:242
+#: lib/phoenix_kit_og/web/editor_live/template.ex:244
 #, elixir-autogen, elixir-format
 msgid "Untitled template"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:649
+#: lib/phoenix_kit_og/web/editor_live/template.ex:657
 #, elixir-autogen, elixir-format
 msgid "Variable"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:659
-#: lib/phoenix_kit_og/web/editor_live/template.ex:857
+#: lib/phoenix_kit_og/web/editor_live/template.ex:667
+#: lib/phoenix_kit_og/web/editor_live/template.ex:866
 #, elixir-autogen, elixir-format
 msgid "Variable name"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:1008
+#: lib/phoenix_kit_og/web/assignments_live.ex:1169
 #, elixir-autogen, elixir-format
 msgid "Variables"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:744
-#: lib/phoenix_kit_og/web/assignments_live.ex:1128
+#: lib/phoenix_kit_og/web/assignments_live.ex:853
+#: lib/phoenix_kit_og/web/assignments_live.ex:1284
 #, elixir-autogen, elixir-format
 msgid "Whole Publishing module (default)"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:731
+#: lib/phoenix_kit_og/web/editor_live/template.ex:740
 #, elixir-autogen, elixir-format
 msgid "Width"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:952
+#: lib/phoenix_kit_og/web/assignments_live.ex:1107
 #, elixir-autogen, elixir-format
 msgid "Wire template slots"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:916
+#: lib/phoenix_kit_og/web/assignments_live.ex:1070
 #, elixir-autogen, elixir-format
 msgid "Wired variables resolve against the selected post; custom values pass through verbatim; unwired image slots get a stand-in."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:316
+#: lib/phoenix_kit_og/web/editor_live/template.ex:318
 #, elixir-autogen, elixir-format
 msgid "You type the content."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:826
+#: lib/phoenix_kit_og/web/assignments_live.ex:972
 #, elixir-autogen, elixir-format
 msgid "close"
 msgstr ""
@@ -631,327 +623,385 @@ msgstr ""
 msgid "e.g. https://example.com"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:565
+#: lib/phoenix_kit_og/web/assignments_live.ex:666
 #, elixir-autogen, elixir-format
 msgid "page."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:655
+#: lib/phoenix_kit_og/web/assignments_live.ex:758
 #, elixir-autogen, elixir-format
 msgid "slots wired"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:1007
+#: lib/phoenix_kit_og/web/assignments_live.ex:1168
 #, elixir-autogen, elixir-format
 msgid "— Not wired —"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:883
+#: lib/phoenix_kit_og/web/assignments_live.ex:1037
 #, elixir-autogen, elixir-format
 msgid "— no posts in group —"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:860
+#: lib/phoenix_kit_og/web/assignments_live.ex:1010
 #, elixir-autogen, elixir-format
 msgid "— none —"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:759
+#: lib/phoenix_kit_og/web/assignments_live.ex:877
 #, elixir-autogen, elixir-format
 msgid "— pick a group —"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:885
+#: lib/phoenix_kit_og/web/assignments_live.ex:1039
 #, elixir-autogen, elixir-format
 msgid "— pick a post —"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:780
+#: lib/phoenix_kit_og/web/assignments_live.ex:924
 #, elixir-autogen, elixir-format
 msgid "— pick a template —"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:142
+#: lib/phoenix_kit_og/web/editor_live/template.ex:143
 #, elixir-autogen, elixir-format
 msgid "Card"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:547
-#: lib/phoenix_kit_og/web/editor_live/template.ex:942
+#: lib/phoenix_kit_og/web/editor_live/template.ex:555
+#: lib/phoenix_kit_og/web/editor_live/template.ex:954
 #, elixir-autogen, elixir-format
 msgid "Contain"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:547
-#: lib/phoenix_kit_og/web/editor_live/template.ex:942
+#: lib/phoenix_kit_og/web/editor_live/template.ex:555
+#: lib/phoenix_kit_og/web/editor_live/template.ex:954
 #, elixir-autogen, elixir-format
 msgid "Stretch"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:382
+#: lib/phoenix_kit_og/web/editor_live/template.ex:384
 #, elixir-autogen, elixir-format
 msgid "A short badge/label."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:819
+#: lib/phoenix_kit_og/web/editor_live/template.ex:828
 #, elixir-autogen, elixir-format
 msgid "Above"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:782
+#: lib/phoenix_kit_og/web/editor_live/template.ex:791
 #, elixir-autogen, elixir-format
 msgid "Anchor to"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:586
+#: lib/phoenix_kit_og/web/editor_live/template.ex:594
 #, elixir-autogen, elixir-format
 msgid "Angle"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:372
+#: lib/phoenix_kit_og/web/editor_live/template.ex:374
 #, elixir-autogen, elixir-format
 msgid "Auto-sizes to its translatable label."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1139
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1151
 #, elixir-autogen, elixir-format
 msgid "Auto-width (grows with the label — recommended for translated labels)"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:815
+#: lib/phoenix_kit_og/web/editor_live/template.ex:824
 #, elixir-autogen, elixir-format
 msgid "Below"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:757
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1045
+#: lib/phoenix_kit_og/web/editor_live/template.ex:766
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1057
 #, elixir-autogen, elixir-format
 msgid "Button"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:370
+#: lib/phoenix_kit_og/web/editor_live/template.ex:372
 #, elixir-autogen, elixir-format
 msgid "Call-to-action button"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:274
+#: lib/phoenix_kit_og/web/editor_live/template.ex:276
 #, elixir-autogen, elixir-format
 msgid "Delete element"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:582
+#: lib/phoenix_kit_og/web/editor_live/template.ex:590
 #, elixir-autogen, elixir-format
 msgid "From"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:823
+#: lib/phoenix_kit_og/web/editor_live/template.ex:832
 #, elixir-autogen, elixir-format
 msgid "Gap"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:521
+#: lib/phoenix_kit_og/web/editor_live/template.ex:529
 #, elixir-autogen, elixir-format
 msgid "Gradient"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1072
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1084
 #, elixir-autogen, elixir-format
 msgid "Label"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1053
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1065
 #, elixir-autogen, elixir-format
 msgid "Label variable (translatable per post language)"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1082
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1094
 #, elixir-autogen, elixir-format
 msgid "Label — or type {{cta}} to make it a slot"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1152
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1164
 #, elixir-autogen, elixir-format
 msgid "Legibility underlay"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:747
+#: lib/phoenix_kit_og/web/editor_live/template.ex:756
 #, elixir-autogen, elixir-format
 msgid "No editable properties."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:800
+#: lib/phoenix_kit_og/web/editor_live/template.ex:809
 #, elixir-autogen, elixir-format
 msgid "Nothing (fixed position)"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1096
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1108
 #, elixir-autogen, elixir-format
 msgid "Outline"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:338
+#: lib/phoenix_kit_og/web/editor_live/template.ex:340
 #, elixir-autogen, elixir-format
 msgid "Pick from the media library."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:786
+#: lib/phoenix_kit_og/web/editor_live/template.ex:795
 #, elixir-autogen, elixir-format
 msgid "Pins this element relative to another one. When the target grows (a title wrapping to two lines), this element moves with it."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:725
+#: lib/phoenix_kit_og/web/editor_live/template.ex:734
 #, elixir-autogen, elixir-format
 msgid "Position & size"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1123
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1135
 #, elixir-autogen, elixir-format
 msgid "Radius"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:354
+#: lib/phoenix_kit_og/web/editor_live/template.ex:356
 #, elixir-autogen, elixir-format
 msgid "Shape & button"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:387
+#: lib/phoenix_kit_og/web/editor_live/template.ex:389
 #, elixir-autogen, elixir-format
 msgid "Site globals"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:887
+#: lib/phoenix_kit_og/web/editor_live/template.ex:899
 #, elixir-autogen, elixir-format
 msgid "Size"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1096
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1108
 #, elixir-autogen, elixir-format
 msgid "Soft"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1096
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1108
 #, elixir-autogen, elixir-format
 msgid "Solid"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:361
+#: lib/phoenix_kit_og/web/editor_live/template.ex:363
 #, elixir-autogen, elixir-format
 msgid "Solid fill, rounded corners."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1090
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1102
 #, elixir-autogen, elixir-format
 msgid "Style"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:1122
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1134
 #, elixir-autogen, elixir-format
 msgid "Text size"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:881
+#: lib/phoenix_kit_og/web/editor_live/template.ex:893
 #, elixir-autogen, elixir-format
 msgid "Text — inline {{slots}} and [[globals]] work too"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:583
+#: lib/phoenix_kit_og/web/editor_live/template.ex:591
 #, elixir-autogen, elixir-format
 msgid "To"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:456
+#: lib/phoenix_kit_og/web/editor_live/template.ex:464
 #, elixir-autogen, elixir-format
 msgid "Type {{name}} in a text field (or make an element a Variable) to declare a slot. Wire it to real data on the Assignments page."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:418
+#: lib/phoenix_kit_og/web/editor_live/template.ex:426
 #, elixir-autogen, elixir-format
 msgid "Unsaved…"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:888
+#: lib/phoenix_kit_og/web/editor_live/template.ex:900
 #, elixir-autogen, elixir-format
 msgid "Weight"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:109
+#: lib/phoenix_kit_og/web/editor_live/template.ex:110
 #, elixir-autogen, elixir-format
 msgid "Drag to move, corner handles to resize, Delete removes. Sample values are stand-ins — wire real data on the Assignments page."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:113
+#: lib/phoenix_kit_og/web/editor_live/template.ex:114
 #, elixir-autogen, elixir-format
 msgid "Raw template view — {{slots}} and [[globals]] show as tokens. Toggle back for sample values."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:89
+#: lib/phoenix_kit_og/web/editor_live/template.ex:90
 #, elixir-autogen, elixir-format
 msgid "Raw variables"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:89
+#: lib/phoenix_kit_og/web/editor_live/template.ex:90
 #, elixir-autogen, elixir-format
 msgid "Sample values"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:82
+#: lib/phoenix_kit_og/web/editor_live/template.ex:83
 #, elixir-autogen, elixir-format
 msgid "Show sample values and the placeholder image"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:81
+#: lib/phoenix_kit_og/web/editor_live/template.ex:82
 #, elixir-autogen, elixir-format
 msgid "Show the raw {{slot}} and [[global]] tokens"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:73
+#: lib/phoenix_kit_og/web/editor_live/template.ex:74
 #, elixir-autogen, elixir-format
 msgid "Showing raw variables"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:72
+#: lib/phoenix_kit_og/web/editor_live/template.ex:73
 #, elixir-autogen, elixir-format
 msgid "Showing sample values"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:992
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1004
 #, elixir-autogen, elixir-format
 msgid "Bottom"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:972
+#: lib/phoenix_kit_og/web/editor_live/template.ex:984
 #, elixir-autogen, elixir-format
 msgid "Custom mask (set via API)"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:956
+#: lib/phoenix_kit_og/web/editor_live/template.ex:968
 #, elixir-autogen, elixir-format
 msgid "Fade edge"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:960
+#: lib/phoenix_kit_og/web/editor_live/template.ex:972
 #, elixir-autogen, elixir-format
 msgid "Fades the image out toward the chosen edge — e.g. a photo on the right half fading left into the text field."
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:988
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1000
 #, elixir-autogen, elixir-format
 msgid "None"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/editor_live/template.ex:991
+#: lib/phoenix_kit_og/web/editor_live/template.ex:1003
 #, elixir-autogen, elixir-format
 msgid "Top"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:47
+#: lib/phoenix_kit_og/web/assignments_live.ex:51
 #, elixir-autogen, elixir-format
 msgid "Assignments"
 msgstr ""
 
-#: lib/phoenix_kit_og/web/assignments_live.ex:45
-#: lib/phoenix_kit_og/web/editor_live.ex:487
+#: lib/phoenix_kit_og/web/assignments_live.ex:49
+#: lib/phoenix_kit_og/web/editor_live.ex:544
 #: lib/phoenix_kit_og/web/templates_live.ex:18
 #, elixir-autogen, elixir-format
 msgid "OpenGraph"
+msgstr ""
+
+#: lib/phoenix_kit_og/web/assignments_live.ex:861
+#, elixir-autogen, elixir-format
+msgid "An assignment keeps the scope it was created for. To move it, remove it and assign the template again."
+msgstr ""
+
+#: lib/phoenix_kit_og/web/editor_live.ex:67
+#, elixir-autogen, elixir-format
+msgid "Could not create a template."
+msgstr ""
+
+#: lib/phoenix_kit_og/web/assignments_live.ex:385
+#, elixir-autogen, elixir-format
+msgid "Could not save the assignment."
+msgstr ""
+
+#: lib/phoenix_kit_og/web/assignments_live.ex:1180
+#, elixir-autogen, elixir-format
+msgid "Custom (pick a media file)"
+msgstr ""
+
+#: lib/phoenix_kit_og/web/templates_live.ex:58
+#, elixir-autogen, elixir-format
+msgid "Delete %{name}? %{count} assignment uses this template and will be removed with it."
+msgid_plural "Delete %{name}? %{count} assignments use this template and will be removed with it."
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/phoenix_kit_og/web/assignments_live.ex:910
+#, elixir-autogen, elixir-format
+msgid "Edit the existing assignment"
+msgstr ""
+
+#: lib/phoenix_kit_og/web/editor_live/template.ex:684
+#: lib/phoenix_kit_og/web/editor_live/template.ex:881
+#, elixir-autogen, elixir-format
+msgid "Letters, digits and underscores only."
+msgstr ""
+
+#: lib/phoenix_kit_og/web/assignments_live.ex:1247
+#, elixir-autogen, elixir-format
+msgid "Media file UUID"
+msgstr ""
+
+#: lib/phoenix_kit_og/web/assignments_live.ex:1271
+#, elixir-autogen, elixir-format
+msgid "Remote image URLs are not loaded, so this image would be left off the public card. Pick a media file instead."
+msgstr ""
+
+#: lib/phoenix_kit_og/web/assignments_live.ex:898
+#, elixir-autogen, elixir-format
+msgid "This scope already has an assignment (template “%{name}”). Saving here would replace it, so it is not allowed — edit the existing assignment instead."
+msgstr ""
+
+#: lib/phoenix_kit_og/web/assignments_live.ex:391
+#, elixir-autogen, elixir-format
+msgid "This scope already has an assignment. Edit that one instead."
 msgstr ""

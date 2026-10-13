@@ -84,6 +84,43 @@ defmodule PhoenixKitOG.ActivityLog do
     :ok
   end
 
+  @doc """
+  Inserts an activity row from INSIDE the caller's transaction, so the row
+  exists exactly when the transaction commits. Returns the entry for
+  `publish/1`, or `nil` when the row could not be written.
+
+  `PhoenixKit.Activity.log/3` broadcasts as it inserts, which inside a
+  transaction announces a change that may still roll back — hence the
+  split. The insert runs in a savepoint: a failed audit row must not abort
+  the transaction it describes.
+  """
+  @spec insert_in_transaction(String.t(), keyword(), map()) :: struct() | nil
+  def insert_in_transaction(action, opts, fields) when is_binary(action) and is_map(fields) do
+    attrs =
+      opts
+      |> core_opts(fields)
+      |> Map.new()
+      |> Map.merge(%{module: @module_key, action: action})
+      |> Map.update(:metadata, %{}, &(&1 || %{}))
+
+    case attrs
+         |> PhoenixKit.Activity.entry_changeset()
+         |> PhoenixKit.RepoHelper.repo().insert(mode: :savepoint) do
+      {:ok, entry} -> entry
+      {:error, _} -> nil
+    end
+  rescue
+    _ -> nil
+  end
+
+  @doc "Publishes entries written by `insert_in_transaction/3`, after the commit."
+  @spec publish([struct() | nil]) :: :ok
+  def publish(entries) when is_list(entries) do
+    entries
+    |> Enum.reject(&is_nil/1)
+    |> Enum.each(&PhoenixKit.Activity.broadcast/1)
+  end
+
   # A write that did not land goes through core's `log_failed/3`: it stamps
   # `"db_pending" => true`, so the core feed can tell an attempt from an
   # action, and it never fans out a notification. Our own `failed` /

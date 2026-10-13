@@ -78,6 +78,9 @@ mix test
 mix precommit                # compile --warnings-as-errors + format + credo --strict + dialyzer; run before every commit
 ```
 
+In this repo `mix precommit` ends with `mix test.js` (`node --test` over
+`test/js/*.test.cjs`; skips itself when node is absent).
+
 `phoenix_kit*` deps resolve from Hex. To run against a local checkout, export
 `<APP>_PATH` (the dep's app name upper-cased plus `_PATH`); `pk_dep/3` in
 `mix.exs` swaps the Hex pin for a `path:` dep at resolve time. Unset means the
@@ -133,12 +136,19 @@ Repo-local aliases:
 - JS hooks: two prebuilt bundles declared by `js_sources/0`, folded into the
   host's single LiveSocket by core's `:phoenix_kit_js_sources` compiler:
   this repo's `priv/static/assets/phoenix_kit_og.js` → `window.PhoenixKitOGHooks`
-  (`PhoenixKitOGEditor`: nudge / delete / Ctrl+S at the LV level) and
+  (`PhoenixKitOGEditor`: nudge / delete / Ctrl+S at the LV level; what a
+  keydown means is decided by the pure `editorKeyAction`, exported for
+  `test/js` only — a shortcut rule changes there, with a test) and
   `open_fresco`'s `priv/static/open_fresco.js` → `window.OpenFrescoHooks`
   (`OpenFrescoEditor`: reports pointer gestures as canvas-space deltas; the
   LiveComponent applies them via `OpenFresco.Editor.Ops`). Never register a
   hook from an inline `<script>` — morphdom does not execute inserted script
   tags, so the hook vanishes on LiveView navigation.
+- Forms: every `<form phx-change=…>` also carries `phx-submit` (the same
+  event, so Enter commits the field). Without it Enter in a text input
+  submits the form natively — a browser GET that remounts the LiveView and
+  drops its state — and LiveViewTest cannot see that; the editor and
+  assignments tests pin the attribute on every form instead.
 - CSS: `css_sources/0` returns `[:phoenix_kit_og]` so the host's Tailwind
   scans this module's templates; nothing to add on the host side.
 - `enabled?/0` reads `phoenix_kit_og_enabled` (default `false`), rescues and
@@ -157,11 +167,23 @@ Repo-local aliases:
   `maybe_log/3` is the direct form. Actor threads through `opts[:actor_uuid]`
   (LiveViews build it with core's `PhoenixKitWeb.Actor.opts/1`; `:mode`
   defaults to `"manual"`). Core never raises, so a missing table or any other
-  failure is logged there and the mutation carries on. Actions: `template.{created,updated,deleted}`,
+  failure is logged there and the mutation carries on. Never call
+  `Activity.log` inside a transaction (it broadcasts as it inserts): a row
+  that must commit with the mutation goes through
+  `ActivityLog.insert_in_transaction/3` and is announced with `publish/1`
+  after the commit. Actions: `template.{created,updated,deleted}`,
   `assignment.{created,updated,deleted,slot_mapping_updated}`. Metadata is
   PII-safe: names, counts, UUIDs only — never canvas blobs, image bytes, or
   `slot_mapping` content (users type into it).
-- Soft delete: none. Deleting a template cascades its assignments (FK).
+- Soft delete: none. Deleting a template cascades its assignments (FK);
+  `Templates.delete/2` logs one `assignment.deleted` row per cascaded
+  assignment (metadata `"cascade" => "template.deleted"`) in the delete's
+  transaction, and the list page's confirmation states the count.
+- Assignments admin: Edit saves the row it opened (`Assignments.update/4` —
+  scope and group are locked, so an edit cannot land on another scope's
+  row); New goes through `Assignments.create/6`, which refuses a scope that
+  already has an assignment. `Assignments.set/5` stays the upsert for API
+  consumers. One activity row per save.
 - Every OG card is 1200×630; the editor snaps a stray-sized scene back on
   mount. Renders clamp at 4000px per side (`@max_dimension`).
 - The core pin keeps the compound `>= 2.38.0 and < 3.0.0` form
@@ -231,13 +253,24 @@ dev_docs/                          fresco checklist / requirements / feedback; p
 
 `SceneStore.slots/1` (→ `OpenFresco.Substitute.slots/1`) lists the `{{...}}`
 slots a scene uses as `[%{name, type: :text | :image}]`. OpenFresco takes slot
-values and global values as two separate maps. `Variables.resolve/3` walks the
+values and global values as two separate maps. `Variables.resolve/4` walks the
 slot mapping: a `custom:` prefix is a literal typed by the author (or a picked
 media UUID) and passes through verbatim; then globals; then the consumer's
-`og_resolve/2`. A missing wire or unknown variable leaves the slot unresolved
-(the renderer keeps `{{slot}}` visible). `Variables.global_values/1` prefers
-`conn` fields and falls back to the `:endpoint` so the editor can preview real
-values without a request.
+`og_resolve/2`. A slot with no wire is left out (the renderer keeps
+`{{slot}}` visible — the "needs wiring" signal). A WIRED slot whose variable
+has no value is left out too by default, and resolves to `""` with
+`unresolved: :empty`, which every crawler-facing render passes: a post without
+a description must not print `{{Description}}` on its card.
+
+`Variables.global_values/1` takes the site origin (`site_host`, `site_url`,
+the base of `page_url`) from configuration, never from the request's `Host`
+header — anyone can send any `Host`, and the value ends up in a cached public
+image. Order: the `:canonical_host_resolver` MFA (`config :phoenix_kit`,
+called with the page language — a multi-domain host's per-language home),
+the `site_url` setting, the endpoint's configured URL (`:endpoint` in the
+context, else the parent app's), and only when none is set the origin of the
+request. `page_url` is the context's `:page_url` when the caller has the
+canonical URL (`refine_og/4` passes `og[:url]`), else origin + request path.
 
 ### Hierarchy resolution
 
@@ -249,8 +282,13 @@ e.g. a post without a group). `{"default", nil}` always trails and matches the
 module-wide assignment whose `scope_uuid IS NULL`. Publishing's hierarchy:
 
 ```elixir
-[{"post", post.uuid}, {"group", post.metadata.group_uuid}, {"default", nil}]
+[{"post", post.uuid}, {"group", group_uuid}, {"default", nil}]
 ```
+
+Publishing's post map names its group by slug (`post.group`) and carries no
+group uuid, so `group_uuid` is `post.metadata.group_uuid` when a consumer
+supplies one and otherwise the slug resolved through publishing's
+`Groups.fetch_group/1` (guarded; `nil` skips the tier).
 
 ### Consumer contract
 
@@ -261,7 +299,7 @@ A module opts in by implementing two optional callbacks on its
 | Callback | Shape | Notes |
 |---|---|---|
 | `og_variables/0` | `[%{name: String.t(), type: :text \| :image, label: String.t(), description: String.t()}]` | Declares the variables a template slot can bind to. The assignments UI filters by type, so an `:image` slot lists only image-typed vars. Merged with the globals in the "wire slots" dropdown. |
-| `og_resolve/2` | `(var_name :: String.t(), context) -> value \| nil` | Fetches the value at render time. `context = %{module_key, resource, conn, language, page_url}` (`conn` may be `nil`). `nil` means unresolved. Exceptions are swallowed (treated as `nil`). An `:image` value may be a storage media UUID, a `data:` URL, or http(s). |
+| `og_resolve/2` | `(var_name :: String.t(), context) -> value \| nil` | Fetches the value at render time. `context = %{module_key, resource, conn, language, page_url}` (`conn` may be `nil`). `nil` means unresolved. Exceptions are swallowed (treated as `nil`). An `:image` value is a storage media UUID or a `data:` URL; an http(s) URL is never fetched, so it counts as unresolved on the public card. |
 
 What the consumer calls back:
 
@@ -280,15 +318,17 @@ card with them).
 ### Rendering
 
 `Render.render_url/2` takes a template and
-`%{values:, globals:, mode: :public | :preview, module_key:}` and returns
+`%{values:, globals:, mode: :public | :preview}` and returns
 `{:ok, path}` (`/og-image/<key>`, absolutized by the caller) or
 `{:error, term}`. Pipeline: `SceneStore.load` (lazy legacy-canvas migration)
 → `Render.Media.prepare` (media UUIDs → `data:` URLs; `:public` fallbacks) →
 cache lookup → `OpenFresco.render/3` → atomic cache write.
 
 - **Media** — `Render.Media` resolves storage UUIDs to local file bytes
-  inlined as `data:image/*;base64,…`; `data:` and http(s) pass through (the
-  renderer skips remote); `file://` and host-relative paths drop to `nil`.
+  inlined as `data:image/*;base64,…`; `data:` passes through; http(s) passes
+  through resolution but is unresolved in `:public` mode (nothing here
+  fetches a remote URL, and the assignments UI refuses one for an image
+  slot); `file://` and host-relative paths drop to `nil`.
 - **Modes** — `:public` (crawler-facing): an unresolved image element is
   dropped and an unresolved image background falls back to the house dark
   solid (`#0b1220`) — never a stand-in in production. `:preview` (editor +
@@ -303,9 +343,11 @@ cache lookup → `OpenFresco.render/3` → atomic cache write.
 - **Cache** — `System.tmp_dir!()/phoenix_kit_og_cache/<16-hex>.png`. The key
   hashes `@render_version` (bump it when this side changes what it draws for
   the same inputs) + OpenFresco's engine version + template uuid +
-  `updated_at` + the prepared scene + values + globals + module_key, so an
-  upgrade on either side stops serving stale PNGs and a template edit orphans
-  every old file. Writes are tempfile + rename (a concurrent read never sees a
+  `updated_at` + the prepared scene + values + the globals the scene
+  references (`Variables.referenced_globals/3` — a global the template never
+  mentions must not mint a new file per distinct value), so an upgrade on
+  either side stops serving stale PNGs and a template edit orphans every old
+  file. Writes are tempfile + rename (a concurrent read never sees a
   partial file). `write/2` prunes on ~2% of writes: files older than the TTL,
   then the oldest beyond the cap; tune with
   `config :phoenix_kit_og, cache_ttl_seconds: _, cache_max_files: _`
@@ -317,6 +359,13 @@ cache lookup → `OpenFresco.render/3` → atomic cache write.
   nosniff`.
 
 ### Editor
+
+`/new` creates the row on its connected mount and navigates (replace) to
+`/:uuid/edit`, so a socket reconnect re-opens that template instead of
+creating another. The name commits on blur or Enter, never per keystroke.
+A typed variable name is normalised by `SceneEdit.slot_name/1` (the renderer
+matches slot names as ASCII `\w+`; anything else would turn the slot into
+literal text).
 
 `EditorLive` owns the scene document (load/save via `SceneStore`), the
 property panel (`SceneEdit`), insert menu, keyboard nudges, media picker,
@@ -425,16 +474,34 @@ UUIDv7 PKs; `use PhoenixKit.SchemaPrefix` on both schemas.
   row), Assignments upsert / `clear` / `update_slot_mapping`, the concurrent
   duplicate guard (`{:error, changeset}`, never a raised constraint), the
   most-specific-wins hierarchy (nil-scope skip, default fall-through, `:none`,
-  slot-mapping carry), LV mounts for the three admin pages (assignment
-  modal, preview-platform tabs), and `PhoenixKitOG.Migrations`
+  slot-mapping carry), the three admin LiveViews (template delete with its
+  cascade rows, assignment new / edit / remove with `actor_uuid` pinned,
+  editor `/new`, name, save, forms and every `handle_info/2` clause),
+  `refine_og/4` end to end, and `PhoenixKitOG.Migrations`
   (`test/phoenix_kit_og/migrations_*.exs`: protocol/frozen-statements,
   runtime reader, a renamed-host fixture, an unrelated-expression-index
   fixture, an invalid-index self-heal fixture, and a data-safety round-trip).
   The invalid-index fixture fakes a crashed build with `UPDATE pg_index`,
   which is superuser-only: it is tagged `:requires_superuser` and
   `test_helper.exs` excludes it when the test role lacks `rolsuper`.
-- Not yet asserted in LV tests: `phx-disable-with` presence, translated
-  labels, actor-uuid threading.
+- More support: `PhoenixKitOG.Test.Publishing` (`test/support/publishing_stub.ex`)
+  defines stand-ins under publishing's real module names — the consumer
+  module (`og_variables/0`, `og_resolve/2`), `Groups` and `Posts` — seeded
+  per test through the application env (`put_groups/1`, `put_posts/2`,
+  `register/0`, `reset/0`), plus `post/1`, a post map shaped like
+  publishing's mapper builds it; tests that seed it are not async.
+  `PhoenixKitOG.ActivityRows.rows/1` reads activity rows for count / actor /
+  resource assertions; `LiveCase.change_forms/1` lists a page's
+  `phx-change` forms.
+- `refine_og_test.exs` drives `refine_og/4` with a real conn and a
+  publishing-shaped post through the real renderer; what was drawn is pinned
+  by cache key (the key for the values spelled out in the test, against the
+  key the wrong inputs would give).
+- `test/js/*.test.cjs` — `node --test` over the pure helpers the hook bundle
+  exports (`mix test.js`).
+- `gettext_catalog_test.exs` fails on an empty or fuzzy `msgstr`, a dropped
+  `%{var}` / `{{slot}}` / `[[global]]` token, or a wrong plural-form count in
+  any shipped locale.
 - Known noise without a DB: `Settings read for "project_title" failed …
   could not lookup Ecto repo` warnings from `Variables.global_values/1`; the
   value falls back to `""`, not a failure.
@@ -479,6 +546,15 @@ publish has succeeded.
 
 ## TODOs
 
-- **i18n long-tail** — the common UI strings are translated in all 7
-  locales; the deep editor property/hint strings ride as English fallback
-  pending a translation pass.
+- **`absolutize/2` builds the image URL from the request** (`conn.scheme` /
+  `conn.host`), unlike the globals, which use the configured origin. Behind a
+  TLS-terminating proxy that yields an `http://` `og:image`. Trigger: moving
+  it onto the same origin as `Variables.global_values/1`, decided together
+  with the consumers that absolutize their own image URLs.
+- **Consumer discovery runs per resolve** — `Variables.module_for_key/1`
+  calls `PhoenixKit.ModuleDiscovery.discover_external_modules/0` (a beam scan)
+  for every module-wired slot on every public render. Trigger: a measured
+  cost on a host, then a cached `module_key → module` lookup.
+- **An UNWIRED slot still prints `{{slot}}` on the public card** (only a
+  wired slot with no value is emptied). Trigger: a product decision on
+  whether a public render should blank those too.

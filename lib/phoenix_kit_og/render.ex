@@ -30,6 +30,7 @@ defmodule PhoenixKitOG.Render do
   alias PhoenixKitOG.Render.{Cache, Media}
   alias PhoenixKitOG.SceneStore
   alias PhoenixKitOG.Schemas.Template
+  alias PhoenixKitOG.Variables
 
   @doc """
   Returns `{:ok, public_url}` on success, `{:error, reason}` on failure.
@@ -55,11 +56,14 @@ defmodule PhoenixKitOG.Render do
       |> SceneStore.load()
       |> Media.prepare(values, mode)
 
+    dumped = SceneStore.dump(scene)
+
+    # Only the globals this scene can draw identify the render: hashing an
+    # unreferenced one would mint a new PNG for every distinct value of it.
     cache_context = %{
-      scene: SceneStore.dump(scene),
+      scene: dumped,
       values: values,
-      globals: globals,
-      module_key: Map.get(context, :module_key)
+      globals: Variables.referenced_globals(globals, dumped, values)
     }
 
     {key, _path} = Cache.key_and_path(template, cache_context)

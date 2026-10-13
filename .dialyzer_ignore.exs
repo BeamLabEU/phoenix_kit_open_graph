@@ -33,9 +33,5 @@
   # `truncate/1`'s short-string branch. Dialyzer infers the length test is
   # always true from `inspect/1`'s return type; the branch is still the
   # correct behaviour for a short binary.
-  {"lib/phoenix_kit_og/errors.ex", :pattern_match},
-
-  # The generic `{:error, reason}` arm after `{:error, %Ecto.Changeset{}}`.
-  # Dead only while the `with` chain can fail in exactly one way.
-  {"lib/phoenix_kit_og/web/assignments_live.ex", :pattern_match_cov}
+  {"lib/phoenix_kit_og/errors.ex", :pattern_match}
 ]

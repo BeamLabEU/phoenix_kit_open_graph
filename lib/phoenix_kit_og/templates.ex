@@ -11,7 +11,7 @@ defmodule PhoenixKitOG.Templates do
   import Ecto.Query, warn: false
 
   alias PhoenixKit.RepoHelper, as: Repo
-  alias PhoenixKitOG.ActivityLog
+  alias PhoenixKitOG.{ActivityLog, Assignments}
   alias PhoenixKitOG.Schemas.Template
 
   @doc "Returns all templates, ordered by name."
@@ -41,12 +41,43 @@ defmodule PhoenixKitOG.Templates do
     |> ActivityLog.log("template.updated", opts, &template_activity/1)
   end
 
+  @doc """
+  Deletes a template. The foreign key cascades to every assignment that
+  uses it, so each of those leaves its own `assignment.deleted` row
+  (metadata `"cascade" => "template.deleted"`), written in the same
+  transaction as the delete: the audit trail names exactly the assignments
+  that went with it, or nothing at all when the delete rolls back.
+  """
   @spec delete(Template.t(), keyword()) ::
           {:ok, Template.t()} | {:error, Ecto.Changeset.t()}
   def delete(%Template{} = template, opts \\ []) do
-    template
-    |> Repo.delete()
-    |> ActivityLog.log("template.deleted", opts, &template_activity/1)
+    result =
+      Repo.transaction(fn ->
+        assignments = Assignments.list_for_template(template.uuid)
+
+        case Repo.delete(template) do
+          {:ok, deleted} -> {deleted, Enum.map(assignments, &log_cascaded(&1, opts))}
+          {:error, changeset} -> Repo.rollback(changeset)
+        end
+      end)
+
+    case result do
+      {:ok, {deleted, entries}} ->
+        ActivityLog.publish(entries)
+        ActivityLog.log({:ok, deleted}, "template.deleted", opts, &template_activity/1)
+
+      {:error, reason} ->
+        ActivityLog.log({:error, reason}, "template.deleted", opts, &template_activity/1)
+    end
+  end
+
+  defp log_cascaded(assignment, opts) do
+    fields =
+      assignment
+      |> Assignments.assignment_activity()
+      |> Map.update!(:metadata, &Map.put(&1, "cascade", "template.deleted"))
+
+    ActivityLog.insert_in_transaction("assignment.deleted", opts, fields)
   end
 
   @spec change(Template.t(), map()) :: Ecto.Changeset.t()

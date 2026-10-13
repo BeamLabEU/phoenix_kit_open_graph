@@ -125,4 +125,92 @@ defmodule PhoenixKitOG.AssignmentsTest do
                Assignments.resolve_template_with_mapping(@module, [{"group", g}])
     end
   end
+
+  describe "create/6" do
+    alias PhoenixKitOG.ActivityRows
+
+    test "writes the template and the slot mapping in one row and one activity entry" do
+      actor = Ecto.UUID.generate()
+      t = template!()
+
+      assert {:ok, a} =
+               Assignments.create(
+                 "publishing",
+                 "default",
+                 nil,
+                 t.uuid,
+                 %{"Title" => "post_title"},
+                 actor_uuid: actor
+               )
+
+      assert a.slot_mapping == %{"Title" => "post_title"}
+
+      assert [%{resource_uuid: uuid, actor_uuid: ^actor}] =
+               ActivityRows.rows("assignment.created")
+
+      assert uuid == a.uuid
+      assert ActivityRows.rows("assignment.slot_mapping_updated") == []
+    end
+
+    test "refuses a scope that already has an assignment instead of replacing it" do
+      t1 = template!()
+      t2 = template!()
+      {:ok, first} = Assignments.create("publishing", "default", nil, t1.uuid, %{})
+
+      assert {:error, %Ecto.Changeset{}} =
+               Assignments.create("publishing", "default", nil, t2.uuid, %{})
+
+      assert Assignments.get("publishing", "default", nil).template_uuid == first.template_uuid
+    end
+  end
+
+  describe "update/4" do
+    alias PhoenixKitOG.ActivityRows
+
+    test "changes the template and mapping of that row with one activity entry" do
+      actor = Ecto.UUID.generate()
+      group = Ecto.UUID.generate()
+      t1 = template!()
+      t2 = template!()
+      {:ok, a} = Assignments.create("publishing", "group", group, t1.uuid, %{})
+
+      assert {:ok, updated} =
+               Assignments.update(a, t2.uuid, %{"Title" => "custom:Hi"}, actor_uuid: actor)
+
+      assert updated.uuid == a.uuid
+      assert updated.scope_uuid == group
+      assert updated.template_uuid == t2.uuid
+      assert updated.slot_mapping == %{"Title" => "custom:Hi"}
+
+      assert [%{resource_uuid: uuid, actor_uuid: ^actor}] =
+               ActivityRows.rows("assignment.updated")
+
+      assert uuid == a.uuid
+      assert ActivityRows.rows("assignment.slot_mapping_updated") == []
+    end
+  end
+
+  describe "get_by_uuid/1 + count_by_template/0 + list_for_template/1" do
+    test "get_by_uuid finds the row with its template, and nil for anything else" do
+      t = template!()
+      {:ok, a} = Assignments.create("publishing", "default", nil, t.uuid, %{})
+
+      assert %{uuid: uuid, template: %{uuid: template_uuid}} = Assignments.get_by_uuid(a.uuid)
+      assert uuid == a.uuid
+      assert template_uuid == t.uuid
+      assert Assignments.get_by_uuid(Ecto.UUID.generate()) == nil
+      assert Assignments.get_by_uuid("new") == nil
+    end
+
+    test "counts and lists assignments per template" do
+      used = template!()
+      unused = template!()
+      {:ok, _} = Assignments.create("publishing", "default", nil, used.uuid, %{})
+      {:ok, _} = Assignments.create("publishing", "group", Ecto.UUID.generate(), used.uuid, %{})
+
+      assert Assignments.count_by_template() == %{used.uuid => 2}
+      assert length(Assignments.list_for_template(used.uuid)) == 2
+      assert Assignments.list_for_template(unused.uuid) == []
+    end
+  end
 end

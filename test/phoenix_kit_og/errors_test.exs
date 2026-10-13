@@ -4,21 +4,20 @@ defmodule PhoenixKitOG.ErrorsTest do
   alias PhoenixKitOG.Errors
 
   describe "message/1 — known atoms" do
-    test "returns a translated string for each supported atom" do
-      # Each atom's message is wrapped in gettext — we just check the
-      # dispatch runs and returns a non-empty binary. The exact wording
-      # is UI copy and shouldn't be pinned here.
-      for atom <- [:not_found, :rasterizer_missing, :template_missing, :group_missing] do
-        assert is_binary(Errors.message(atom))
-        assert Errors.message(atom) != ""
-      end
+    test "each supported atom has its own exact message" do
+      assert Errors.message(:not_found) == "Not found."
+
+      assert Errors.message(:rasterizer_missing) ==
+               "Preview render needs the resvg NIF — check that the dep resolved on this build."
+
+      assert Errors.message(:template_missing) == "Pick a template first."
+      assert Errors.message(:group_missing) == "Pick a publishing group."
     end
   end
 
   describe "message/1 — tagged tuples" do
     test "{:render_failed, reason} interpolates the reason" do
-      msg = Errors.message({:render_failed, :timeout})
-      assert String.contains?(msg, "timeout")
+      assert Errors.message({:render_failed, :timeout}) == "Preview render failed: :timeout"
     end
 
     test "very long reasons are truncated with an ellipsis" do
@@ -44,11 +43,8 @@ defmodule PhoenixKitOG.ErrorsTest do
 
   describe "message/1 — fallback" do
     test "unexpected shapes are wrapped, not raised" do
-      msg = Errors.message({:some_new_reason, :with_data})
-      assert is_binary(msg)
-      # The wrapper mentions "Unexpected" so surfaces stay traceable
-      # in production logs.
-      assert String.contains?(msg, "Unexpected") or String.contains?(msg, "unexpected")
+      assert Errors.message({:some_new_reason, :with_data}) ==
+               "Unexpected error: {:some_new_reason, :with_data}"
     end
   end
 end

@@ -42,10 +42,79 @@ defmodule PhoenixKitOG.VariablesTest do
       assert values["page_url"] == "/explicit"
     end
 
+    test "a nil page_url in the context still falls back to the request path" do
+      conn = %Plug.Conn{scheme: :https, host: "example.com", port: 443, request_path: "/blog/x"}
+      values = Variables.global_values(%{conn: conn, page_url: nil})
+      assert values["page_url"] == "https://example.com/blog/x"
+    end
+
     test "handles no conn gracefully" do
       values = Variables.global_values(%{})
       assert Map.has_key?(values, "site_host")
       assert Map.has_key?(values, "site_url")
+    end
+
+    test "a configured endpoint URL beats the request's Host header" do
+      conn = %Plug.Conn{scheme: :http, host: "evil.example", port: 80, request_path: "/blog/x"}
+
+      values =
+        Variables.global_values(%{conn: conn, endpoint: PhoenixKitOG.VariablesTest.Configured})
+
+      assert values["site_host"] == "configured.example"
+      assert values["site_url"] == "https://configured.example"
+      assert values["page_url"] == "https://configured.example/blog/x"
+    end
+
+    test "an endpoint that was never given a URL does not beat the request" do
+      conn = %Plug.Conn{scheme: :https, host: "real.example", port: 443}
+
+      values =
+        Variables.global_values(%{conn: conn, endpoint: PhoenixKitOG.VariablesTest.Unconfigured})
+
+      assert values["site_host"] == "real.example"
+    end
+
+    test "without a request the endpoint's URL is used as it is (the editor preview)" do
+      values = Variables.global_values(%{endpoint: PhoenixKitOG.VariablesTest.Unconfigured})
+      assert values["site_url"] == "http://localhost:4000"
+      assert values["site_host"] == "localhost"
+    end
+  end
+
+  describe "referenced_globals/3" do
+    @globals %{
+      "site_host" => "a.example",
+      "site_url" => "https://a.example",
+      "site_name" => "Acme",
+      "page_url" => "https://a.example/p",
+      "page_locale" => "en"
+    }
+
+    test "a scene that names no global references none" do
+      scene = %{"elements" => [%{"type" => "text", "value" => "Hello {{Title}}"}]}
+      assert Variables.referenced_globals(@globals, scene, %{"Title" => "x"}) == %{}
+    end
+
+    test "a [[token]] in the scene references exactly that global" do
+      scene = %{"elements" => [%{"type" => "text", "value" => "on [[site_host]]"}]}
+
+      assert Variables.referenced_globals(@globals, scene, %{}) ==
+               %{"site_host" => "a.example"}
+    end
+
+    test "a [[token]] typed into a slot value counts too" do
+      scene = %{"elements" => [%{"type" => "text", "value" => %{"placeholder" => "Line"}}]}
+
+      assert Variables.referenced_globals(@globals, scene, %{"Line" => "read [[page_url]]"}) ==
+               %{"page_url" => "https://a.example/p"}
+    end
+
+    test "a slot named like a global references it (both brackets share one map)" do
+      whole = %{"elements" => [%{"type" => "text", "value" => %{"placeholder" => "site_name"}}]}
+      inline = %{"elements" => [%{"type" => "text", "value" => "by {{site_name}}"}]}
+
+      assert Variables.referenced_globals(@globals, whole, %{}) == %{"site_name" => "Acme"}
+      assert Variables.referenced_globals(@globals, inline, %{}) == %{"site_name" => "Acme"}
     end
   end
 
@@ -80,5 +149,13 @@ defmodule PhoenixKitOG.VariablesTest do
       resolved = Variables.resolve(slots, mapping, %{module_key: "publishing", conn: conn})
       assert resolved == %{"TheHost" => "example.com"}
     end
+  end
+
+  defmodule Configured do
+    def url, do: "https://configured.example"
+  end
+
+  defmodule Unconfigured do
+    def url, do: "http://localhost:4000"
   end
 end

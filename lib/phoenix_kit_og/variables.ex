@@ -120,19 +120,31 @@ defmodule PhoenixKitOG.Variables do
   (`%{slot_name => variable_name}`), and a resolution context,
   produces the substitution values map for the renderer.
 
-  Missing wires (slot not in `slot_mapping`) or unknown variable names
-  return nil for that slot — the renderer leaves `{{slot}}` visible,
-  matching the workspace convention.
+  A slot with no wire is left out of the result — the renderer leaves
+  `{{slot}}` visible, the "needs wiring" signal.
+
+  A WIRED slot whose variable resolves to nothing (a post without a
+  description, an unknown variable name) depends on `opts[:unresolved]`:
+
+    * `:skip` (default) — left out, so an editor preview keeps the
+      placeholder;
+    * `:empty` — resolved to `""`. The crawler-facing render uses this: a
+      missing value must read as nothing, never as `{{Description}}`.
   """
-  @spec resolve([%{name: String.t(), type: :text | :image}], %{String.t() => String.t()}, map()) ::
-          %{String.t() => String.t()}
-  def resolve(slots, slot_mapping, context) do
+  @spec resolve(
+          [%{name: String.t(), type: :text | :image}],
+          %{String.t() => String.t()},
+          map(),
+          keyword()
+        ) :: %{String.t() => String.t()}
+  def resolve(slots, slot_mapping, context, opts \\ []) do
     globals_values = resolve_globals(context)
+    unresolved = Keyword.get(opts, :unresolved, :skip)
 
     Enum.reduce(slots, %{}, fn %{name: slot_name}, acc ->
       case Map.get(slot_mapping, slot_name) do
         nil -> acc
-        var_name -> put_resolved(acc, slot_name, var_name, context, globals_values)
+        var_name -> put_resolved(acc, slot_name, var_name, context, globals_values, unresolved)
       end
     end)
   end
@@ -144,16 +156,17 @@ defmodule PhoenixKitOG.Variables do
   # A `custom:` prefix in the mapping means the assignment carries a
   # literal value the author typed in (or a media UUID they picked)
   # rather than a variable name to resolve. Pass it through verbatim.
-  defp put_resolved(acc, slot_name, "custom:" <> value, _context, _globals_values),
+  defp put_resolved(acc, slot_name, "custom:" <> value, _context, _globals_values, _unresolved),
     do: Map.put(acc, slot_name, value)
 
-  defp put_resolved(acc, slot_name, var_name, context, globals_values) do
+  defp put_resolved(acc, slot_name, var_name, context, globals_values, unresolved) do
     if Map.has_key?(globals_values, var_name) do
       Map.put(acc, slot_name, globals_values[var_name])
     else
-      case resolve_via_module(var_name, context) do
-        {:ok, value} -> Map.put(acc, slot_name, to_string(value))
-        :error -> acc
+      case {resolve_via_module(var_name, context), unresolved} do
+        {{:ok, value}, _} -> Map.put(acc, slot_name, to_string(value))
+        {:error, :empty} -> Map.put(acc, slot_name, "")
+        {:error, _skip} -> acc
       end
     end
   end
@@ -178,52 +191,156 @@ defmodule PhoenixKitOG.Variables do
 
   @doc """
   Flat map of all `[[global]]` values, ready to merge into the
-  substitution map. Prefers `conn` fields (real request context); if
-  no conn is available, falls back to the Phoenix endpoint module
-  (passed as `:endpoint`) so the editor can preview real values
-  without a request.
+  substitution map.
+
+  The site origin behind `site_host` / `site_url` / `page_url` is the
+  site's CONFIGURED one, never the request's `Host` header (anyone can
+  send any `Host`, and these values end up in a cached public image):
+
+    1. the `:canonical_host_resolver` MFA (`config :phoenix_kit`), called
+       with the page language — a multi-domain host's per-language home;
+    2. the `site_url` setting;
+    3. the endpoint's configured URL (`:endpoint` in the context — how the
+       editor previews real values without a request — else the parent
+       app's endpoint);
+    4. only when none of those is set, the origin the request arrived on.
+
+  `page_url` is the context's `:page_url` when the caller has the
+  canonical URL in hand, else the origin plus the request path.
   """
   @spec global_values(map()) :: %{String.t() => String.t()}
   def global_values(context \\ %{}) do
     conn = Map.get(context, :conn)
-    endpoint = Map.get(context, :endpoint)
+    language = context |> Map.get(:language, "") |> to_string()
+    origin = origin(conn, Map.get(context, :endpoint), language)
 
     %{
-      "site_host" => host(conn, endpoint),
-      "site_url" => site_url(conn, endpoint),
+      "site_host" => origin_host(origin),
+      "site_url" => origin,
       "site_name" => project_title(),
-      "page_url" => Map.get(context, :page_url, canonical_from_conn(conn)),
-      "page_locale" => Map.get(context, :language, "") |> to_string()
+      "page_url" => Map.get(context, :page_url) || page_url(origin, conn),
+      "page_locale" => language
     }
   end
 
-  defp resolve_globals(ctx), do: global_values(ctx)
+  @doc """
+  The subset of `globals` a render can actually draw: the names that
+  appear as a `[[name]]` token in the scene or in a slot value (custom
+  text may carry one), plus a slot that shares a global's name (the
+  renderer resolves both brackets from one merged map).
 
-  defp host(%Plug.Conn{host: host}, _), do: host
+  The render cache hashes this subset, so a global the template never
+  mentions cannot mint a new cache entry.
+  """
+  @spec referenced_globals(map(), term(), map()) :: map()
+  def referenced_globals(globals, scene_dump, values) when is_map(globals) do
+    names =
+      [scene_dump, values]
+      |> strings()
+      |> Enum.flat_map(&Regex.scan(~r/\[\[(\w+)\]\]|\{\{(\w+)\}\}/, &1, capture: :all_but_first))
+      |> List.flatten()
+      |> MapSet.new()
 
-  defp host(_, endpoint) when is_atom(endpoint) do
-    endpoint.host()
-  rescue
-    _ -> ""
+    placeholders = scene_dump |> placeholder_names() |> MapSet.new()
+    Map.take(globals, MapSet.to_list(MapSet.union(names, placeholders)))
   end
 
-  defp host(_, _), do: ""
+  defp strings(term) when is_binary(term), do: [term]
+  defp strings(%_{} = struct), do: struct |> Map.from_struct() |> strings()
+  defp strings(term) when is_map(term), do: Enum.flat_map(term, fn {_k, v} -> strings(v) end)
+  defp strings(term) when is_list(term), do: Enum.flat_map(term, &strings/1)
+  defp strings(_), do: []
 
-  defp site_url(%Plug.Conn{scheme: scheme, host: host, port: port}, _) do
+  # A whole-value slot is stored as `%{"placeholder" => name}` rather than
+  # as its `{{name}}` token.
+  defp placeholder_names(%{"placeholder" => name}) when is_binary(name), do: [name]
+  defp placeholder_names(%{placeholder: name}) when is_binary(name), do: [name]
+  defp placeholder_names(%_{} = struct), do: struct |> Map.from_struct() |> placeholder_names()
+
+  defp placeholder_names(term) when is_map(term),
+    do: Enum.flat_map(term, fn {_k, v} -> placeholder_names(v) end)
+
+  defp placeholder_names(term) when is_list(term), do: Enum.flat_map(term, &placeholder_names/1)
+  defp placeholder_names(_), do: []
+
+  defp resolve_globals(ctx), do: global_values(ctx)
+
+  # An endpoint that never got a `url:` answers with one of these; such a
+  # placeholder must not beat the request the visitor actually made.
+  @placeholder_hosts ~w(localhost 127.0.0.1 0.0.0.0 [::1] ::1)
+
+  defp origin(conn, endpoint, language) do
+    canonical_host_origin(language) || site_url_setting() || endpoint_origin(endpoint) ||
+      request_origin(conn) || raw_endpoint_url(endpoint)
+  end
+
+  defp canonical_host_origin(language) do
+    with {mod, fun} <- Application.get_env(:phoenix_kit, :canonical_host_resolver),
+         host when is_binary(host) and host != "" <- apply(mod, fun, [language]) do
+      "https://" <> host
+    else
+      _ -> nil
+    end
+  rescue
+    _ -> nil
+  catch
+    :exit, _ -> nil
+  end
+
+  defp site_url_setting do
+    case PhoenixKit.Settings.get_setting("site_url", "") do
+      url when is_binary(url) and url != "" -> String.trim_trailing(url, "/")
+      _ -> nil
+    end
+  rescue
+    _ -> nil
+  catch
+    :exit, _ -> nil
+  end
+
+  defp endpoint_origin(endpoint) do
+    with url when is_binary(url) and url != "" <- configured_endpoint_url(endpoint),
+         %URI{host: host} when is_binary(host) and host not in @placeholder_hosts <-
+           URI.parse(url) do
+      String.trim_trailing(url, "/")
+    else
+      _ -> nil
+    end
+  end
+
+  defp configured_endpoint_url(endpoint) when is_atom(endpoint) and not is_nil(endpoint) do
+    endpoint.url()
+  rescue
+    _ -> nil
+  end
+
+  defp configured_endpoint_url(_) do
+    case PhoenixKit.Config.get_parent_endpoint_url() do
+      {:ok, url} -> url
+      _ -> nil
+    end
+  rescue
+    _ -> nil
+  end
+
+  defp request_origin(%Plug.Conn{scheme: scheme, host: host, port: port}) do
     port_suffix = if port in [80, 443, nil], do: "", else: ":#{port}"
     "#{scheme}://#{host}#{port_suffix}"
   end
 
-  defp site_url(_, endpoint) when is_atom(endpoint) do
-    endpoint.url()
-  rescue
-    _ -> ""
+  defp request_origin(_), do: nil
+
+  defp raw_endpoint_url(endpoint), do: configured_endpoint_url(endpoint) || ""
+
+  defp origin_host(origin) do
+    case URI.parse(origin) do
+      %URI{host: host} when is_binary(host) -> host
+      _ -> ""
+    end
   end
 
-  defp site_url(_, _), do: ""
-
-  defp canonical_from_conn(%Plug.Conn{} = conn), do: site_url(conn, nil) <> conn.request_path
-  defp canonical_from_conn(_), do: ""
+  defp page_url(origin, %Plug.Conn{request_path: path}) when is_binary(path), do: origin <> path
+  defp page_url(_origin, _conn), do: ""
 
   defp project_title do
     PhoenixKit.Settings.get_setting("project_title") |> to_string()
