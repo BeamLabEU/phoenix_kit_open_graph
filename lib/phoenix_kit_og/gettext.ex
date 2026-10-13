@@ -13,9 +13,13 @@ defmodule PhoenixKitOG.Gettext do
   host drives this backend and core's `PhoenixKitWeb.Gettext` together.
   """
 
-  # Generated Gettext.Backend callbacks trigger `call_without_opaque`
-  # warnings from Expo.PluralForms — a known false positive in gettext ≥ 0.26.
-  @dialyzer {:no_opaque, []}
+  # Each locale's generated plural-index function (`<locale>_default_plural/1`)
+  # hands `Gettext.Plural.plural/2` the compiled `Expo.PluralForms` struct as
+  # a literal, which dialyzer reports as an opaque-type mismatch
+  # (`call_without_opaque`) in code this module does not write. Scoped to
+  # those generated functions; a new locale under `priv/gettext` joins the
+  # list here.
+  @dialyzer {:no_opaque, Enum.map(~w(de es et fr it pl ru), &{:"#{&1}_default_plural", 1})}
 
   use Gettext.Backend, otp_app: :phoenix_kit_og
 end

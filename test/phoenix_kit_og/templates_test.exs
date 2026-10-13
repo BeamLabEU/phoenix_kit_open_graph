@@ -91,6 +91,54 @@ defmodule PhoenixKitOG.TemplatesTest do
     end
   end
 
+  describe "delete/2 — the assignments that cascade with the template" do
+    alias PhoenixKitOG.{ActivityRows, Assignments}
+
+    test "each removed assignment leaves its own assignment.deleted row" do
+      actor = Ecto.UUID.generate()
+      group = Ecto.UUID.generate()
+      {:ok, t} = Templates.create(valid_attrs())
+      {:ok, default} = Assignments.set("publishing", "default", nil, t.uuid)
+      {:ok, scoped} = Assignments.set("publishing", "group", group, t.uuid)
+
+      assert {:ok, _} = Templates.delete(t, actor_uuid: actor)
+
+      assert Assignments.list_for_module("publishing") == []
+
+      rows = ActivityRows.rows("assignment.deleted")
+
+      assert Enum.sort(Enum.map(rows, & &1.resource_uuid)) ==
+               Enum.sort([default.uuid, scoped.uuid])
+
+      for row <- rows do
+        assert row.actor_uuid == actor
+        assert row.resource_type == "phoenix_kit_og_assignment"
+        assert row.metadata["template_uuid"] == t.uuid
+        assert row.metadata["module_key"] == "publishing"
+        assert row.metadata["cascade"] == "template.deleted"
+      end
+
+      scoped_row = Enum.find(rows, &(&1.resource_uuid == scoped.uuid))
+      assert scoped_row.metadata["scope_type"] == "group"
+      assert scoped_row.metadata["scope_uuid"] == group
+
+      assert [%{resource_uuid: uuid, actor_uuid: ^actor}] = ActivityRows.rows("template.deleted")
+      assert uuid == t.uuid
+    end
+
+    test "another template's assignments are neither removed nor logged" do
+      {:ok, doomed} = Templates.create(valid_attrs())
+      {:ok, kept} = Templates.create(valid_attrs())
+      {:ok, survivor} = Assignments.set("publishing", "default", nil, kept.uuid)
+
+      assert {:ok, _} = Templates.delete(doomed)
+
+      assert [%{uuid: uuid}] = Assignments.list_for_module("publishing")
+      assert uuid == survivor.uuid
+      assert ActivityRows.rows("assignment.deleted") == []
+    end
+  end
+
   # Query phoenix_kit_activities directly for a matching row.
   defp assert_activity(match) do
     import Ecto.Query

@@ -27,23 +27,20 @@ defmodule PhoenixKitOG.Migrations do
   repo confirms it), so there is no module-side predecessor whose shape
   could have been squashed incorrectly.
 
-  A dedicated research pass — core's literal `V154` migration source,
-  core's structured `ExpectedSchema.objects/1` manifest, and a live,
-  fully-migrated Postgres catalog (this repo's own `phoenix_kit_og_test`,
-  migrated to core's current head) — found all three in agreement,
-  column-for-column, index-for-index, constraint-for-constraint, for the
-  shape of both tables. That research pass was then adversarially
-  re-verified by a second agent: isolated Postgres schemas built from the
-  candidate DDL, diffed against a schema built from core's literal `V154`
-  text, guards round-tripped twice for idempotence. Verdict: exact match,
-  zero findings, idempotent. `up_statements/2` is therefore `CREATE TABLE IF
+  V1 guarantees two things. It builds exactly the shape core's `V154`
+  builds — column for column, index for index, constraint for constraint,
+  the same shape core's `ExpectedSchema.objects/1` manifest describes — so
+  a database created by this chain alone is indistinguishable from one
+  created by core. And it is idempotent: running it against tables that
+  already have that shape, under any naming history, changes nothing.
+  `up_statements/2` is therefore `CREATE TABLE IF
   NOT EXISTS` (full final shape) + a safety-net `ADD COLUMN IF NOT EXISTS`
   (core's own belt-and-suspenders for `slot_mapping`, kept here for the same
   reason core keeps it — an install whose `phoenix_kit_og_assignments`
   predates that column) + semantically-guarded PKs, 1 named UNIQUE
   constraint, 3 indexes, and 1 foreign key, plus the version-marker
-  `COMMENT`. No `CHECK` constraint exists on either table (same three-source
-  pass), so there is no `check_guard` helper in this file.
+  `COMMENT`. Neither table has a `CHECK` constraint, so there is no
+  `check_guard` helper in this file.
 
   ### Guards are semantic, not name-based — a real host discovery
 

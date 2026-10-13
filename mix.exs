@@ -39,9 +39,34 @@ defmodule PhoenixKitOG.MixProject do
         "compile --force --warnings-as-errors",
         "deps.unlock --check-unused",
         "cmd mix hex.audit",
-        "quality.ci"
-      ]
+        "quality.ci",
+        "test.js"
+      ],
+      # Pure logic inside the shipped hook bundle (test/js, node --test). Skips
+      # itself when node isn't installed rather than failing a contributor's
+      # precommit over optional tooling.
+      "test.js": &run_js_tests/1
     ]
+  end
+
+  defp run_js_tests(_args) do
+    # `node --test` with no file arguments walks the CWD looking for anything
+    # test-shaped, so an empty glob must skip rather than hand node the whole
+    # repo (deps/ and _build/ included).
+    files = Path.wildcard("test/js/*.test.cjs")
+
+    cond do
+      files == [] ->
+        Mix.shell().info("[skip] no test/js/*.test.cjs files")
+
+      System.find_executable("node") == nil ->
+        Mix.shell().info("[skip] node not found — skipping test/js")
+
+      true ->
+        {output, status} = System.cmd("node", ["--test" | files], stderr_to_stdout: true)
+        IO.puts(output)
+        if status != 0, do: Mix.raise("JS tests failed")
+    end
   end
 
   # phoenix_kit deps resolve from Hex by default. Export PHOENIX_KIT_PATH=

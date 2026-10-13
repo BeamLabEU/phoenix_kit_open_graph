@@ -182,4 +182,36 @@ defmodule PhoenixKitOG.SceneEditTest do
     scene = SceneEdit.send_to_back(scene, b)
     assert find(scene, b).z < find(scene, a).z
   end
+
+  describe "slot_name/1" do
+    test "keeps a plain name" do
+      assert SceneEdit.slot_name("PostTitle_2") == "PostTitle_2"
+    end
+
+    test "turns each run of other characters into one underscore" do
+      assert SceneEdit.slot_name("My Title") == "My_Title"
+      assert SceneEdit.slot_name("post-title") == "post_title"
+      assert SceneEdit.slot_name("a - b") == "a_b"
+    end
+
+    test "trims, so a trailing space mid-typing adds nothing" do
+      assert SceneEdit.slot_name("  My ") == "My"
+    end
+
+    test "an empty name stays empty" do
+      assert SceneEdit.slot_name("") == ""
+      assert SceneEdit.slot_name("   ") == ""
+    end
+  end
+
+  describe "a background variable name with a space" do
+    test "stays a slot instead of turning into literal text" do
+      scene =
+        SceneStore.blank()
+        |> SceneEdit.switch_background("image")
+        |> SceneEdit.update_canvas("bg_image_variable_name", "Hero Image")
+
+      assert %{value: %{placeholder: "Hero_Image"}} = scene.canvas.background
+    end
+  end
 end

@@ -85,4 +85,74 @@ defmodule PhoenixKitOG.Render.MediaTest do
     refute Map.has_key?(out, "Hero")
     assert out["Title"] == "keep me"
   end
+
+  describe "remote http(s) image values" do
+    defp scene_with_static_image(value) do
+      Scene.new(width: 600, height: 315, background: Scene.solid("#ffffff"))
+      |> Scene.add(Scene.image("logo", box: %{x: 0, y: 0, w: 300, h: 200}, value: value))
+    end
+
+    for url <- ["https://cdn.example/x.png", "http://cdn.example/x.png"] do
+      test "#{url} in a slot drops the element from the :public scene" do
+        {scene, _values} =
+          Media.prepare(scene_with_image_slot(), %{"Hero" => unquote(url)}, :public)
+
+        assert scene.elements == []
+      end
+
+      test "#{url} as a static element value drops the element from the :public scene" do
+        {scene, _values} = Media.prepare(scene_with_static_image(unquote(url)), %{}, :public)
+        assert scene.elements == []
+      end
+
+      test "#{url} as the background slot falls back to the solid in :public" do
+        {scene, _values} = Media.prepare(scene_with_bg_slot(), %{"Bg" => unquote(url)}, :public)
+        assert %{type: :solid} = scene.canvas.background
+      end
+
+      test "#{url} keeps its element in :preview, where the stand-in is the affordance" do
+        {scene, values} =
+          Media.prepare(scene_with_image_slot(), %{"Hero" => unquote(url)}, :preview)
+
+        assert [%{id: "hero"}] = scene.elements
+        assert values["Hero"] == unquote(url)
+      end
+    end
+
+    test "a data: URL in the same slot keeps the element in :public" do
+      {scene, _values} =
+        Media.prepare(scene_with_image_slot(), %{"Hero" => "data:image/png;base64,AA=="}, :public)
+
+      assert [%{id: "hero"}] = scene.elements
+    end
+  end
+
+  describe "remote_url?/1" do
+    test "is true for http and https only" do
+      assert Media.remote_url?("https://x.test/a.png")
+      assert Media.remote_url?("http://x.test/a.png")
+      refute Media.remote_url?("data:image/png;base64,AA==")
+      refute Media.remote_url?("0197a5b3-0000-7000-8000-000000000000")
+      refute Media.remote_url?("")
+      refute Media.remote_url?(nil)
+    end
+  end
+
+  describe "preview_url/1" do
+    test "returns browser-loadable references as they are" do
+      assert Media.preview_url("https://x.test/a.png") == "https://x.test/a.png"
+      assert Media.preview_url("/files/a.png") == "/files/a.png"
+      assert Media.preview_url("data:image/png;base64,AA==") == "data:image/png;base64,AA=="
+    end
+
+    test "has nothing to show for an empty or non-binary value" do
+      assert Media.preview_url(nil) == nil
+      assert Media.preview_url("") == nil
+      assert Media.preview_url(%{placeholder: "Hero"}) == nil
+    end
+
+    test "an unresolvable media uuid is nil, not a raise" do
+      assert Media.preview_url("0197a5b3-0000-7000-8000-000000000000") == nil
+    end
+  end
 end

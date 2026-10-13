@@ -88,6 +88,50 @@ defmodule PhoenixKitOG.RenderPipelineTest do
     refute url4 == url1
   end
 
+  test "a global the template never mentions does not re-key the render" do
+    template = %Template{
+      uuid: "0197a5b3-3333-7000-8000-00000000abcd",
+      name: "t3",
+      canvas: %{
+        "width" => 600,
+        "height" => 315,
+        "background" => %{"type" => "color", "value" => "#0b1220"},
+        "elements" => [
+          %{
+            "type" => "text",
+            "id" => "t1",
+            "x" => 40,
+            "y" => 60,
+            "width" => 520,
+            "height" => 120,
+            "text" => "{{Title}} — [[site_name]]",
+            "size" => 40,
+            "color" => "#ffffff",
+            "weight" => 700
+          }
+        ]
+      },
+      updated_at: nil
+    }
+
+    ctx = fn host ->
+      %{
+        values: %{"Title" => "A"},
+        globals: %{
+          "site_name" => "S",
+          "site_host" => host,
+          "site_url" => "https://" <> host,
+          "page_url" => "https://" <> host <> "/p"
+        },
+        mode: :public
+      }
+    end
+
+    assert {:ok, url1} = Render.render_url(template, ctx.("a.example"))
+    assert {:ok, url2} = Render.render_url(template, ctx.("evil-1.example"))
+    assert url1 == url2
+  end
+
   test ":public and :preview render distinct artifacts for unresolved image slots" do
     template = %Template{
       uuid: "0197a5b3-2222-7000-8000-00000000abcd",

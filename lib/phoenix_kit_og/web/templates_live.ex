@@ -8,7 +8,7 @@ defmodule PhoenixKitOG.Web.TemplatesLive do
   use PhoenixKitWeb, :live_view
   use Gettext, backend: PhoenixKitOG.Gettext
 
-  alias PhoenixKitOG.{Errors, Paths, Templates}
+  alias PhoenixKitOG.{Assignments, Errors, Paths, Templates}
   alias PhoenixKitWeb.Actor
 
   @impl true
@@ -43,7 +43,25 @@ defmodule PhoenixKitOG.Web.TemplatesLive do
     end
   end
 
-  defp load_templates(socket), do: assign(socket, :templates, Templates.list())
+  defp load_templates(socket) do
+    socket
+    |> assign(:templates, Templates.list())
+    |> assign(:assignment_counts, Assignments.count_by_template())
+  end
+
+  # Deleting a template takes its assignments with it (the foreign key
+  # cascades), so the confirmation says how many — a template that is the
+  # module default would otherwise revert every page's image unannounced.
+  defp delete_confirmation(template, 0), do: gettext("Delete %{name}?", name: template.name)
+
+  defp delete_confirmation(template, count) do
+    ngettext(
+      "Delete %{name}? %{count} assignment uses this template and will be removed with it.",
+      "Delete %{name}? %{count} assignments use this template and will be removed with it.",
+      count,
+      name: template.name
+    )
+  end
 
   @impl true
   def render(assigns) do
@@ -92,7 +110,7 @@ defmodule PhoenixKitOG.Web.TemplatesLive do
                 phx-click="delete"
                 phx-value-uuid={t.uuid}
                 phx-disable-with={gettext("Deleting…")}
-                data-confirm={gettext("Delete %{name}?", name: t.name)}
+                data-confirm={delete_confirmation(t, Map.get(@assignment_counts, t.uuid, 0))}
                 class="btn btn-ghost btn-xs text-error"
               >
                 <.icon name="hero-trash" class="w-4 h-4" />

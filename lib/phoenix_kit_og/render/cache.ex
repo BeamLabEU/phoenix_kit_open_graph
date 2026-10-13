@@ -164,8 +164,7 @@ defmodule PhoenixKitOG.Render.Cache do
       # legacy callers hash the raw canvas.
       "canvas" => Map.get(context, :scene) || template.canvas,
       "values" => Map.get(context, :values, %{}),
-      "globals" => Map.get(context, :globals, %{}),
-      "module_key" => Map.get(context, :module_key)
+      "globals" => Map.get(context, :globals, %{})
     }
 
     :crypto.hash(:sha256, :erlang.term_to_binary(payload, [:deterministic]))

@@ -74,6 +74,27 @@ defmodule PhoenixKitOG.LiveCase do
   end
 
   @doc """
+  Every `<form phx-change=…>` in rendered HTML as `%{id, change, submit}`.
+
+  A form with `phx-change` and no `phx-submit` is submitted NATIVELY when
+  Enter is pressed in one of its text inputs — a browser GET of the page.
+  LiveViewTest cannot see a native submission, so the attribute itself is
+  what a test can pin.
+  """
+  def change_forms(html) do
+    html
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query("form[phx-change]")
+    |> Enum.map(fn form ->
+      %{
+        id: form |> LazyHTML.attribute("id") |> List.first(),
+        change: form |> LazyHTML.attribute("phx-change") |> List.first(),
+        submit: form |> LazyHTML.attribute("phx-submit") |> List.first()
+      }
+    end)
+  end
+
+  @doc """
   Plugs a fake scope into the test conn's session so the `:assign_scope`
   `on_mount` hook can mirror it onto socket assigns. Pair with `fake_scope/1`.
   """
