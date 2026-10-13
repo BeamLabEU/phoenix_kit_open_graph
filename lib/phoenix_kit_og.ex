@@ -210,6 +210,15 @@ defmodule PhoenixKitOG do
       )
 
       og
+  catch
+    # The renderer and storage are reached through other processes; a
+    # timeout there is an exit, which `rescue` does not see.
+    kind, _reason ->
+      Logger.warning(
+        "[PhoenixKitOG] refine_og #{kind} for post " <> inspect(post_identifier(post))
+      )
+
+      og
   end
 
   defp post_identifier(%{uuid: uuid}) when is_binary(uuid), do: uuid

@@ -53,6 +53,13 @@ defmodule PhoenixKitOG.Templates do
   def delete(%Template{} = template, opts \\ []) do
     result =
       Repo.transaction(fn ->
+        # Locking the template row first makes a concurrent assignment
+        # insert wait on its foreign-key check, so the list below is every
+        # assignment the cascade removes.
+        Repo.one(
+          from(t in Template, where: t.uuid == ^template.uuid, select: t.uuid, lock: "FOR UPDATE")
+        )
+
         assignments = Assignments.list_for_template(template.uuid)
 
         case Repo.delete(template) do
