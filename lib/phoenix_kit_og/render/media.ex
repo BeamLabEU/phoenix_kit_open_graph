@@ -138,6 +138,12 @@ defmodule PhoenixKitOG.Render.Media do
     %{el | value: resolve_image_value(value)}
   end
 
+  # A shape's image fill is an image reference like any other.
+  defp resolve_element(%{type: :shape, fill: %{type: :image, value: value} = fill} = el)
+       when is_binary(value) do
+    %{el | fill: %{fill | value: resolve_image_value(value)}}
+  end
+
   defp resolve_element(el), do: el
 
   defp resolve_background(%{background: %{type: :image, value: value} = bg} = canvas)
@@ -156,6 +162,7 @@ defmodule PhoenixKitOG.Render.Media do
       update_in(scene.elements, fn elements ->
         Enum.reject(elements, fn
           %{type: :image, value: value} -> unresolved_image?(value, values)
+          %{type: :shape, fill: %{type: :image, value: value}} -> unresolved_image?(value, values)
           _ -> false
         end)
       end)

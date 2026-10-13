@@ -53,6 +53,19 @@ defmodule PhoenixKitOG.Assignments do
     Repo.all(from a in Assignment, where: a.template_uuid == ^template_uuid)
   end
 
+  @doc """
+  Deletes every assignment bound to a template and returns the rows it
+  actually removed (`DELETE … RETURNING`). A row that was moved to another
+  template, or removed, by a concurrent transaction is not in the result.
+  """
+  @spec delete_for_template(binary()) :: [Assignment.t()]
+  def delete_for_template(template_uuid) when is_binary(template_uuid) do
+    {_count, deleted} =
+      Repo.delete_all(from(a in Assignment, where: a.template_uuid == ^template_uuid, select: a))
+
+    deleted
+  end
+
   @doc "`%{template_uuid => assignment count}` for the templates that have any."
   @spec count_by_template() :: %{binary() => pos_integer()}
   def count_by_template do
@@ -94,7 +107,9 @@ defmodule PhoenixKitOG.Assignments do
       when is_map(slot_mapping) do
     assignment
     |> Assignment.changeset(%{template_uuid: template_uuid, slot_mapping: slot_mapping})
-    |> Repo.update()
+    # A row another admin removed (or cascaded away with its template) since
+    # it was loaded is an error on `:uuid`, not a `StaleEntryError`.
+    |> Repo.update(stale_error_field: :uuid, stale_error_message: "no longer exists")
     |> ActivityLog.log("assignment.updated", opts, &assignment_activity/1)
   end
 

@@ -46,6 +46,49 @@ defmodule PhoenixKitOG.Render.MediaTest do
     end
   end
 
+  describe "a shape's image fill" do
+    defp scene_with_shape_fill(value) do
+      Scene.new(width: 600, height: 315, background: Scene.solid("#ffffff"))
+      |> Scene.add(
+        Scene.shape("photo-shape",
+          box: %{x: 0, y: 0, w: 300, h: 200},
+          fill: Scene.image_fill(value, :cover)
+        )
+      )
+    end
+
+    test "unresolved is dropped in :public and kept for the stand-in in :preview" do
+      scene = scene_with_shape_fill(Scene.placeholder("Hero"))
+
+      {public, _} = Media.prepare(scene, %{}, :public)
+      assert public.elements == []
+
+      {preview, _} = Media.prepare(scene, %{}, :preview)
+      assert [%{type: :shape}] = preview.elements
+    end
+
+    test "a remote URL is dropped in :public" do
+      scene = scene_with_shape_fill(Scene.placeholder("Hero"))
+      {public, _} = Media.prepare(scene, %{"Hero" => "https://cdn.example/x.png"}, :public)
+      assert public.elements == []
+    end
+
+    test "a static remote URL or unresolvable media UUID is dropped in :public" do
+      for value <- ["https://cdn.example/x.png", Ecto.UUID.generate()] do
+        {public, _} = Media.prepare(scene_with_shape_fill(value), %{}, :public)
+        assert public.elements == []
+      end
+    end
+
+    test "a resolved data: URL keeps the shape in :public" do
+      scene = scene_with_shape_fill(Scene.placeholder("Hero"))
+      values = %{"Hero" => "data:image/png;base64,AA=="}
+
+      {public, _} = Media.prepare(scene, values, :public)
+      assert [%{type: :shape, fill: %{type: :image}}] = public.elements
+    end
+  end
+
   describe "prepare/3 in :public mode" do
     test "an image ELEMENT with an unresolved slot is dropped" do
       {scene, _values} = Media.prepare(scene_with_image_slot(), %{}, :public)

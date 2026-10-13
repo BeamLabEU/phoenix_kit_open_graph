@@ -68,7 +68,11 @@ defmodule PhoenixKitOG.Templates do
 
         if is_nil(locked), do: Repo.rollback(:not_found)
 
-        assignments = Assignments.list_for_template(template.uuid)
+        # Delete the children explicitly and audit the rows `RETURNING`
+        # hands back: an assignment a concurrent transaction moved to
+        # another template is no longer ours to log, and the foreign-key
+        # cascade then finds nothing left to remove.
+        assignments = Assignments.delete_for_template(template.uuid)
 
         case Repo.delete(template) do
           {:ok, deleted} -> {deleted, Enum.map(assignments, &log_cascaded(&1, opts))}

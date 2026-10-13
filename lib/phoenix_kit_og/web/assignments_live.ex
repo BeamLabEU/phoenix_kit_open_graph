@@ -379,12 +379,23 @@ defmodule PhoenixKitOG.Web.AssignmentsLive do
 
   # A concurrent create for the same scope loses on the unique index.
   defp saved({:error, %Ecto.Changeset{errors: errors}}, socket) do
-    message =
-      if Keyword.has_key?(errors, :scope_uuid) or Keyword.has_key?(errors, :scope_type),
-        do: scope_taken_message(),
-        else: gettext("Could not save the assignment.")
+    cond do
+      # The row was removed under the open modal (another admin, or its
+      # template was deleted): there is nothing left to edit.
+      Keyword.has_key?(errors, :uuid) ->
+        {:noreply,
+         socket
+         |> put_flash(:error, Errors.message(:not_found))
+         |> assign(:editing_id, nil)
+         |> load()}
 
-    {:noreply, socket |> put_flash(:error, message) |> load()}
+      Keyword.has_key?(errors, :scope_uuid) or Keyword.has_key?(errors, :scope_type) ->
+        {:noreply, socket |> put_flash(:error, scope_taken_message()) |> load()}
+
+      true ->
+        {:noreply,
+         socket |> put_flash(:error, gettext("Could not save the assignment.")) |> load()}
+    end
   end
 
   defp scope_taken_message,

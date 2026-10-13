@@ -188,6 +188,31 @@ defmodule PhoenixKitOG.AssignmentsTest do
       assert uuid == a.uuid
       assert ActivityRows.rows("assignment.slot_mapping_updated") == []
     end
+
+    test "a row removed since it was loaded is an error on :uuid, not a StaleEntryError" do
+      t = template!()
+      {:ok, a} = Assignments.create("publishing", "default", nil, t.uuid, %{})
+      {:ok, _} = Assignments.clear("publishing", "default", nil)
+
+      assert {:error, %Ecto.Changeset{errors: errors}} =
+               Assignments.update(a, t.uuid, %{"Title" => "custom:Hi"})
+
+      assert Keyword.has_key?(errors, :uuid)
+    end
+  end
+
+  describe "delete_for_template/1" do
+    test "returns exactly the rows it removed and leaves other templates' rows" do
+      doomed = template!()
+      kept = template!()
+      {:ok, a} = Assignments.create("publishing", "default", nil, doomed.uuid, %{})
+      {:ok, b} = Assignments.create("publishing", "group", Ecto.UUID.generate(), kept.uuid, %{})
+
+      assert [%{uuid: uuid}] = Assignments.delete_for_template(doomed.uuid)
+      assert uuid == a.uuid
+      assert Assignments.delete_for_template(doomed.uuid) == []
+      assert %{uuid: _} = Assignments.get_by_uuid(b.uuid)
+    end
   end
 
   describe "get_by_uuid/1 + count_by_template/0 + list_for_template/1" do
