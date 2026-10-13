@@ -49,16 +49,24 @@ defmodule PhoenixKitOG.Templates do
   that went with it, or nothing at all when the delete rolls back.
   """
   @spec delete(Template.t(), keyword()) ::
-          {:ok, Template.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, Template.t()} | {:error, Ecto.Changeset.t() | :not_found}
   def delete(%Template{} = template, opts \\ []) do
     result =
       Repo.transaction(fn ->
         # Locking the template row first makes a concurrent assignment
         # insert wait on its foreign-key check, so the list below is every
-        # assignment the cascade removes.
-        Repo.one(
-          from(t in Template, where: t.uuid == ^template.uuid, select: t.uuid, lock: "FOR UPDATE")
-        )
+        # assignment the cascade removes. A row another admin already
+        # deleted is `:not_found`, not a `StaleEntryError` out of the delete.
+        locked =
+          Repo.one(
+            from(t in Template,
+              where: t.uuid == ^template.uuid,
+              select: t.uuid,
+              lock: "FOR UPDATE"
+            )
+          )
+
+        if is_nil(locked), do: Repo.rollback(:not_found)
 
         assignments = Assignments.list_for_template(template.uuid)
 

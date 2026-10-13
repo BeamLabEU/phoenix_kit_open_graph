@@ -149,7 +149,8 @@ defmodule PhoenixKitOG.SceneEditTest do
 
       scene = SceneEdit.update_element(scene, id, "mask_edge", "left")
       el = Enum.find(scene.elements, &(&1.id == id))
-      assert %{angle: 0, stops: [%{alpha: 0.0} | _]} = el.mask
+      assert %{angle: 0, stops: [%{alpha: alpha} | _]} = el.mask
+      assert alpha == 0
       assert SceneEdit.mask_edge_of(el) == "left"
 
       scene = SceneEdit.update_element(scene, id, "mask_edge", "bottom")

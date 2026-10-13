@@ -126,6 +126,16 @@ defmodule PhoenixKitOG.TemplatesTest do
       assert uuid == t.uuid
     end
 
+    test "a template another admin already deleted is :not_found, not a raise" do
+      {:ok, t} = Templates.create(valid_attrs())
+      assert {:ok, _} = Templates.delete(t)
+
+      assert {:error, :not_found} = Templates.delete(t)
+
+      assert [%{metadata: %{"failed" => true, "reason" => "not_found"}}] =
+               ActivityRows.rows("template.deleted") |> Enum.filter(& &1.metadata["failed"])
+    end
+
     test "another template's assignments are neither removed nor logged" do
       {:ok, doomed} = Templates.create(valid_attrs())
       {:ok, kept} = Templates.create(valid_attrs())

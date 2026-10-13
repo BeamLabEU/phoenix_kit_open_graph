@@ -2,6 +2,50 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.8 - 2026-10-13
+
+### Added
+
+- **Assignments** (#14): `Assignments.create/6` (refuses a scope that already
+  has an assignment), `update/4` (saves the row it opened; scope is not an
+  input), `get_by_uuid/1`, `list_for_template/1`, `count_by_template/0`.
+  The admin Edit modal locks scope and group; New points at the existing
+  assignment's Edit instead of replacing it.
+- The templates list's delete confirmation states how many assignments go
+  with the template.
+- `[[global]]` entries in the editor's insert menu show their label and
+  description.
+
+### Changed
+
+- **Honest public cards.** A wired slot with no value renders as nothing
+  rather than `{{Description}}`; a remote http(s) image is left off the card
+  (never a stand-in), and the assignments UI refuses a remote URL for an image
+  slot. `[[site_url]]`, `[[site_host]]` and `[[page_url]]` come from the
+  configured origin (`:canonical_host_resolver`, the `site_url` setting, the
+  endpoint URL), never the request's `Host` header.
+- `/new` creates the template on its connected mount and navigates to
+  `/:uuid/edit`, so a reconnect no longer creates a second template; a taken
+  "Untitled N" name moves on to the next number.
+- `refine_og/4` also survives an exit, logs identifiers only, and resolves
+  the post's group slug to the group uuid for the group tier.
+- The render cache key hashes only the globals a scene references and no
+  longer includes the module key, so every PNG cached before this release is
+  re-rendered once.
+- Deleting a template writes one `assignment.deleted` activity row per
+  cascaded assignment, in the delete's transaction.
+- A typed variable name is normalised to letters, digits and underscores.
+- Every `phx-change` form also carries `phx-submit`; the template name
+  commits on blur or Enter.
+- The JS bundle now carries only the keyboard hook; pointer gestures belong
+  to `open_fresco`.
+
+### Fixed
+
+- Backspace in a focused dropdown no longer deletes the selected element.
+- `Templates.delete/2` returns `{:error, :not_found}` for a template another
+  admin already deleted, instead of raising `Ecto.StaleEntryError`.
+
 ## 0.3.7 - 2026-09-25
 
 ### Changed
