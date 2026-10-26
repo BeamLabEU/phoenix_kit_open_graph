@@ -162,6 +162,13 @@ defmodule PhoenixKitOG do
   @impl PhoenixKit.Module
   def migration_module, do: PhoenixKitOG.Migrations
 
+  @doc """
+  The manifest of this module's tables, for `mix phoenix_kit.repair` and
+  `mix phoenix_kit.doctor`; see `PhoenixKitOG.ExpectedSchema`.
+  """
+  # No `@impl`, so this compiles against a core that lacks the callback.
+  def expected_schema, do: PhoenixKitOG.ExpectedSchema
+
   # ===========================================================================
   # Public API — the publishing seam
   # ===========================================================================
