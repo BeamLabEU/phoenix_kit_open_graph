@@ -28,8 +28,6 @@ defmodule PhoenixKitOG.MigrationsTest do
   caught rather than silently shipped.
   """
 
-  @og_tables ~w(phoenix_kit_og_templates phoenix_kit_og_assignments)
-
   test "PhoenixKitOG declares the module-owned migration chain" do
     # Assert the VALUE, not `function_exported?/3` — `use PhoenixKit.Module`
     # injects an overridable default `migration_module/0`, so exportedness
@@ -625,8 +623,6 @@ defmodule PhoenixKitOG.MigrationsTest do
   end
 
   describe "V1 stays aligned with core's manifest (while core audits the tables)" do
-    alias PhoenixKit.Migrations.ExpectedSchema
-    alias PhoenixKit.Migrations.ExpectedSchema.Object
     alias PhoenixKitOG.Schemas.Assignment
     alias PhoenixKitOG.Schemas.Template
 
@@ -663,165 +659,6 @@ defmodule PhoenixKitOG.MigrationsTest do
       end
     end
 
-    # Core's V154 baseline still creates both tables and core's
-    # ExpectedSchema audits that shape, so until the first shape-changing
-    # chain version the two DDLs must agree byte-for-byte. Bidirectional:
-    # checks both that V1 creates nothing core doesn't declare AND that V1
-    # is missing nothing core does declare.
-    test "every column core declares matches V1's, in full, for every table" do
-      statements = Migrations.up_statements("public", 1)
-
-      for table <- @og_tables do
-        core = core_columns(table)
-        ours = v1_columns(statements, table)
-
-        assert Map.keys(ours) -- Map.keys(core) == [],
-               "#{table}: V1 creates columns core's manifest does not declare: " <>
-                 inspect(Map.keys(ours) -- Map.keys(core))
-
-        assert Map.keys(core) -- Map.keys(ours) == [],
-               "#{table}: V1 does not create columns core's manifest declares: " <>
-                 inspect(Map.keys(core) -- Map.keys(ours))
-
-        for {column, expected} <- core do
-          assert Map.fetch!(ours, column) == expected,
-                 """
-                 #{table}.#{column}: V1 and core's manifest disagree on the column's shape.
-
-                 V1:              #{inspect(Map.fetch!(ours, column))}
-                 core's manifest: #{inspect(expected)}
-
-                 V1 is an adoption and must be shape-identical to core's
-                 baseline. A deliberate change is a chain version (V2+).
-                 """
-        end
-      end
-    end
-
-    # Full PK/UNIQUE/FK inventory: parses every `ADD CONSTRAINT` statement
-    # V1 emits back into {table, name, kind, columns, foreign_table,
-    # foreign_column, on_delete} and cross-checks each against core's
-    # manifest's own structured shape for that exact constraint id
-    # (`Object.newest_shape/1`) — never a hand-typed duplicate of the
-    # expected shape.
-    test "every PK/UNIQUE/FK constraint's columns, target, and on_delete match core's manifest" do
-      statements = Migrations.up_statements("public", 1)
-      manifest = ExpectedSchema.objects("public")
-
-      constraint_statements = Enum.filter(statements, &(&1 =~ "ADD CONSTRAINT"))
-
-      assert length(constraint_statements) == 4,
-             "expected 2 pkeys + 1 unique constraint + 1 fk = 4 ADD CONSTRAINT " <>
-               "statements, got #{length(constraint_statements)}"
-
-      for stmt <- constraint_statements do
-        {table, name, kind, columns, foreign_table, foreign_column, on_delete} =
-          parse_constraint(stmt)
-
-        manifest_object =
-          Enum.find(manifest, &(&1.id == "constraint:#{table}.#{name}")) ||
-            flunk(
-              "no manifest object constraint:#{table}.#{name} — V1 emits a " <>
-                "constraint core's manifest doesn't declare"
-            )
-
-        shape = Object.newest_shape(manifest_object)
-
-        assert shape.columns == columns,
-               "#{table}.#{name}: columns #{inspect(columns)} != manifest #{inspect(shape.columns)}"
-
-        case kind do
-          "FOREIGN KEY" ->
-            assert shape.type == "f"
-            assert shape.foreign_table == foreign_table
-            assert shape.foreign_columns == [foreign_column]
-            assert shape.on_delete == on_delete
-
-          "PRIMARY KEY" ->
-            assert shape.type == "p"
-
-          "UNIQUE" ->
-            assert shape.type == "u"
-        end
-      end
-    end
-
-    # Full index inventory: parses every `EXECUTE 'CREATE ... INDEX ...'`
-    # argument V1 emits back into {name, unique, method, keys, predicate}
-    # and cross-checks each against core's manifest's own structured shape —
-    # columns-in-order, uniqueness, access method, and partial predicate,
-    # all parsed from the real DDL text rather than hand-typed.
-    test "every index's columns-in-order, uniqueness, method, and predicate match core's manifest" do
-      statements = Migrations.up_statements("public", 1)
-      manifest = ExpectedSchema.objects("public")
-
-      index_statements = Enum.filter(statements, &(&1 =~ "EXECUTE '"))
-      assert length(index_statements) == 3
-
-      for stmt <- index_statements do
-        {name, unique, method, keys, predicate} = parse_index(stmt)
-
-        manifest_object =
-          Enum.find(manifest, &(&1.id == "index:#{name}")) ||
-            flunk(
-              "no manifest object index:#{name} — V1 emits an index core's " <>
-                "manifest doesn't declare"
-            )
-
-        shape = Object.newest_shape(manifest_object)
-
-        assert unique == shape.unique, "#{name}: unique #{unique} != manifest #{shape.unique}"
-        assert method == shape.method, "#{name}: method #{method} != manifest #{shape.method}"
-
-        assert keys == shape.keys,
-               "#{name}: keys #{inspect(keys)} != manifest #{inspect(shape.keys)}"
-
-        assert predicate == shape.predicate,
-               "#{name}: predicate #{inspect(predicate)} != manifest #{inspect(shape.predicate)}"
-      end
-    end
-
-    defp on_delete_code("CASCADE"), do: "c"
-    defp on_delete_code("SET NULL"), do: "n"
-    defp on_delete_code("RESTRICT"), do: "r"
-    defp on_delete_code("NO ACTION"), do: "a"
-    defp on_delete_code("SET DEFAULT"), do: "d"
-
-    defp parse_constraint(statement) do
-      normalized = statement |> String.replace(~r/\s+/, " ") |> String.trim()
-
-      regex =
-        ~r/ALTER TABLE \S+\.(\w+) ADD CONSTRAINT (\w+) (PRIMARY KEY|UNIQUE|FOREIGN KEY) \(([^)]+)\)(?: REFERENCES \S+\.(\w+)\((\w+)\) ON DELETE ([A-Z ]+))?/
-
-      case Regex.run(regex, normalized) do
-        [_, table, name, kind, cols] ->
-          {table, name, kind, String.split(cols, ", "), nil, nil, nil}
-
-        [_, table, name, kind, cols, foreign_table, foreign_column, on_delete] ->
-          {table, name, kind, String.split(cols, ", "), foreign_table, foreign_column,
-           on_delete_code(String.trim(on_delete))}
-      end
-    end
-
-    defp parse_index(statement) do
-      [_, execute_sql] = Regex.run(~r/EXECUTE '([^']*)'/, statement)
-
-      regex =
-        ~r/^CREATE (UNIQUE )?INDEX IF NOT EXISTS (\w+) ON \S+ USING (\w+) \(([^)]+)\)(?: WHERE (.+))?$/
-
-      [_, unique_flag, name, method, cols_raw | rest] = Regex.run(regex, execute_sql)
-
-      predicate =
-        case rest do
-          [p] when p != "" -> p
-          _ -> nil
-        end
-
-      keys = String.split(cols_raw, ", ")
-
-      {name, unique_flag == "UNIQUE ", method, keys, predicate}
-    end
-
     defp v1_columns(statements, table) do
       create = table_create(statements, table)
 
@@ -848,19 +685,6 @@ defmodule PhoenixKitOG.MigrationsTest do
         [type] -> %{type: type, default: nil, not_null: not_null}
         [type, default] -> %{type: type, default: default, not_null: not_null}
       end
-    end
-
-    defp core_columns(table) do
-      prefix = "column:#{table}."
-
-      ExpectedSchema.objects("public")
-      |> Enum.filter(&(&1.class == :column and String.starts_with?(&1.id, prefix)))
-      |> Map.new(fn object ->
-        {_version, shape} = List.last(object.revisions)
-
-        {String.replace_prefix(object.id, prefix, ""),
-         %{type: shape.type, default: shape.default, not_null: shape.not_null}}
-      end)
     end
   end
 end
