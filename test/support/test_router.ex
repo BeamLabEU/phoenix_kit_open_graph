@@ -18,7 +18,7 @@ defmodule PhoenixKitOG.Test.Router do
     plug(:protect_from_forgery)
   end
 
-  scope "/en/admin/open-graph", PhoenixKitOG.Web do
+  scope "/admin/open-graph", PhoenixKitOG.Web do
     pipe_through(:browser)
 
     live_session :og_test,

@@ -14,7 +14,7 @@ defmodule PhoenixKitOG.Web.AssignmentsLiveTest do
   alias PhoenixKitOG.{ActivityRows, Assignments, SceneStore, Templates}
   alias PhoenixKitOG.Test.Publishing
 
-  @path "/en/admin/open-graph/assignments"
+  @path "/admin/open-graph/assignments"
   @group_a "0197a5b3-aaaa-7000-8000-00000000000a"
   @group_b "0197a5b3-bbbb-7000-8000-00000000000b"
 

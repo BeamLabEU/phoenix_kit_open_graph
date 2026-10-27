@@ -21,7 +21,7 @@ defmodule PhoenixKitOG.Web.TemplatesLiveTest do
     template = create_template("Render Probe")
 
     conn = put_test_scope(conn, fake_scope())
-    {:ok, _view, html} = live(conn, "/en/admin/open-graph")
+    {:ok, _view, html} = live(conn, "/admin/open-graph")
 
     assert html =~ "OpenGraph templates"
     assert html =~ template.name
@@ -29,7 +29,7 @@ defmodule PhoenixKitOG.Web.TemplatesLiveTest do
 
   test "renders the empty state without a template", %{conn: conn} do
     conn = put_test_scope(conn, fake_scope())
-    {:ok, _view, html} = live(conn, "/en/admin/open-graph")
+    {:ok, _view, html} = live(conn, "/admin/open-graph")
 
     assert html =~ "OpenGraph templates"
   end
@@ -55,7 +55,7 @@ defmodule PhoenixKitOG.Web.TemplatesLiveTest do
       {:ok, _} = Assignments.create("publishing", "group", Ecto.UUID.generate(), twice.uuid, %{})
       {:ok, _} = Assignments.create("projects", "default", nil, twice.uuid, %{})
 
-      {:ok, view, _html} = conn |> put_test_scope(fake_scope()) |> live("/en/admin/open-graph")
+      {:ok, view, _html} = conn |> put_test_scope(fake_scope()) |> live("/admin/open-graph")
 
       assert confirmation(view, unused) == "Delete Unused?"
 
@@ -68,7 +68,7 @@ defmodule PhoenixKitOG.Web.TemplatesLiveTest do
 
     test "the delete button disables itself while the delete is in flight", %{conn: conn} do
       template = create_template("Guarded")
-      {:ok, view, _html} = conn |> put_test_scope(fake_scope()) |> live("/en/admin/open-graph")
+      {:ok, view, _html} = conn |> put_test_scope(fake_scope()) |> live("/admin/open-graph")
 
       assert has_element?(
                view,
@@ -82,7 +82,7 @@ defmodule PhoenixKitOG.Web.TemplatesLiveTest do
       kept = create_template("Kept")
       {:ok, assignment} = Assignments.create("publishing", "default", nil, template.uuid, %{})
 
-      {:ok, view, _html} = conn |> put_test_scope(scope) |> live("/en/admin/open-graph")
+      {:ok, view, _html} = conn |> put_test_scope(scope) |> live("/admin/open-graph")
       html = view |> delete_button(template) |> render_click()
 
       assert html =~ "Deleted “Doomed”."
@@ -106,7 +106,7 @@ defmodule PhoenixKitOG.Web.TemplatesLiveTest do
 
     test "a template that is already gone reports not found", %{conn: conn} do
       template = create_template("Vanishing")
-      {:ok, view, _html} = conn |> put_test_scope(fake_scope()) |> live("/en/admin/open-graph")
+      {:ok, view, _html} = conn |> put_test_scope(fake_scope()) |> live("/admin/open-graph")
       {:ok, _} = Templates.delete(template)
 
       assert view |> delete_button(template) |> render_click() =~ "Not found."

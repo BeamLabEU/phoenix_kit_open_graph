@@ -19,7 +19,7 @@ defmodule PhoenixKitOG.Test.Hooks do
     socket =
       socket
       |> assign(:current_locale, session["phoenix_kit_test_locale"] || "en-US")
-      |> assign(:url_path, "/en/admin/open-graph")
+      |> assign(:url_path, "/admin/open-graph")
 
     socket =
       case Map.get(session, "phoenix_kit_test_scope") do

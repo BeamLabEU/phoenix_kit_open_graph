@@ -16,7 +16,7 @@ defmodule PhoenixKitOG.Web.EditorLiveTest do
     template
   end
 
-  defp edit_path(template), do: "/en/admin/open-graph/#{template.uuid}/edit"
+  defp edit_path(template), do: "/admin/open-graph/#{template.uuid}/edit"
 
   defp mount_editor(conn, template, scope \\ fake_scope()) do
     {:ok, view, html} = conn |> put_test_scope(scope) |> live(edit_path(template))
@@ -60,7 +60,7 @@ defmodule PhoenixKitOG.Web.EditorLiveTest do
       conn = put_test_scope(conn, fake_scope())
 
       assert {:error, {:live_redirect, %{to: to, kind: :replace}}} =
-               live(conn, "/en/admin/open-graph/new")
+               live(conn, "/admin/open-graph/new")
 
       assert [template] = Templates.list()
       assert to == edit_path(template)
@@ -68,7 +68,7 @@ defmodule PhoenixKitOG.Web.EditorLiveTest do
 
     test "re-opening the edit URL (what a reconnect does) creates nothing", %{conn: conn} do
       conn = put_test_scope(conn, fake_scope())
-      {:error, {:live_redirect, %{to: to}}} = live(conn, "/en/admin/open-graph/new")
+      {:error, {:live_redirect, %{to: to}}} = live(conn, "/admin/open-graph/new")
 
       {:ok, _view, _html} = live(conn, to)
       {:ok, _view, _html} = live(conn, to)
@@ -81,7 +81,7 @@ defmodule PhoenixKitOG.Web.EditorLiveTest do
       create_template("Untitled 7")
       conn = put_test_scope(conn, fake_scope())
 
-      {:error, {:live_redirect, _}} = live(conn, "/en/admin/open-graph/new")
+      {:error, {:live_redirect, _}} = live(conn, "/admin/open-graph/new")
 
       assert "Untitled 8" in Enum.map(Templates.list(), & &1.name)
     end
@@ -90,7 +90,7 @@ defmodule PhoenixKitOG.Web.EditorLiveTest do
       scope = fake_scope()
 
       {:error, {:live_redirect, _}} =
-        conn |> put_test_scope(scope) |> live("/en/admin/open-graph/new")
+        conn |> put_test_scope(scope) |> live("/admin/open-graph/new")
 
       assert [%{actor_uuid: actor}] = ActivityRows.rows("template.created")
       assert actor == scope.user.uuid
@@ -99,8 +99,8 @@ defmodule PhoenixKitOG.Web.EditorLiveTest do
     test "an unknown template uuid goes back to the list", %{conn: conn} do
       conn = put_test_scope(conn, fake_scope())
 
-      assert {:error, {:live_redirect, %{to: "/en/admin/open-graph"}}} =
-               live(conn, "/en/admin/open-graph/#{Ecto.UUID.generate()}/edit")
+      assert {:error, {:live_redirect, %{to: "/admin/open-graph"}}} =
+               live(conn, "/admin/open-graph/#{Ecto.UUID.generate()}/edit")
     end
   end
 

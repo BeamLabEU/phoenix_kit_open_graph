@@ -13,7 +13,7 @@ defmodule PhoenixKitOG.LiveCase do
 
         test "renders the template list", %{conn: conn} do
           conn = put_test_scope(conn, fake_scope())
-          {:ok, _view, html} = live(conn, "/en/admin/open-graph")
+          {:ok, _view, html} = live(conn, "/admin/open-graph")
           assert html =~ "Templates"
         end
       end

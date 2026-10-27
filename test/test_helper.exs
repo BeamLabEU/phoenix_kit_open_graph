@@ -63,28 +63,15 @@ repo_available =
       $$ LANGUAGE plpgsql VOLATILE;
       """)
 
-      # Apply core's versioned migration chain (which includes the OG tables at
-      # V154) so the integration suite has a schema.
+      # Core's versioned migration chain first.
       PhoenixKit.Migration.ensure_current(TestRepo, log: false)
 
-      # The OG tables ship in core V154. Without PHOENIX_KIT_PATH the suite
-      # resolves the *published* core (~> 1.7.189, pre-V154) — so integration
-      # tests get excluded (with a hint) instead of failing on a missing table.
-      %{rows: [[og_tables?]]} =
-        TestRepo.query!(
-          "SELECT EXISTS (SELECT 1 FROM information_schema.tables " <>
-            "WHERE table_name = 'phoenix_kit_og_templates')"
-        )
+      # The OG tables belong to this module's chain (core 3.0 creates none), so
+      # build them with it: the real chain, as `mix phoenix_kit.update` runs it.
+      PhoenixKitOG.Migrations.up_statements("public")
+      |> Enum.each(&TestRepo.query!(&1))
 
-      # Also run this module's OWN adoption chain (PhoenixKitOG.Migrations)
-      # against the real database, so the integration suite exercises V1's
-      # guarded DDL for real on every run — not just as parsed text in
-      # migrations_test.exs. A no-op against the shape core's V154 already
-      # created; it just stamps the pkog_schema:1 marker.
-      if og_tables? do
-        PhoenixKitOG.Migrations.up_statements("public", 1)
-        |> Enum.each(&TestRepo.query!(&1))
-      end
+      og_tables? = true
 
       Application.put_env(:phoenix_kit_og, :og_tables_present, og_tables?)
 
