@@ -3,10 +3,8 @@ defmodule PhoenixKitOG.DataCase do
   Test case for tests needing DB access. Auto-tagged `:integration` so they're
   excluded when Postgres or the OG tables are unavailable (see test_helper.exs).
 
-  The OG tables (`phoenix_kit_og_templates` / `_assignments`) live in CORE
-  migration V154, so the suite needs local core on the path
-  (`PHOENIX_KIT_PATH=../phoenix_kit`) — the published pin (~> 1.7.189) predates
-  V154, the normal pre-release module-red-standalone condition.
+  The OG tables (`phoenix_kit_og_templates` / `_assignments`) are built by this
+  module's own chain in test_helper.exs (core 3.x creates none).
   """
   use ExUnit.CaseTemplate
 

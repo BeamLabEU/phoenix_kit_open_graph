@@ -83,14 +83,9 @@ defmodule PhoenixKitOG.MixProject do
 
   defp deps do
     [
-      # 2.38.0 is the floor now: the actor and the activity log come from
-      # `PhoenixKitWeb.Actor` and `PhoenixKit.Activity.log/3`, first shipped
-      # there and no longer feature-detected, so a lower core fails to compile.
-      # Patch-precise floor in the compound form, so the ceiling stays open
-      # through every later 2.x minor (see test/core_pin_conformance_test.exs).
-      # Floor 2.65.0: the first core with the `file_references/0` and `expected_schema/0`
-      # callbacks this module implements (`@impl`). The ceiling is open through core 3.x.
-      pk_dep(:phoenix_kit, ">= 2.65.0 and < 4.0.0"),
+      # Floor 3.5.0 (the ecosystem-wide minimum), ceiling open through every
+      # core 3.x (see test/core_pin_conformance_test.exs).
+      pk_dep(:phoenix_kit, ">= 3.5.0 and < 4.0.0"),
       {:phoenix_live_view, "~> 1.1"},
       {:ecto_sql, "~> 3.13"},
       # Scene model + editor stage + server-side SVG/PNG rendering for OG
